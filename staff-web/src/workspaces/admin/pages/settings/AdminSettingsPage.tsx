@@ -1,4 +1,18 @@
-import { Button, Card, Col, Descriptions, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography } from 'antd';
+import {
+  Button,
+  Card,
+  Col,
+  Descriptions,
+  Form,
+  Input,
+  InputNumber,
+  Row,
+  Select,
+  Space,
+  Statistic,
+  Switch,
+  Typography,
+} from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFlowStore } from '../../../../app/store/flow-store';
@@ -25,6 +39,7 @@ import {
   listAdminBranches,
   listAdminRestaurantTables,
   listAdminRestaurantTableTemplates,
+  listAdminMenuCategories,
   type AdminRestaurantTable,
 } from '../../../../shared/api/staff-api';
 import { formatApiError } from '../../../../shared/api/errors';
@@ -35,6 +50,19 @@ import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
+import { BranchModal } from './BranchModal';
+import { ZoneRenameModal } from './ZoneRenameModal';
+import { KitchenStationModal } from './KitchenStationModal';
+import {
+  listAdminZones,
+  listAdminKitchenStations,
+  syncAdminCategoryRoutes,
+  listAdminCategoryRoutes,
+  getAdminTaxProfile,
+  upsertAdminTaxProfile,
+  type AdminBranch,
+  type AdminKitchenStation,
+} from './settings-crud-api';
 
 type BranchRow = Awaited<ReturnType<typeof listAdminBranches>>['data'][number];
 type NewTableStatus = 'Available' | 'Blocked' | 'Maintenance';
@@ -51,6 +79,8 @@ const tableStatusOptions = [
 export function AdminSettingsPage() {
   const queryClient = useQueryClient();
   const startupBranchId = useFlowStore((state) => state.branchId);
+
+  // ─── Filter states ───────────────────────────────────────────────────────
   const [filters, setFilters] = useState<AdminBranchFilterState>({
     query: '',
     activeOnly: true,
@@ -62,8 +92,13 @@ export function AdminSettingsPage() {
     includeDeleted: false,
     branchIdInput: startupBranchId ? String(startupBranchId) : '',
   });
+
+  // ─── Selection states ────────────────────────────────────────────────────
   const [selectedBranchId, setSelectedBranchId] = useState<number | null>(startupBranchId);
   const [selectedTableId, setSelectedTableId] = useState<number | null>(null);
+  const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
+
+  // ─── Table create form ───────────────────────────────────────────────────
   const [tableForm, setTableForm] = useState({
     tableCode: '',
     branchId: startupBranchId ? String(startupBranchId) : '',
@@ -73,6 +108,21 @@ export function AdminSettingsPage() {
     seatsPrice: '',
   });
 
+  // ─── Modal open states ───────────────────────────────────────────────────
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const [editingBranch, setEditingBranch] = useState<AdminBranch | null>(null);
+  const [isZoneRenameModalOpen, setIsZoneRenameModalOpen] = useState(false);
+  const [renamingZone, setRenamingZone] = useState('');
+  const [isKitchenStationModalOpen, setIsKitchenStationModalOpen] = useState(false);
+  const [editingStation, setEditingStation] = useState<AdminKitchenStation | null>(null);
+
+  // ─── Tax profile form state ──────────────────────────────────────────────
+  const [taxForm] = Form.useForm();
+
+  // ─── Category route state ────────────────────────────────────────────────
+  const [categoryRouteForm] = Form.useForm();
+
+  // ─── Queries ─────────────────────────────────────────────────────────────
   const branchesQuery = useQuery({
     queryKey: ['admin-settings-branches', filters],
     queryFn: () => listAdminBranches(buildAdminBranchesQuery(filters)),
@@ -88,9 +138,42 @@ export function AdminSettingsPage() {
     queryFn: () => listAdminRestaurantTableTemplates(),
   });
 
+  const zonesQuery = useQuery({
+    queryKey: ['admin-settings-zones'],
+    queryFn: () => listAdminZones(),
+  });
+
+  const kitchenStationsQuery = useQuery({
+    queryKey: ['admin-kitchen-stations'],
+    queryFn: () => listAdminKitchenStations(),
+  });
+
+  const categoryRoutesQuery = useQuery({
+    queryKey: ['admin-category-routes', selectedStationId],
+    queryFn: () => listAdminCategoryRoutes(selectedStationId as number),
+    enabled: selectedStationId !== null,
+  });
+
+  const taxProfileQuery = useQuery({
+    queryKey: ['admin-tax-profile'],
+    queryFn: () => getAdminTaxProfile(),
+  });
+
+  const menuCategoriesQuery = useQuery({
+    queryKey: ['admin-menu-categories-list'],
+    queryFn: () => listAdminMenuCategories({ per_page: 50, sort: 'sort_order' }),
+  });
+
+  // ─── Derived data ────────────────────────────────────────────────────────
   const branches = useMemo(() => branchesQuery.data?.data ?? [], [branchesQuery.data?.data]);
   const tables = useMemo(() => tableQuery.data?.data ?? [], [tableQuery.data?.data]);
   const templates = useMemo(() => templatesQuery.data?.data ?? [], [templatesQuery.data?.data]);
+  const zones = useMemo(() => zonesQuery.data?.data ?? [], [zonesQuery.data?.data]);
+  const stations = useMemo(() => kitchenStationsQuery.data?.data ?? [], [kitchenStationsQuery.data?.data]);
+  const categoryRoutes = useMemo(() => categoryRoutesQuery.data?.data ?? [], [categoryRoutesQuery.data?.data]);
+  const taxProfile = useMemo(() => taxProfileQuery.data?.data ?? null, [taxProfileQuery.data?.data]);
+  const menuCategories = useMemo(() => menuCategoriesQuery.data?.data ?? [], [menuCategoriesQuery.data?.data]);
+
   const summary = useMemo(() => summarizeAdminBranches(branches), [branches]);
   const tableSummary = useMemo(() => summarizeAdminTables(tables), [tables]);
   const selectedBranch = useMemo(
@@ -101,7 +184,12 @@ export function AdminSettingsPage() {
     () => tables.find((table) => table.table_id === selectedTableId) ?? null,
     [selectedTableId, tables],
   );
+  const selectedStation = useMemo(
+    () => stations.find((station) => station.station_id === selectedStationId) ?? null,
+    [stations, selectedStationId],
+  );
 
+  // ─── Mutations ────────────────────────────────────────────────────────────
   const createTableMutation = useMutation({
     mutationFn: async () => {
       const branchId = Number(tableForm.branchId);
@@ -131,6 +219,39 @@ export function AdminSettingsPage() {
     },
   });
 
+  const syncCategoryRoutesMutation = useMutation({
+    mutationFn: async (categoryIds: Array<number>) => {
+      if (!selectedStationId) throw new Error('Chưa chọn trạm bếp');
+      return syncAdminCategoryRoutes(selectedStationId, {
+        routes: categoryIds.map((id) => ({ category_id: id })),
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-category-routes', selectedStationId] });
+      toast.success('Cập nhật tuyến danh mục thành công.');
+    },
+    onError: (error) => {
+      toast.error(formatApiError(error, 'Chưa cập nhật được tuyến danh mục.'));
+    },
+  });
+
+  const upsertTaxProfileMutation = useMutation({
+    mutationFn: async (values: { tax_rate: number; service_charge_rate: number }) => {
+      return upsertAdminTaxProfile({
+        tax_rate: values.tax_rate,
+        service_charge_rate: values.service_charge_rate,
+      });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-tax-profile'] });
+      toast.success('Cập nhật hồ sơ thuế thành công.');
+    },
+    onError: (error) => {
+      toast.error(formatApiError(error, 'Chưa cập nhật được hồ sơ thuế.'));
+    },
+  });
+
+  // ─── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
     setSelectedBranchId((currentSelectedBranchId) => pickAdminBranchId(branches, currentSelectedBranchId, startupBranchId));
   }, [branches, startupBranchId]);
@@ -140,11 +261,32 @@ export function AdminSettingsPage() {
       if (currentSelectedTableId !== null && tables.some((table) => table.table_id === currentSelectedTableId)) {
         return currentSelectedTableId;
       }
-
       return tables[0]?.table_id ?? null;
     });
   }, [tables]);
 
+  // Populate tax form when data loads
+  useEffect(() => {
+    if (taxProfile) {
+      taxForm.setFieldsValue({
+        tax_rate: taxProfile.tax_rate,
+        service_charge_rate: taxProfile.service_charge_rate,
+      });
+    }
+  }, [taxProfile, taxForm]);
+
+  // Populate category route form when routes load
+  useEffect(() => {
+    if (categoryRoutes.length > 0) {
+      categoryRouteForm.setFieldsValue({
+        category_ids: categoryRoutes.map((route) => route.category_id),
+      });
+    } else {
+      categoryRouteForm.setFieldsValue({ category_ids: [] });
+    }
+  }, [categoryRoutes, categoryRouteForm]);
+
+  // ─── Main content ──────────────────────────────────────────────────────────
   const main = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <PageHeader
@@ -162,6 +304,7 @@ export function AdminSettingsPage() {
         )}
       />
 
+      {/* ─── Branch List ─────────────────────────────────────────────────── */}
       <Card className="staff-workspace-filter-card" title="Lọc chi nhánh">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={16}>
@@ -208,7 +351,21 @@ export function AdminSettingsPage() {
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Danh bạ chi nhánh">
+      <Card
+        className="staff-workspace-table-card"
+        title="Danh bạ chi nhánh"
+        data-testid="admin-branches-page"
+        extra={(
+          <Button
+            type="primary"
+            size="small"
+            data-testid="admin-branch-create-button"
+            onClick={() => { setEditingBranch(null); setIsBranchModalOpen(true); }}
+          >
+            Tạo chi nhánh
+          </Button>
+        )}
+      >
         {branchesQuery.isLoading ? <InlineLoading tip="Đang tải danh bạ chi nhánh..." /> : null}
         {branchesQuery.error ? <ApiStateBlock error={branchesQuery.error} fallback="Chưa tải được danh sách chi nhánh." onRetry={() => void branchesQuery.refetch()} /> : null}
         {!branchesQuery.isLoading && !branchesQuery.error && branches.length === 0 ? (
@@ -220,6 +377,7 @@ export function AdminSettingsPage() {
               <button
                 key={branch.branch_id}
                 type="button"
+                data-testid="admin-branch-row"
                 className={`staff-admin-branch-row ${branch.branch_id === selectedBranchId ? 'staff-admin-branch-row-selected' : ''}`}
                 onClick={() => setSelectedBranchId(branch.branch_id)}
               >
@@ -230,6 +388,18 @@ export function AdminSettingsPage() {
                 <Space wrap size={6}>
                   {branch.is_default ? <StatusChip label="Mặc định" tone="processing" /> : null}
                   <StatusChip label={branch.is_active ? 'Đang hoạt động' : 'Tạm tắt'} tone={branch.is_active ? 'success' : 'warning'} />
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingBranch(branch as unknown as AdminBranch);
+                      setIsBranchModalOpen(true);
+                    }}
+                  >
+                    Sửa
+                  </Button>
                 </Space>
               </button>
             ))}
@@ -237,6 +407,39 @@ export function AdminSettingsPage() {
         ) : null}
       </Card>
 
+      {/* ─── Zone List ───────────────────────────────────────────────────── */}
+      <Card
+        className="staff-workspace-table-card"
+        title="Khu vực (Zones)"
+        data-testid="admin-zones-page"
+      >
+        {zonesQuery.isLoading ? <InlineLoading tip="Đang tải khu vực..." /> : null}
+        {zonesQuery.error ? <ApiStateBlock error={zonesQuery.error} fallback="Chưa tải được khu vực." onRetry={() => void zonesQuery.refetch()} /> : null}
+        {!zonesQuery.isLoading && !zonesQuery.error && zones.length === 0 ? (
+          <EmptyBlock title="Chưa có khu vực" description="Khu vực được tạo khi tạo bàn với tên khu vực mới." />
+        ) : null}
+        {zones.length > 0 ? (
+          <div className="staff-admin-surface-list">
+            {zones.map((zone) => (
+              <div key={zone.zone} className="staff-admin-surface-item" data-testid="admin-zone-row">
+                <div>
+                  <strong>{zone.zone}</strong>
+                  <Typography.Paragraph type="secondary">{zone.table_count} bàn</Typography.Paragraph>
+                </div>
+                <Button
+                  type="link"
+                  size="small"
+                  onClick={() => { setRenamingZone(zone.zone); setIsZoneRenameModalOpen(true); }}
+                >
+                  Đổi tên
+                </Button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Card>
+
+      {/* ─── Table Filter ────────────────────────────────────────────────── */}
       <Card className="staff-workspace-filter-card" title="Lọc bàn">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={8}>
@@ -310,7 +513,24 @@ export function AdminSettingsPage() {
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Quản lý bàn">
+      {/* ─── Table List ──────────────────────────────────────────────────── */}
+      <Card
+        className="staff-workspace-table-card"
+        title="Quản lý bàn"
+        data-testid="admin-tables-page"
+        extra={(
+          <Button
+            type="primary"
+            size="small"
+            data-testid="admin-table-create-button"
+            onClick={() => {
+              setTableForm((current) => ({ ...current, tableCode: '', seatsPrice: '' }));
+            }}
+          >
+            Tạo bàn mới
+          </Button>
+        )}
+      >
         {tableQuery.isLoading ? <InlineLoading tip="Đang tải danh sách bàn..." /> : null}
         {tableQuery.error ? <ApiStateBlock error={tableQuery.error} fallback="Chưa tải được danh sách bàn." onRetry={() => void tableQuery.refetch()} /> : null}
         {!tableQuery.isLoading && !tableQuery.error && tables.length === 0 ? (
@@ -322,6 +542,7 @@ export function AdminSettingsPage() {
               <button
                 key={table.table_id}
                 type="button"
+                data-testid="admin-table-row"
                 className={`staff-admin-branch-row ${table.table_id === selectedTableId ? 'staff-admin-branch-row-selected' : ''}`}
                 onClick={() => setSelectedTableId(table.table_id)}
               >
@@ -340,12 +561,14 @@ export function AdminSettingsPage() {
         ) : null}
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Tạo bàn">
+      {/* ─── Table Create Form ───────────────────────────────────────────── */}
+      <Card className="staff-workspace-table-card" title="Tạo bàn" data-testid="admin-table-form">
         <Row gutter={[12, 12]}>
           <Col xs={24} md={6}>
             <Input
               aria-label="Mã bàn mới"
               autoComplete="off"
+              data-testid="admin-table-name-input"
               value={tableForm.tableCode}
               placeholder="Mã bàn"
               onChange={(event) => setTableForm((current) => ({ ...current, tableCode: event.target.value }))}
@@ -355,6 +578,7 @@ export function AdminSettingsPage() {
             <Input
               aria-label="Mã chi nhánh của bàn mới"
               autoComplete="off"
+              data-testid="admin-table-branch-select"
               value={tableForm.branchId}
               placeholder="Mã chi nhánh"
               onChange={(event) => setTableForm((current) => ({ ...current, branchId: event.target.value }))}
@@ -378,6 +602,7 @@ export function AdminSettingsPage() {
             <Input
               aria-label="Khu vực bàn mới"
               autoComplete="off"
+              data-testid="admin-table-zone-select"
               value={tableForm.zone}
               placeholder="Khu vực"
               onChange={(event) => setTableForm((current) => ({ ...current, zone: event.target.value }))}
@@ -386,6 +611,7 @@ export function AdminSettingsPage() {
           <Col xs={24} md={3}>
             <InputNumber
               aria-label="Giá bàn mới"
+              data-testid="admin-table-capacity-input"
               style={{ width: '100%' }}
               min={0}
               value={tableForm.seatsPrice === '' ? null : Number(tableForm.seatsPrice)}
@@ -396,6 +622,7 @@ export function AdminSettingsPage() {
           <Col xs={24} md={2}>
             <Button
               type="primary"
+              data-testid="admin-table-save-button"
               onClick={() => createTableMutation.mutate()}
               loading={createTableMutation.isPending}
               disabled={createTableMutation.isPending}
@@ -405,14 +632,214 @@ export function AdminSettingsPage() {
           </Col>
         </Row>
         {createTableMutation.error ? (
-          <Typography.Paragraph type="danger">
+          <Typography.Paragraph type="danger" data-testid="admin-error-alert">
             {formatApiError(createTableMutation.error, 'Chưa tạo được bàn nhà hàng.')}
           </Typography.Paragraph>
+        ) : null}
+      </Card>
+
+      {/* ─── Kitchen Stations ────────────────────────────────────────────── */}
+      <Card
+        className="staff-workspace-table-card"
+        title="Trạm bếp (Kitchen Stations)"
+        data-testid="admin-kitchen-stations-page"
+        extra={(
+          <Button
+            type="primary"
+            size="small"
+            data-testid="admin-kitchen-station-create-button"
+            onClick={() => { setEditingStation(null); setIsKitchenStationModalOpen(true); }}
+          >
+            Tạo trạm bếp
+          </Button>
+        )}
+      >
+        {kitchenStationsQuery.isLoading ? <InlineLoading tip="Đang tải trạm bếp..." /> : null}
+        {kitchenStationsQuery.error ? <ApiStateBlock error={kitchenStationsQuery.error} fallback="Chưa tải được trạm bếp." onRetry={() => void kitchenStationsQuery.refetch()} /> : null}
+        {!kitchenStationsQuery.isLoading && !kitchenStationsQuery.error && stations.length === 0 ? (
+          <EmptyBlock title="Chưa có trạm bếp" description="Tạo trạm bếp để cấu hình tuyến món. Mỗi trạm bếp nhận các loại món được chỉ định." />
+        ) : null}
+        {stations.length > 0 ? (
+          <div className="staff-admin-surface-list">
+            {stations.map((station) => (
+              <button
+                key={station.station_id}
+                type="button"
+                data-testid="admin-kitchen-station-row"
+                className={`staff-admin-branch-row ${station.station_id === selectedStationId ? 'staff-admin-branch-row-selected' : ''}`}
+                onClick={() => setSelectedStationId(station.station_id)}
+              >
+                <div className="staff-admin-branch-row-main">
+                  <strong>{station.name}</strong>
+                  <span>{station.description ?? 'Chưa có mô tả'}</span>
+                </div>
+                <Space wrap size={6}>
+                  <StatusChip label={station.is_active ? 'Đang hoạt động' : 'Tạm tắt'} tone={station.is_active ? 'success' : 'warning'} />
+                  <Button
+                    type="link"
+                    size="small"
+                    style={{ padding: 0 }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setEditingStation(station);
+                      setIsKitchenStationModalOpen(true);
+                    }}
+                  >
+                    Sửa
+                  </Button>
+                </Space>
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </Card>
+
+      {/* ─── Category Routes ─────────────────────────────────────────────── */}
+      <Card
+        className="staff-workspace-table-card"
+        title="Tuyến danh mục → Trạm bếp"
+        data-testid="admin-category-routes-page"
+      >
+        {!selectedStation ? (
+          <EmptyBlock
+            title="Chưa chọn trạm bếp"
+            description="Chọn một trạm bếp ở trên để xem và cập nhật tuyến danh mục món."
+          />
+        ) : (
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+            <StatusChip label={`Trạm bếp: ${selectedStation.name}`} tone="processing" />
+            {categoryRoutesQuery.isLoading ? <InlineLoading tip="Đang tải tuyến danh mục..." /> : null}
+            {categoryRoutesQuery.error ? <ApiStateBlock error={categoryRoutesQuery.error} fallback="Chưa tải được tuyến danh mục." onRetry={() => void categoryRoutesQuery.refetch()} /> : null}
+            <Form
+              form={categoryRouteForm}
+              layout="vertical"
+              onFinish={(values: { category_ids: Array<number> }) => {
+                syncCategoryRoutesMutation.mutate(values.category_ids ?? []);
+              }}
+            >
+              <Form.Item
+                label="Danh mục món được route tới trạm này"
+                name="category_ids"
+              >
+                <Select
+                  mode="multiple"
+                  data-testid="admin-category-route-category-select"
+                  style={{ width: '100%' }}
+                  placeholder="Chọn danh mục món"
+                  loading={menuCategoriesQuery.isLoading}
+                  options={menuCategories.map((cat) => ({
+                    value: cat.category_id,
+                    label: cat.name,
+                  }))}
+                />
+              </Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                data-testid="admin-category-route-save-button"
+                loading={syncCategoryRoutesMutation.isPending}
+              >
+                Cập nhật tuyến danh mục
+              </Button>
+            </Form>
+          </Space>
+        )}
+      </Card>
+
+      {/* ─── Tax Profile ─────────────────────────────────────────────────── */}
+      <Card
+        className="staff-workspace-table-card"
+        title="Hồ sơ thuế và phí dịch vụ"
+        data-testid="admin-tax-profile-page"
+      >
+        {taxProfileQuery.isLoading ? <InlineLoading tip="Đang tải hồ sơ thuế..." /> : null}
+        {taxProfileQuery.error ? <ApiStateBlock error={taxProfileQuery.error} fallback="Chưa tải được hồ sơ thuế." onRetry={() => void taxProfileQuery.refetch()} /> : null}
+        {!taxProfileQuery.isLoading && !taxProfileQuery.error ? (
+          <Form
+            form={taxForm}
+            layout="vertical"
+            onFinish={(values) => upsertTaxProfileMutation.mutate(values as { tax_rate: number; service_charge_rate: number })}
+          >
+            <Row gutter={[12, 12]}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Thuế suất (%)"
+                  name="tax_rate"
+                  rules={[
+                    { required: true, message: 'Vui lòng nhập thuế suất' },
+                    {
+                      validator: (_, value) => {
+                        if (value === null || value === undefined) return Promise.resolve();
+                        if (value < 0) return Promise.reject(new Error('Thuế suất không được âm'));
+                        if (value > 100) return Promise.reject(new Error('Thuế suất không được vượt 100%'));
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
+                  <InputNumber
+                    data-testid="admin-tax-rate-input"
+                    style={{ width: '100%' }}
+                    min={0}
+                    max={100}
+                    precision={2}
+                    addonAfter="%"
+                    placeholder="VD: 10"
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label="Phí dịch vụ (%)"
+                  name="service_charge_rate"
+                  rules={[
+                    {
+                      validator: (_, value) => {
+                        if (value === null || value === undefined) return Promise.resolve();
+                        if (value < 0) return Promise.reject(new Error('Phí dịch vụ không được âm'));
+                        if (value > 100) return Promise.reject(new Error('Phí dịch vụ không được vượt 100%'));
+                        return Promise.resolve();
+                      },
+                    },
+                  ]}
+                >
+                  <InputNumber
+                    data-testid="admin-service-charge-input"
+                    style={{ width: '100%' }}
+                    min={0}
+                    max={100}
+                    precision={2}
+                    addonAfter="%"
+                    placeholder="VD: 5"
+                  />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                data-testid="admin-tax-profile-save-button"
+                loading={upsertTaxProfileMutation.isPending}
+              >
+                Lưu hồ sơ thuế
+              </Button>
+              {upsertTaxProfileMutation.isSuccess ? (
+                <StatusChip label="Đã lưu thành công" tone="success" data-testid="admin-tax-profile-success" />
+              ) : null}
+            </Space>
+            {upsertTaxProfileMutation.error ? (
+              <Typography.Paragraph type="danger" style={{ marginTop: 8 }}>
+                {formatApiError(upsertTaxProfileMutation.error, 'Chưa lưu được hồ sơ thuế.')}
+              </Typography.Paragraph>
+            ) : null}
+          </Form>
         ) : null}
       </Card>
     </Space>
   );
 
+  // ─── Side panel ────────────────────────────────────────────────────────────
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
       <Card className="staff-workspace-detail-card" title="Chi nhánh đang chọn">
@@ -477,6 +904,33 @@ export function AdminSettingsPage() {
         )}
       </Card>
 
+      <Card className="staff-workspace-detail-card" title="Trạm bếp đang chọn">
+        {!selectedStation ? (
+          <EmptyBlock title="Chưa chọn trạm bếp" description="Chọn một trạm bếp để xem tuyến danh mục." />
+        ) : (
+          <Space orientation="vertical" size={8} style={{ width: '100%' }}>
+            <StatusChip label={selectedStation.is_active ? 'Đang hoạt động' : 'Tạm tắt'} tone={selectedStation.is_active ? 'success' : 'warning'} />
+            <Descriptions bordered size="small" column={1}>
+              <Descriptions.Item label="Tên trạm bếp">{selectedStation.name}</Descriptions.Item>
+              <Descriptions.Item label="Mô tả">{selectedStation.description ?? 'Chưa có mô tả'}</Descriptions.Item>
+              <Descriptions.Item label="Cập nhật lúc">{formatDateTime(selectedStation.updated_at ?? selectedStation.created_at ?? null)}</Descriptions.Item>
+            </Descriptions>
+            {categoryRoutes.length > 0 ? (
+              <div className="staff-admin-detail-list">
+                {categoryRoutes.map((route) => (
+                  <div key={route.route_id} className="staff-admin-detail-item" data-testid="admin-category-route-row">
+                    <strong>{route.category_name ?? `Danh mục #${route.category_id}`}</strong>
+                    <span>→ {selectedStation.name}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              !categoryRoutesQuery.isLoading && <EmptyBlock title="Chưa có tuyến danh mục" description="Dùng form bên trái để thêm danh mục món vào trạm bếp này." />
+            )}
+          </Space>
+        )}
+      </Card>
+
       <AdminMasterDataImportPanel
         title="Chạy thử nhập cấu hình"
         description="Kiểm tra chi nhánh hoặc bàn bằng validate backend trước khi ghi nhận với Idempotency-Key."
@@ -506,7 +960,26 @@ export function AdminSettingsPage() {
     </Space>
   );
 
-  return <SplitWorkspace main={main} side={side} />;
+  return (
+    <>
+      <SplitWorkspace main={main} side={side} />
+      <BranchModal
+        open={isBranchModalOpen}
+        onClose={() => setIsBranchModalOpen(false)}
+        editingBranch={editingBranch}
+      />
+      <ZoneRenameModal
+        open={isZoneRenameModalOpen}
+        onClose={() => setIsZoneRenameModalOpen(false)}
+        currentZoneName={renamingZone}
+      />
+      <KitchenStationModal
+        open={isKitchenStationModalOpen}
+        onClose={() => setIsKitchenStationModalOpen(false)}
+        editingStation={editingStation}
+      />
+    </>
+  );
 }
 
 function TableDetail({ table }: { table: AdminRestaurantTable }) {

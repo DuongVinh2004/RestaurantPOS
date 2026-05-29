@@ -16,7 +16,7 @@
 | Conversations/notifications | Inbox, assign, internal notes, reply | Load nhanh, link đúng reservation/waiting list | Blocked | Blocked | N/A | N/A |
 | Inventory/admin | Ingredients, stock movement, suppliers, purchase | CRUD hoàn tất, conflict handling tốt | PARTIAL (Ingredients/Suppliers/PO passed backend integration, Receipts/Stock Movement UI found but NOT_IMPLEMENTED, Export NOT_IMPLEMENTED, Conflict guards NOT_IMPLEMENTED) | Partial | Test log | None |
 | Menu/admin catalog | Categories, items, prices CRUD | Phản hồi API chuẩn | Blocked | Blocked | N/A | N/A |
-| Settings | Branch, table, template, kitchen station | (Nếu có) hoạt động tốt | Blocked | Blocked | N/A | N/A |
+| Settings | Branch, table, template, kitchen station | (Nếu có) hoạt động tốt | PARTIAL (Branch CRUD modal added, Zone list+rename added, Table list+create already existed, Kitchen station CRUD added, Category routes sync added, Tax profile form added — all API wrappers complete — pending runtime E2E run with live backend) | Partial | Batch 9 — admin-master-data-complete-foundation | None |
 | Benefits/loyalty/voucher | Tiers, vouchers | (Nếu có) hoạt động tốt | Blocked | Blocked | N/A | N/A |
 | Reporting | Sales, operations, inventory | Report queries chạy ổn định | Blocked | Blocked | N/A | N/A |
 | Permission/RBAC | Verify capabilities guard trên các route | Fail closed khi truy cập trái phép | Blocked | Blocked | N/A | N/A |
