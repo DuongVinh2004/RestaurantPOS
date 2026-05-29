@@ -143,18 +143,21 @@ test.describe('Inventory/Admin Deep Audit', () => {
         await createBtn.click();
         
         try {
-            await page.getByTestId('inventory-po-supplier-select').click();
-            await page.locator('.ant-select-item-option-content').first().click({ timeout: 2000 });
+            await page.getByTestId('inventory-po-supplier-select').click({ timeout: 2000 });
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Enter');
 
-            await page.getByTestId('inventory-po-line-ingredient-select').click();
-            await page.locator('.ant-select-item-option-content').first().click({ timeout: 2000 });
+            await page.getByTestId('inventory-po-line-ingredient-select').click({ timeout: 2000 });
+            await page.keyboard.press('ArrowDown');
+            await page.keyboard.press('Enter');
 
-            await page.getByTestId('inventory-po-line-quantity-input').getByRole('spinbutton').fill('10');
-            await page.getByTestId('inventory-po-save-button').click();
+            await page.getByPlaceholder('SL').fill('10', { timeout: 2000 });
+            await page.getByTestId('inventory-po-save-button').click({ timeout: 2000 });
 
             await page.waitForSelector('text=Tạo đơn mua hàng thành công', { timeout: 5000 });
             console.log('INV_PO_UI_FOUND');
         } catch (e) {
+            console.error('PO_CREATE_ERROR:', e);
             console.log('INV_PO_ERROR');
             await page.locator('.ant-modal-close').last().click().catch(() => {}); // close modal
         }
