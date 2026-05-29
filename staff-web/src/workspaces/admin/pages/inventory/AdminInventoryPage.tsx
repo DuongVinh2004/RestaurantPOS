@@ -37,7 +37,9 @@ import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
-
+import { IngredientModal } from './IngredientModal';
+import { SupplierModal } from './SupplierModal';
+import { PurchaseOrderModal } from './PurchaseOrderModal';
 const purchaseOrderStatusOptions = [
   { value: '', label: 'Tất cả trạng thái' },
   { value: 'Draft', label: 'Nháp' },
@@ -66,6 +68,12 @@ export function AdminInventoryPage() {
     quantity: '',
     notes: '',
   });
+
+  const [isIngredientModalOpen, setIsIngredientModalOpen] = useState(false);
+  const [editingIngredient, setEditingIngredient] = useState<any | null>(null);
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [editingSupplier, setEditingSupplier] = useState<any | null>(null);
+  const [isPOModalOpen, setIsPOModalOpen] = useState(false);
 
   const ingredientsQuery = useQuery({
     queryKey: ['admin-inventory-ingredients', filters.ingredientQuery, filters.ingredientActiveOnly],
@@ -251,7 +259,11 @@ export function AdminInventoryPage() {
         </Col>
       </Row>
 
-      <Card className="staff-workspace-table-card" title="Nguyên liệu">
+      <Card
+        className="staff-workspace-table-card"
+        title="Nguyên liệu"
+        extra={<Button type="primary" size="small" data-testid="inventory-ingredient-create-button" onClick={() => { setEditingIngredient(null); setIsIngredientModalOpen(true); }}>Tạo NL</Button>}
+      >
         <QuerySurface
           loading={ingredientsQuery.isLoading}
           error={ingredientsQuery.error}
@@ -273,6 +285,7 @@ export function AdminInventoryPage() {
                     <Typography.Paragraph type="secondary">
                       {ingredient.code ?? `Nguyên liệu #${ingredient.ingredient_id}`} / {ingredient.unit_code}
                     </Typography.Paragraph>
+                    <Button type="link" size="small" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); setEditingIngredient(ingredient); setIsIngredientModalOpen(true); }}>Sửa</Button>
                   </div>
                   <Space wrap size={6}>
                     <StatusChip label={ingredient.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={ingredient.is_active ? 'success' : 'warning'} />
@@ -289,7 +302,11 @@ export function AdminInventoryPage() {
         />
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Nhà cung cấp">
+      <Card
+        className="staff-workspace-table-card"
+        title="Nhà cung cấp"
+        extra={<Button type="primary" size="small" data-testid="inventory-supplier-create-button" onClick={() => { setEditingSupplier(null); setIsSupplierModalOpen(true); }}>Tạo NCC</Button>}
+      >
         <QuerySurface
           loading={suppliersQuery.isLoading}
           error={suppliersQuery.error}
@@ -306,6 +323,7 @@ export function AdminInventoryPage() {
                     <Typography.Paragraph type="secondary">
                       {supplier.code ?? `Nhà cung cấp #${supplier.supplier_id}`} / {supplier.contact_name ?? 'Chưa có người liên hệ'}
                     </Typography.Paragraph>
+                    <Button type="link" size="small" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); setEditingSupplier(supplier); setIsSupplierModalOpen(true); }}>Sửa</Button>
                   </div>
                   <Space wrap size={6}>
                     <StatusChip label={supplier.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={supplier.is_active ? 'success' : 'warning'} />
@@ -321,7 +339,11 @@ export function AdminInventoryPage() {
         />
       </Card>
 
-      <Card className="staff-workspace-table-card" title="Đơn mua hàng">
+      <Card
+        className="staff-workspace-table-card"
+        title="Đơn mua hàng"
+        extra={<Button type="primary" size="small" data-testid="inventory-po-create-button" onClick={() => setIsPOModalOpen(true)}>Tạo Đơn</Button>}
+      >
         <QuerySurface
           loading={purchaseOrdersQuery.isLoading}
           error={purchaseOrdersQuery.error}
@@ -505,7 +527,14 @@ export function AdminInventoryPage() {
     </Space>
   );
 
-  return <SplitWorkspace main={main} side={side} />;
+  return (
+    <>
+      <SplitWorkspace main={main} side={side} />
+      <IngredientModal open={isIngredientModalOpen} onClose={() => setIsIngredientModalOpen(false)} editingIngredient={editingIngredient} />
+      <SupplierModal open={isSupplierModalOpen} onClose={() => setIsSupplierModalOpen(false)} editingSupplier={editingSupplier} />
+      <PurchaseOrderModal open={isPOModalOpen} onClose={() => setIsPOModalOpen(false)} suppliers={supplierRows as any} ingredients={ingredientRows as any} />
+    </>
+  );
 }
 
 function QuerySurface({

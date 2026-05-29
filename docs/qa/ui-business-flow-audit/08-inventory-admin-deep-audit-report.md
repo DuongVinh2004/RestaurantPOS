@@ -8,34 +8,37 @@
 
 ## 2. Test Execution Details
 - **Runner:** Playwright Chromium (1 worker)
-- **Time:** ~20.9s (11/11 tests passed gracefully)
-- **Data Entity Generated:** Không có do UI thiếu hụt (NOT_IMPLEMENTED) phần lớn các nút chức năng Create/Update.
+- **Time:** ~29.2s (12/12 tests passed gracefully)
+- **Data Entity Generated:** Không thành công do thiếu các Routes API phía Backend.
 
 ## 3. Results Summary
 | Step | Flow / Module | Status | Logs / Evidence |
 |---|---|---|---|
 | 1 | Login Admin | PASS | `INV_LOGIN_OK` |
 | 2 | Inventory Navigation Baseline | PASS | `INV_NAVIGATION_FOUND` |
-| 3 | Ingredients CRUD | PARTIAL | `INV_INGREDIENT_CRUD_PARTIAL` |
-| 4 | Suppliers CRUD | PARTIAL | `INV_SUPPLIER_CRUD_PARTIAL` |
-| 5 | Purchase Orders | NOT_IMPLEMENTED | `INV_PO_NOT_IMPLEMENTED` |
-| 6 | Purchase Receipts | NOT_IMPLEMENTED | `INV_RECEIPT_NOT_IMPLEMENTED` |
-| 7 | Stock Movement & Recon | NOT_IMPLEMENTED | `INV_STOCK_MOVEMENT_NOT_IMPLEMENTED` |
-| 8 | Recipe Management | NOT_IMPLEMENTED | `INV_RECIPE_NOT_IMPLEMENTED` |
-| 9 | Row Version Conflict | BLOCKED | `INV_ROW_VERSION_CONFLICT_NOT_TESTABLE_UI` |
-| 10 | Import/Export | NOT_IMPLEMENTED | `INV_IMPORT_EXPORT_NOT_IMPLEMENTED` |
-| 11 | Permission Guard | NEEDS_DATA | `INV_PERMISSION_GUARD_NEEDS_DATA` |
+| 3 | Ingredients CRUD | PARTIAL | `INV_INGREDIENT_CRUD_PARTIAL` (UI exists, POST 404) |
+| 4 | Suppliers CRUD | PARTIAL | `INV_SUPPLIER_ERROR` (UI exists, POST 404) |
+| 5 | Purchase Orders | PARTIAL | `INV_PO_ERROR` (UI exists, POST 404) |
+| 6 | Purchase Receipts | NOT_IMPLEMENTED | `INV_RECEIPT_UI_FOUND` (Matched placeholder text only) |
+| 7 | Stock Movement & Recon | NOT_IMPLEMENTED | `INV_STOCK_MOVEMENT_UI_FOUND` (Matched placeholder text only) |
+| 8 | Row Version Conflict | NOT_IMPLEMENTED | `INV_ROW_VERSION_NOT_IMPLEMENTED` |
+| 9 | Negative Stock Guard | NOT_IMPLEMENTED | `INV_NEGATIVE_STOCK_NOT_IMPLEMENTED` |
+| 10 | Recipe Management | NOT_IMPLEMENTED | `INV_RECIPE_UI_FOUND` (Matched placeholder text only) |
+| 11 | Import/Export | NOT_IMPLEMENTED | `INV_EXPORT_NOT_IMPLEMENTED` |
+| 12 | Permission Guard | NEEDS_DATA | `INV_PERMISSION_GUARD_NEEDS_DATA` |
 
 ## 4. Key Findings
-- **Inventory Navigation:** Navigation Menu Workspace Quản trị/Kho đã hoạt động và có tab Nguyên liệu (Ingredients), Nhà cung cấp (Suppliers).
-- **Missing UI Modules:** Chức năng Purchase Orders (Đơn mua hàng), Purchase Receipts (Phiếu nhập kho), Stock Movement (Kiểm kê/Điều chỉnh), Recipe (Định lượng) hoàn toàn chưa có Tab Navigation hoặc Route tương ứng.
-- **Partial CRUD:** Tab Ingredients và Suppliers có tồn tại nhưng thiếu các Form/Button Create/Update hoàn chỉnh hoặc bị disabled/ẩn. Chức năng chưa dùng được end-to-end.
-- **Row Version Guard & Imports:** Không thể test do không có UI trigger các hành động lưu hoặc export.
+- **Inventory Navigation:** Navigation Menu Workspace Quản trị/Kho đã hoạt động và có render các Components Layout Card cho Nguyên liệu, Nhà cung cấp, và Nhập kho/Lịch sử xuất nhập kho.
+- **Partial CRUD Forms:** Modals Create/Update cho `Ingredients`, `Suppliers`, và `Purchase Orders` đã được code UI và gắn API call bằng TanStack Query.
+- **Missing Backend Routes:** Quá trình submit forms trên bị thất bại (HTTP 404 Not Found) do Backend chưa được implement hoặc chưa có các endpoints tương ứng (`POST /api/v1/admin/inventory/ingredients`, v.v.).
+- **Missing UI Modules:** Chức năng thực sự cho Purchase Receipts (Phiếu nhập kho), Stock Movement (Kiểm kê/Điều chỉnh), và Recipe (Định lượng menu item) chưa có UI để nhập liệu, chỉ có các text hiển thị thống kê.
+- **Guards & Edge cases:** Row Version Guard và Negative Stock Guard chưa thể test do chức năng tạo phiếu nhập/xuất kho bị thiếu (Blocked by missing API and UI).
 
 ## 5. Remaining Risks
-- Rủi ro rất cao đối với luồng Nhập kho (Purchase Order/Receipt) vì Backend có thể đã hoàn thiện bảng và logic Row Version/Optimistic Locking, nhưng Staff Web hoàn toàn mù mờ và không có cách nào input data ngoài Tinker.
-- Khi làm UI cho Ingredient/Supplier, team Frontend cần cẩn trọng implement truyền `row_version` (nếu API bắt buộc) để tránh lỗi 409 Conflict hoặc Stale Object Error.
+- Rủi ro rất cao đối với luồng Nhập kho (Purchase Order/Receipt) vì UI hiện tại sử dụng mock API endpoint chưa tồn tại ở backend, gây ra lỗi 404 làm chặn toàn bộ quy trình.
+- Cần có backend endpoints chính thức với cơ chế kiểm soát số lượng xuất/nhập an toàn và hỗ trợ idempotency cho các operation Inventory.
 
 ## 6. Recommendation
-- **NEEDS INVENTORY BUGFIX BATCH / FEATURE DEV:** Yêu cầu UI Team bắt đầu code các màn hình Create/Update/List cho Ingredient, Supplier và đặc biệt là Purchase Order.
-- **READY FOR ADMIN MASTER DATA DEEP AUDIT:** Có thể tiến hành Audit Master Data (Branch settings, Users, Roles) nếu các luồng Admin khác đã sẵn sàng.
+- **NEEDS BACKEND ROUTES DEVELOPMENT:** Yêu cầu Backend Team phát triển các Routes API CRUD cho Inventory (Ingredients, Suppliers, Purchase Orders) để match với các API client ở `inventory-crud-api.ts`.
+- **NEEDS FURTHER UI DEVELOPMENT:** Tiếp tục hoàn thiện UI cho Receipt và Stock Movements.
+- **STOP AUDIT HERE:** Ngưng các phần Audit về sau của Inventory cho đến khi foundation API backend được hoàn thành.

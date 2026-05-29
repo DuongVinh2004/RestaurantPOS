@@ -51,55 +51,115 @@ test.describe('Inventory/Admin Deep Audit', () => {
   });
 
   test('2. Inventory Navigation Baseline', async () => {
-    // Try to find the Inventory/Menu items
-    const inventoryMenu = page.getByText(/Tồn kho|Nguyên liệu|Inventory|Ingredients/i).first();
-    await inventoryMenu.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    // Navigate via the Dashboard's link or AccessGatePage
+    // Because this QA session doesn't have an open cashier shift, it lands on /access (AccessGatePage).
+    // On AccessGatePage, there is a list of workspaces with 'Open' buttons.
+    const inventoryAccessBtn = page.locator('.staff-task-list-item')
+        .filter({ hasText: 'Nguyên liệu, nhà cung cấp, đơn mua và phiếu nhận hàng.' })
+        .getByRole('button', { name: 'Open' })
+        .first();
+        
+    await inventoryAccessBtn.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    if (await inventoryAccessBtn.count() > 0 && await inventoryAccessBtn.isVisible()) {
+        await inventoryAccessBtn.click();
+    } else {
+        // Fallback: If on another page, try switching workspace or using Command Palette
+        const workspaceSelect = page.locator('#staff-shell-workspace-select');
+        if (await workspaceSelect.count() > 0 && await workspaceSelect.isVisible()) {
+            await workspaceSelect.selectOption('admin');
+            await page.waitForTimeout(500);
+            const menuLink = page.getByRole('button', { name: 'Kho' }).first();
+            if (await menuLink.count() > 0 && await menuLink.isVisible()) {
+                await menuLink.click();
+            }
+        }
+    }
     
-    if (await inventoryMenu.count() > 0 && await inventoryMenu.isVisible()) {
-        await inventoryMenu.click();
-        await page.waitForTimeout(1000);
+    await page.waitForURL('**/admin/inventory', { timeout: 5000 }).catch(() => {});
+    
+    const inventoryHeader = page.getByRole('heading', { name: /Kho và mua hàng/i }).first();
+    await inventoryHeader.waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+    
+    if (await inventoryHeader.count() > 0 && await inventoryHeader.isVisible()) {
         console.log('INV_NAVIGATION_FOUND');
     } else {
         console.log('INV_NAVIGATION_NOT_IMPLEMENTED');
     }
+    
     await page.screenshot({ path: path.join(evidenceDir, '02-inventory-navigation.png') });
   });
 
-  test('3. Ingredients CRUD', async () => {
-    const ingredientsTab = page.getByText(/Nguyên liệu|Ingredients/i).first();
-    await ingredientsTab.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-    if (await ingredientsTab.count() > 0 && await ingredientsTab.isVisible()) {
-       await ingredientsTab.click();
-       const createBtn = page.getByRole('button', { name: /Thêm|Tạo|Create|Add/i }).first();
-       if (await createBtn.count() > 0 && await createBtn.isVisible()) {
-           console.log('INV_INGREDIENT_UI_FOUND');
-       } else {
-           console.log('INV_INGREDIENT_CRUD_PARTIAL');
-       }
+  test('3. Ingredients CRUD', async () => { page.on('console', msg => console.log('BROWSER_CONSOLE:', msg.text()));
+    const createBtn = page.getByTestId('inventory-ingredient-create-button');
+    await createBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (await createBtn.count() > 0 && await createBtn.isVisible()) {
+        await createBtn.click();
+        
+        await page.getByTestId('inventory-ingredient-name-input').fill(`Auto Ingred ${uniqueName}`);
+        
+        await page.getByTestId('inventory-ingredient-unit-select').fill('kg');
+        
+        await page.getByTestId('inventory-ingredient-save-button').click();
+        
+        try {
+            await page.waitForSelector('text=Tạo nguyên liệu thành công', { timeout: 5000 });
+            console.log('INV_INGREDIENT_UI_FOUND');
+        } catch {
+            console.log('INV_INGREDIENT_CRUD_PARTIAL');
+            await page.screenshot({ path: path.join(evidenceDir, '03-ingredient-error.png') });
+            await page.keyboard.press('Escape'); // close modal
+        }
     } else {
-       console.log('INV_INGREDIENT_CRUD_NOT_IMPLEMENTED');
+        const text = await page.evaluate(() => document.body.innerText); console.log('BODY_TEXT:', text); console.log('INV_INGREDIENT_CRUD_NOT_IMPLEMENTED'); await page.screenshot({ path: path.join(evidenceDir, '03-ingredient-missing.png') });
     }
   });
 
   test('4. Suppliers CRUD', async () => {
-    const suppliersTab = page.getByText(/Nhà cung cấp|Suppliers/i).first();
-    await suppliersTab.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-    if (await suppliersTab.count() > 0 && await suppliersTab.isVisible()) {
-       await suppliersTab.click();
-       console.log('INV_SUPPLIER_CRUD_PARTIAL');
+    const createBtn = page.getByTestId('inventory-supplier-create-button');
+    await createBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (await createBtn.count() > 0 && await createBtn.isVisible()) {
+        await createBtn.click();
+        
+        await page.getByTestId('inventory-supplier-name-input').fill(`Auto Supplier ${uniqueName}`);
+        await page.getByTestId('inventory-supplier-phone-input').fill('0901234567');
+        await page.getByTestId('inventory-supplier-save-button').click();
+        
+        try {
+            await page.waitForSelector('text=Tạo nhà cung cấp thành công', { timeout: 5000 });
+            console.log('INV_SUPPLIER_CRUD_PARTIAL');
+        } catch {
+            console.log('INV_SUPPLIER_ERROR');
+            await page.locator('.ant-modal-close').last().click().catch(() => {}); // close modal
+        }
     } else {
-       console.log('INV_SUPPLIER_CRUD_NOT_IMPLEMENTED');
+        console.log('INV_SUPPLIER_CRUD_NOT_IMPLEMENTED');
     }
   });
 
   test('5. Purchase Orders', async () => {
-    const poTab = page.getByText(/Đơn mua hàng|Purchase Orders/i).first();
-    await poTab.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
-    if (await poTab.count() > 0 && await poTab.isVisible()) {
-       await poTab.click();
-       console.log('INV_PO_UI_FOUND');
+    const createBtn = page.getByTestId('inventory-po-create-button');
+    await createBtn.waitFor({ state: 'visible', timeout: 5000 }).catch(() => {});
+    if (await createBtn.count() > 0 && await createBtn.isVisible()) {
+        await createBtn.click();
+        
+        try {
+            await page.getByTestId('inventory-po-supplier-select').click();
+            await page.locator('.ant-select-item-option-content').first().click({ timeout: 2000 });
+
+            await page.getByTestId('inventory-po-line-ingredient-select').click();
+            await page.locator('.ant-select-item-option-content').first().click({ timeout: 2000 });
+
+            await page.getByTestId('inventory-po-line-quantity-input').getByRole('spinbutton').fill('10');
+            await page.getByTestId('inventory-po-save-button').click();
+
+            await page.waitForSelector('text=Tạo đơn mua hàng thành công', { timeout: 5000 });
+            console.log('INV_PO_UI_FOUND');
+        } catch (e) {
+            console.log('INV_PO_ERROR');
+            await page.locator('.ant-modal-close').last().click().catch(() => {}); // close modal
+        }
     } else {
-       console.log('INV_PO_NOT_IMPLEMENTED');
+        console.log('INV_PO_NOT_IMPLEMENTED');
     }
   });
 
@@ -107,7 +167,7 @@ test.describe('Inventory/Admin Deep Audit', () => {
     const prTab = page.getByText(/Phiếu nhập kho|Nhập kho|Receipts/i).first();
     await prTab.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
     if (await prTab.count() > 0 && await prTab.isVisible()) {
-       await prTab.click();
+       await prTab.click({ force: true, timeout: 2000 }).catch(() => {});
        console.log('INV_RECEIPT_UI_FOUND');
     } else {
        console.log('INV_RECEIPT_NOT_IMPLEMENTED');
@@ -118,33 +178,59 @@ test.describe('Inventory/Admin Deep Audit', () => {
     const stockTab = page.getByText(/Kiểm kê|Điều chỉnh|Movements/i).first();
     await stockTab.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
     if (await stockTab.count() > 0 && await stockTab.isVisible()) {
-       await stockTab.click();
+       await stockTab.click({ force: true, timeout: 2000 }).catch(() => {});
        console.log('INV_STOCK_MOVEMENT_UI_FOUND');
     } else {
        console.log('INV_STOCK_MOVEMENT_NOT_IMPLEMENTED');
     }
   });
 
-  test('8. Recipe Management', async () => {
-    const recipeTab = page.getByText(/Định lượng|Công thức|Recipe/i).first();
+  test('8. Row Version Conflict', async () => {
+    // If not possible via UI, try to at least find if there is a conflict guard UI
+    const ingredientRow = page.locator('.staff-admin-surface-item').filter({ hasText: 'Auto Ingred' }).first();
+    await ingredientRow.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+    if (await ingredientRow.count() > 0 && await ingredientRow.isVisible()) {
+       await ingredientRow.click({ force: true, timeout: 2000 }).catch(() => {});
+       console.log('INV_ROW_VERSION_NOT_TESTABLE');
+    } else {
+       console.log('INV_ROW_VERSION_NOT_IMPLEMENTED');
+    }
+  });
+
+  test('9. Negative Stock Guard', async () => {
+    const deductBtn = page.getByText(/Xuất kho|Trừ kho|Giảm/i).first();
+    await deductBtn.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+    if (await deductBtn.count() > 0 && await deductBtn.isVisible()) {
+       await deductBtn.click({ force: true, timeout: 2000 }).catch(() => {});
+       console.log('INV_NEGATIVE_STOCK_NOT_TESTABLE');
+    } else {
+       console.log('INV_NEGATIVE_STOCK_NOT_IMPLEMENTED');
+    }
+  });
+
+  test('10. Recipe / Menu Link', async () => {
+    const recipeTab = page.getByText(/Định mức|Công thức|Recipe/i).first();
     await recipeTab.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
     if (await recipeTab.count() > 0 && await recipeTab.isVisible()) {
-       await recipeTab.click();
+       await recipeTab.click({ force: true, timeout: 2000 }).catch(() => {});
        console.log('INV_RECIPE_UI_FOUND');
     } else {
        console.log('INV_RECIPE_NOT_IMPLEMENTED');
     }
   });
 
-  test('9. Row Version Conflict', async () => {
-    console.log('INV_ROW_VERSION_CONFLICT_NOT_TESTABLE_UI');
+  test('11. Import / Export Data', async () => {
+    const exportBtn = page.getByText(/Xuất excel|Xuất file|Export/i).first();
+    await exportBtn.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+    if (await exportBtn.count() > 0 && await exportBtn.isVisible()) {
+       await exportBtn.click({ force: true, timeout: 2000 }).catch(() => {});
+       console.log('INV_EXPORT_UI_FOUND');
+    } else {
+       console.log('INV_EXPORT_NOT_IMPLEMENTED');
+    }
   });
 
-  test('10. Import/Export', async () => {
-    console.log('INV_IMPORT_EXPORT_NOT_IMPLEMENTED');
-  });
-
-  test('11. Permission Guard', async () => {
+  test('12. Permission Guard', async () => {
     console.log('INV_PERMISSION_GUARD_NEEDS_DATA');
   });
 });
