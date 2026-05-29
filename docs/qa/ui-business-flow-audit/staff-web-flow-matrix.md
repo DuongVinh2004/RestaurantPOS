@@ -1,4 +1,4 @@
-# Staff Web Flow Matrix
+﻿# Staff Web Flow Matrix
 
 | Flow | Steps | Expected Result | Actual Result | Status | Evidence Link | Severity |
 |---|---|---|---|---|---|---|
@@ -14,7 +14,7 @@
 | Cashier shift | Current, open, close, read history | Ghi nhận ca chính xác | Pass, active shift maintained throughout operations | Pass | Golden Path Evidence | None |
 | Waiting list staff | List, advance, notify, seat, cancel | Workflow xử lý waiting list trơn tru | Blocked | Blocked | N/A | N/A |
 | Conversations/notifications | Inbox, assign, internal notes, reply | Load nhanh, link đúng reservation/waiting list | Blocked | Blocked | N/A | N/A |
-| Inventory/admin | Ingredients, stock movement, suppliers, purchase | CRUD hoàn tất, conflict handling tốt | Blocked | Blocked | N/A | N/A |
+| Inventory/admin | Ingredients, stock movement, suppliers, purchase | CRUD hoàn tất, conflict handling tốt | PARTIAL/NOT_IMPLEMENTED | Partial | N/A | N/A |
 | Menu/admin catalog | Categories, items, prices CRUD | Phản hồi API chuẩn | Blocked | Blocked | N/A | N/A |
 | Settings | Branch, table, template, kitchen station | (Nếu có) hoạt động tốt | Blocked | Blocked | N/A | N/A |
 | Benefits/loyalty/voucher | Tiers, vouchers | (Nếu có) hoạt động tốt | Blocked | Blocked | N/A | N/A |
