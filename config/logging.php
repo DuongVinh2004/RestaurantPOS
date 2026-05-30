@@ -96,10 +96,12 @@ return [
             'handler' => NullHandler::class,
         ],
 
-        'sentry' => [
-            'driver' => 'sentry',
-            'level' => env('LOG_LEVEL', 'error'),
-        ],
+        // Sentry is documented as a future integration for production.
+        // Requires running: composer require sentry/sentry-laravel
+        // 'sentry' => [
+        //     'driver' => 'sentry',
+        //     'level' => env('LOG_LEVEL', 'error'),
+        // ],
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -o pipefail
 
 # Configuration
 PROD_DB_NAME="restaurantpos_prod"
@@ -12,15 +13,21 @@ if [ -z "$PATCH_FILE" ]; then
     exit 1
 fi
 
+if [ ! -f "$PATCH_FILE" ]; then
+    echo "Error: Patch file $PATCH_FILE does not exist."
+    exit 1
+fi
+
 echo "[1] Dumping production database schema and data..."
-mysqldump -u "$PROD_DB_USER" -p "$PROD_DB_NAME" > /tmp/prod_dump.sql
+# It is recommended to use ~/.my.cnf for passwords
+mysqldump -u "$PROD_DB_USER" "$PROD_DB_NAME" > /tmp/prod_dump.sql
 
 echo "[2] Restoring to staging database..."
-mysql -u "$PROD_DB_USER" -p -e "DROP DATABASE IF EXISTS $STAGING_DB_NAME; CREATE DATABASE $STAGING_DB_NAME;"
-mysql -u "$PROD_DB_USER" -p "$STAGING_DB_NAME" < /tmp/prod_dump.sql
+mysql -u "$PROD_DB_USER" -e "DROP DATABASE IF EXISTS $STAGING_DB_NAME; CREATE DATABASE $STAGING_DB_NAME;"
+mysql -u "$PROD_DB_USER" "$STAGING_DB_NAME" < /tmp/prod_dump.sql
 
 echo "[3] Applying patch to staging database..."
-mysql -u "$PROD_DB_USER" -p "$STAGING_DB_NAME" < "$PATCH_FILE"
+mysql -u "$PROD_DB_USER" "$STAGING_DB_NAME" < "$PATCH_FILE"
 
 echo "[4] Running validation..."
 php artisan booking:doctor --json

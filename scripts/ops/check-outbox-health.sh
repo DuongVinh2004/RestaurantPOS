@@ -5,13 +5,16 @@
 
 cd /var/www/html
 
-OUTPUT=$(php artisan notifications:outbox-health 2>&1)
+OUTPUT=$(timeout 10s php artisan notifications:outbox-health 2>&1)
 EXIT_CODE=$?
 
 if [ $EXIT_CODE -ne 0 ]; then
     if [ -n "$LOG_SLACK_WEBHOOK_URL" ]; then
-        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\":rotating_light: *Outbox Health Check Failed*\n\`\`\`$OUTPUT\`\`\`\"}" $LOG_SLACK_WEBHOOK_URL
+        curl -X POST -H 'Content-type: application/json' --data "{\"text\":\":rotating_light: *Outbox Health Check Failed*\n\`\`\`$OUTPUT\`\`\`\"}" "$LOG_SLACK_WEBHOOK_URL"
     else
         echo "LOG_SLACK_WEBHOOK_URL is not set."
     fi
+    exit $EXIT_CODE
 fi
+
+exit 0
