@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Promotions\Application\UseCases\Benefits;
 
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Loyalty\Application\UseCases\Points\ReservationLoyaltySummaryReader;
 use App\Modules\Promotions\Application\UseCases\Vouchers\ReservationVoucherPreviewService;
 use App\Modules\Promotions\Domain\Models\UserVoucher;
@@ -83,15 +84,27 @@ class CustomerBenefitsService
      */
     public function previewOwnedReservationBenefits(int $reservationId, int $userId): array
     {
+        $user = User::find($userId);
+
         /** @var Reservation $reservation */
         $reservation = Reservation::query()
             ->with(['user.points', 'user.currentTier', 'appliedUserVoucher.voucher'])
             ->where('reservation_id', $reservationId)
-            ->where('user_id', $userId)
+            ->where(function ($query) use ($userId, $user) {
+                $query->where('user_id', $userId);
+                if ($user) {
+                    if ($user->email) {
+                        $query->orWhere('guest_email', $user->email);
+                    }
+                    if ($user->phone) {
+                        $query->orWhere('guest_phone', $user->phone);
+                    }
+                }
+            })
             ->firstOrFail();
 
         $loyaltySummary = $this->reservationLoyaltySummaryReader->getReservationSummary($reservationId);
-        $voucherOptions = $this->reservationVoucherPreviewService->listVoucherOptions($reservation);
+        $voucherOptions = $this->reservationVoucherPreviewService->listVoucherOptions($reservation, $userId);
 
         return [
             'reservation' => $loyaltySummary['reservation'] ?? null,

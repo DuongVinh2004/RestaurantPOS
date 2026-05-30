@@ -265,7 +265,7 @@ class CustomerReservationSelfService
         // VD: Quán lẩu quy định 120 phút. Nếu khách đặt 19:00, mà 18:00 khách mới vào web bấm Hủy -> Báo lỗi!
         // Giúp bảo vệ nhà hàng khỏi rủi ro bàn trống sát giờ (No-show trá hình) và lãng phí thực phẩm đã rã đông.
         $cutoffMinutes = max(0, $this->branchSchedulingPolicyService->customerCancellationCutoffMinutes($reservation->branch_id, false));
-        $cutoffAt = Carbon::parse((string) $reservation->start_time)->utc()->subMinutes($cutoffMinutes);
+        $cutoffAt = $reservation->start_time->copy()->utc()->subMinutes($cutoffMinutes);
         if (Carbon::now('UTC')->gte($cutoffAt)) {
             throw ValidationException::withMessages([
                 'reservation' => [sprintf('Reservation can only be cancelled at least %d minute(s) before the start time.', $cutoffMinutes)],
@@ -305,7 +305,7 @@ class CustomerReservationSelfService
 
         // CUT-OFF TIME Tương tự như Hủy bàn: Không cho phép dời lịch quá sát giờ.
         $cutoffMinutes = max(0, $this->branchSchedulingPolicyService->customerRescheduleCutoffMinutes($reservation->branch_id, false));
-        $cutoffAt = Carbon::parse((string) $reservation->start_time)->utc()->subMinutes($cutoffMinutes);
+        $cutoffAt = $reservation->start_time->copy()->utc()->subMinutes($cutoffMinutes);
         if (Carbon::now('UTC')->gte($cutoffAt)) {
             throw ValidationException::withMessages([
                 'reservation' => [sprintf('Reservation can only be rescheduled at least %d minute(s) before the start time.', $cutoffMinutes)],

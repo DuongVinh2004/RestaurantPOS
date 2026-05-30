@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Promotions\Application\Workflows;
 
+use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\Promotions\Application\UseCases\Benefits\CustomerBenefitsService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 
@@ -27,7 +28,8 @@ class CustomerReservationPromotionWorkflow
             userVoucherId: isset($payload['user_voucher_id']) ? (int) $payload['user_voucher_id'] : null,
             voucherCode: isset($payload['voucher_code']) ? (string) $payload['voucher_code'] : null,
             expectedRowVersion: isset($payload['row_version']) ? (int) $payload['row_version'] : null,
-            staffUserId: $userId,
+            staffUserId: null,
+            customerUserId: $userId,
         );
 
         return [
@@ -47,7 +49,7 @@ class CustomerReservationPromotionWorkflow
         $result = $this->voucherService->removeVoucher(
             reservationId: $reservationId,
             expectedRowVersion: isset($payload['row_version']) ? (int) $payload['row_version'] : null,
-            staffUserId: $userId,
+            staffUserId: null,
         );
 
         return [
@@ -58,10 +60,22 @@ class CustomerReservationPromotionWorkflow
 
     private function assertOwnedReservation(int $reservationId, int $userId): Reservation
     {
+        $user = User::find($userId);
+
         /** @var Reservation $reservation */
         $reservation = Reservation::query()
             ->where('reservation_id', $reservationId)
-            ->where('user_id', $userId)
+            ->where(function ($query) use ($userId, $user) {
+                $query->where('user_id', $userId);
+                if ($user) {
+                    if ($user->email) {
+                        $query->orWhere('guest_email', $user->email);
+                    }
+                    if ($user->phone) {
+                        $query->orWhere('guest_phone', $user->phone);
+                    }
+                }
+            })
             ->firstOrFail();
 
         return $reservation;

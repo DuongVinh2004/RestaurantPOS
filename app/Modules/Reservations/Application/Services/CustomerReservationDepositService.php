@@ -33,11 +33,18 @@ class CustomerReservationDepositService
         // Nếu Request có đính kèm User ID (tức là khách hàng đã đăng nhập vào App/Web),
         // lập tức chuyển luồng sang hàm xử lý riêng cho Khách có tài khoản (Owned).
         if ($userId !== null) {
-            return $this->previewOwnedReservationDeposit($reservationId, $userId, $fallbackCurrency);
+            $owned = Reservation::query()
+                ->where('reservation_id', $reservationId)
+                ->where('user_id', $userId)
+                ->first();
+
+            if ($owned instanceof Reservation) {
+                return $this->staffReservationDepositService->previewDeposit($reservationId, $fallbackCurrency);
+            }
         }
 
         // --- BƯỚC 2: XÁC THỰC KHÁCH VÃNG LAI (GUEST AUTHENTICATION) ---
-        // Nếu không có User ID, hệ thống hiểu đây là Khách vãng lai bấm vào link tracking.
+        // Nếu không tìm thấy ở bước 1, hoặc không có User ID, kiểm tra Session ID.
         $resolvedSessionId = trim((string) $sessionId);
         $reservation = Reservation::query()->where('reservation_id', $reservationId)->first();
 

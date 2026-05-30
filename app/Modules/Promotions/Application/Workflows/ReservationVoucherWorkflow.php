@@ -39,7 +39,7 @@ class ReservationVoucherWorkflow
     /**
      * @return array<string,mixed>
      */
-    public function listAvailableForReservation(int $reservationId): array
+    public function listAvailableForReservation(int $reservationId, ?int $customerUserId = null): array
     {
         /** @var Reservation $reservation */
         $reservation = Reservation::query()
@@ -47,9 +47,12 @@ class ReservationVoucherWorkflow
             ->findOrFail($reservationId);
 
         $orders = $this->loadOrdersForReservation($reservationId);
+
+        $userIdToMatch = $customerUserId !== null && $customerUserId > 0 ? $customerUserId : (int) $reservation->user_id;
+
         $voucherRows = UserVoucher::query()
             ->with('voucher')
-            ->where('user_id', (int) $reservation->user_id)
+            ->where('user_id', $userIdToMatch)
             ->orderBy('user_voucher_id')
             ->get();
 
@@ -67,13 +70,14 @@ class ReservationVoucherWorkflow
         ?int $userVoucherId = null,
         ?string $voucherCode = null,
         ?int $expectedRowVersion = null,
-        ?int $staffUserId = null
+        ?int $staffUserId = null,
+        ?int $customerUserId = null
     ): array {
         $context = $this->getReservationLockContext($reservationId);
 
         try {
-            return $this->locks->withLockKeys($context['lock_keys'], function () use ($reservationId, $userVoucherId, $voucherCode, $expectedRowVersion, $staffUserId) {
-                return DB::transaction(function () use ($reservationId, $userVoucherId, $voucherCode, $expectedRowVersion, $staffUserId) {
+            return $this->locks->withLockKeys($context['lock_keys'], function () use ($reservationId, $userVoucherId, $voucherCode, $expectedRowVersion, $staffUserId, $customerUserId) {
+                return DB::transaction(function () use ($reservationId, $userVoucherId, $voucherCode, $expectedRowVersion, $staffUserId, $customerUserId) {
                     /** @var Reservation $reservation */
                     $reservation = Reservation::query()
                         ->with(['user', 'appliedUserVoucher.voucher'])
@@ -106,8 +110,8 @@ class ReservationVoucherWorkflow
                             - Money::minorUnits($currentLoyaltyDiscount, true)
                     );
 
-                    $candidate = $this->resolveCandidateUserVoucher($reservation, $userVoucherId, $voucherCode);
-                    $discountMeta = $this->validateVoucherCandidate($reservation, $orders, $candidate);
+                    $candidate = $this->resolveCandidateUserVoucher($reservation, $userVoucherId, $voucherCode, $customerUserId);
+                    $discountMeta = $this->validateVoucherCandidate($reservation, $orders, $candidate, $customerUserId);
 
                     $currentAppliedUserVoucherId = (int) ($reservation->applied_user_voucher_id ?? 0);
                     $candidateUserVoucherId = (int) $candidate->user_voucher_id;
@@ -372,11 +376,13 @@ class ReservationVoucherWorkflow
         }
     }
 
-    private function resolveCandidateUserVoucher(Reservation $reservation, ?int $userVoucherId, ?string $voucherCode): UserVoucher
+    private function resolveCandidateUserVoucher(Reservation $reservation, ?int $userVoucherId, ?string $voucherCode, ?int $customerUserId = null): UserVoucher
     {
+        $userIdToMatch = $customerUserId !== null && $customerUserId > 0 ? $customerUserId : (int) $reservation->user_id;
+
         $query = UserVoucher::query()
             ->with('voucher')
-            ->where('user_id', (int) $reservation->user_id)
+            ->where('user_id', $userIdToMatch)
             ->lockForUpdate();
 
         if ($userVoucherId !== null && $userVoucherId > 0) {
@@ -405,7 +411,7 @@ class ReservationVoucherWorkflow
     /**
      * @return array{discount_amount:float,subtotal:float,currency:string}
      */
-    private function validateVoucherCandidate(Reservation $reservation, Collection $orders, UserVoucher $userVoucher): array
+    private function validateVoucherCandidate(Reservation $reservation, Collection $orders, UserVoucher $userVoucher, ?int $customerUserId = null): array
     {
         $voucher = $userVoucher->voucher;
         if (! $voucher instanceof Voucher) {
@@ -445,7 +451,8 @@ class ReservationVoucherWorkflow
             ]);
         }
 
-        $voucher = VoucherUsageGuard::lockVoucherAndAssertCanConsume($voucher, (int) $reservation->user_id);
+        $userIdToMatch = $customerUserId !== null && $customerUserId > 0 ? $customerUserId : (int) $reservation->user_id;
+        $voucher = VoucherUsageGuard::lockVoucherAndAssertCanConsume($voucher, $userIdToMatch);
         $userVoucher->setRelation('voucher', $voucher);
 
         $discountMeta = VoucherRedemptionSupport::calculateDiscount($voucher, $orders);

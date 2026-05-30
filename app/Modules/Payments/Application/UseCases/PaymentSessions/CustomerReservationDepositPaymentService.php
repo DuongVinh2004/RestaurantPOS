@@ -423,8 +423,6 @@ class CustomerReservationDepositPaymentService
             if ($reservation instanceof Reservation) {
                 return $reservation;
             }
-
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $resolvedSessionId = trim((string) $sessionAccessId);
@@ -448,8 +446,6 @@ class CustomerReservationDepositPaymentService
             if ($reservation instanceof Reservation) {
                 return $reservation;
             }
-
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $resolvedSessionId = trim((string) $sessionAccessId);

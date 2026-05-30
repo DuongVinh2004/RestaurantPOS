@@ -160,6 +160,8 @@ class ReservationPreorderService
                 $requestedItems,
                 $serviceStart,
                 $reservationId,
+                (string) ($lockedReservation->currency ?? 'VND'),
+                (int) $lockedReservation->branch_id
             );
 
             // 2.3 LẤY HÓA ĐƠN CŨ RA SỬA HOẶC TẠO MỚI

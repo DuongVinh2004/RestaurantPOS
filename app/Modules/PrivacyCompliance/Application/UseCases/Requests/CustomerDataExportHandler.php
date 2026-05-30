@@ -160,6 +160,33 @@ class CustomerDataExportHandler
             'created_at',
             'updated_at',
         ],
+        'preorders' => [
+            'preorder_id',
+            'reservation_id',
+            'customer_user_id',
+            'status',
+            'notes',
+            'submitted_at',
+            'confirmed_at',
+            'rejected_at',
+            'cancelled_at',
+            'converted_at',
+            'created_at',
+            'updated_at',
+        ],
+        'preorder_items' => [
+            'preorder_item_id',
+            'preorder_id',
+            'menu_item_id',
+            'item_name_snapshot',
+            'unit_price_snapshot',
+            'quantity',
+            'line_total_snapshot',
+            'currency',
+            'notes',
+            'created_at',
+            'updated_at',
+        ],
         'payments' => [
             'payment_id',
             'reservation_id',
@@ -286,20 +313,24 @@ class CustomerDataExportHandler
             'waiting_id',
             'branch_id',
             'user_id',
-            'status',
+            'customer_session_id',
             'guest_name',
             'phone',
             'guest_count',
-            'quoted_wait_minutes',
-            'service_minutes',
-            'notes',
-            'cancel_reason',
-            'wait_started_at',
+            'requested_at',
+            'status',
+            'priority',
             'notified_at',
             'notify_expires_at',
-            'confirmed_arrival_at',
-            'cancelled_at',
+            'customer_response_status',
+            'customer_responded_at',
+            'customer_confirmed_arrival_at',
+            'notified_by',
             'seated_at',
+            'cancelled_at',
+            'cancel_reason',
+            'notes',
+            'updated_by',
             'created_at',
             'updated_at',
         ],
@@ -525,6 +556,23 @@ class CustomerDataExportHandler
                                 $q->from('reservation_orders')->select('order_id')->whereIn('reservation_id', $reservationIds);
                             })
                             ->orderByDesc('order_item_id')
+                            ->get()
+                        : collect(),
+                ),
+                'preorders' => $this->sanitizeTableRows(
+                    'preorders',
+                    ($reservationIds !== [] && Schema::hasTable('preorders'))
+                        ? DB::table('preorders')->whereIn('reservation_id', $reservationIds)->orderByDesc('preorder_id')->get()
+                        : collect(),
+                ),
+                'preorder_items' => $this->sanitizeTableRows(
+                    'preorder_items',
+                    ($reservationIds !== [] && Schema::hasTable('preorder_items'))
+                        ? DB::table('preorder_items')
+                            ->whereIn('preorder_id', function ($q) use ($reservationIds): void {
+                                $q->from('preorders')->select('preorder_id')->whereIn('reservation_id', $reservationIds);
+                            })
+                            ->orderByDesc('preorder_item_id')
                             ->get()
                         : collect(),
                 ),
