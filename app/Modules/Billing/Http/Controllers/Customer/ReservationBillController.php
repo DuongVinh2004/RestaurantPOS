@@ -111,8 +111,6 @@ class ReservationBillController extends Controller
             if ($reservation instanceof Reservation) {
                 return [$reservation, 'owner'];
             }
-
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $reservation = Reservation::query()->find($reservationId);

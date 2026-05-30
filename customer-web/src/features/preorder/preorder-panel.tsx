@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { listMenuItems } from "@/features/menu/api";
 import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
 import { getPreorderPolicy } from "@/features/reservations/state";
-import { isConflictLikeApiError } from "@/lib/api/errors";
+import { isConflictLikeApiError, normalizeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
@@ -57,6 +57,8 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   const [pendingDraft, setPendingDraft] =
     useState<StoredPendingReservationPreorderDraft | null>(null);
   const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [itemNotes, setItemNotes] = useState<Record<number, string>>({});
   const preorderQuery = useQuery({
     queryKey: queryKeys.reservations.preorder(reservationId),
     queryFn: () => getReservationPreorder(reservationId),
@@ -198,7 +200,11 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
         pre_order_row_version: preorderQuery.data.pre_order.order_row_version,
       });
     },
-    onSuccess: syncPreorder,
+    onSuccess(result) {
+      setSuccessMessage("Đã cập nhật món đặt trước thành công!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      void syncPreorder(result);
+    },
     onError: handleMutationError,
   });
   const submitMutation = useMutation({
@@ -213,7 +219,11 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
         preorderQuery.data.pre_order.order_row_version,
       );
     },
-    onSuccess: syncPreorder,
+    onSuccess(result) {
+      setSuccessMessage("Đã gửi xác nhận đặt món thành công!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      void syncPreorder(result);
+    },
     onError: handleMutationError,
   });
   const clearMutation = useMutation({
@@ -228,7 +238,11 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
         preorderQuery.data.pre_order.order_row_version,
       );
     },
-    onSuccess: syncPreorder,
+    onSuccess(result) {
+      setSuccessMessage("Đã xóa món đặt trước thành công!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      void syncPreorder(result);
+    },
     onError: handleMutationError,
   });
 
@@ -265,11 +279,21 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
   }
 
   return (
-    <Card className="rounded-lg">
+    <Card className="rounded-lg" data-testid="customer-preorder-section">
       <CardHeader>
         <CardTitle>Món đặt trước</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {successMessage && (
+          <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800 border border-green-200" data-testid="customer-preorder-success">
+            {successMessage}
+          </div>
+        )}
+        {!!actionError && (
+          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800 border border-red-200" data-testid="customer-preorder-error-alert">
+            {normalizeApiError(actionError).message}
+          </div>
+        )}
         {preorderQuery.isLoading ? <LoadingBlock label="Đang tải món đặt trước" /> : null}
         {menuQuery.isLoading ? <LoadingBlock label="Đang tải món có thể đặt trước" /> : null}
         {loadBoundary ? (
@@ -377,39 +401,84 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                   {menuQuery.data?.map((item) => {
                     const quantity = preorderCartQuantity(cart, item.item_id);
                     const itemAvailable = item.is_available !== false && item.preorder.enabled !== false;
+                    const itemNote = itemNotes[item.item_id] ?? "";
 
                     return (
                       <div
                         key={item.item_id}
-                        className="grid gap-3 rounded-lg bg-secondary/40 p-3 sm:grid-cols-[1fr_120px] sm:items-center"
+                        data-testid="customer-menu-item-card"
+                        className="grid gap-3 rounded-lg bg-secondary/40 p-3 sm:grid-cols-[1fr_auto] sm:items-center border border-gray-100 hover:border-indigo-100 transition-all duration-200"
                       >
-                        <div>
-                          <p className="font-medium">{item.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {menuItemPrice(item)}
-                            {item.preorder.cutoff_minutes
-                              ? ` | Khóa trước ${item.preorder.cutoff_minutes} phút`
-                              : ""}
-                            {item.preorder.quota_per_day
-                              ? ` | Tối đa ${item.preorder.quota_per_day}/ngày`
-                              : ""}
-                            {!itemAvailable ? " | Tạm chưa khả dụng" : ""}
-                          </p>
-                        </div>
                         <div className="space-y-2">
-                          <Label htmlFor={`preorder-qty-${item.item_id}`}>Số lượng</Label>
-                          <Input
-                            id={`preorder-qty-${item.item_id}`}
-                            aria-label={`Số lượng ${item.name}`}
-                            type="number"
-                            min={0}
-                            className="min-h-10 rounded-lg"
-                            value={quantity}
-                            disabled={!itemAvailable || cartInputsDisabled}
-                            onChange={(event) =>
-                              updateCartItem(item.item_id, Number(event.target.value))
-                            }
-                          />
+                          <div>
+                            <p className="font-medium text-gray-900">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {menuItemPrice(item)}
+                              {item.preorder.cutoff_minutes
+                                ? ` | Khóa trước ${item.preorder.cutoff_minutes} phút`
+                                : ""}
+                              {item.preorder.quota_per_day
+                                ? ` | Tối đa ${item.preorder.quota_per_day}/ngày`
+                                : ""}
+                              {!itemAvailable ? " | Tạm chưa khả dụng" : ""}
+                            </p>
+                          </div>
+                          {quantity > 0 && (
+                            <div className="flex flex-col gap-1 w-full max-w-md">
+                              <Label htmlFor={`preorder-note-${item.item_id}`} className="text-xs text-gray-500">Ghi chú món ăn</Label>
+                              <Input
+                                id={`preorder-note-${item.item_id}`}
+                                data-testid="customer-preorder-note-input"
+                                placeholder="Ghi chú (ví dụ: ít cay, nhiều đá...)"
+                                className="min-h-9 text-xs rounded-lg bg-white/80"
+                                value={itemNote}
+                                disabled={cartInputsDisabled}
+                                onChange={(e) => setItemNotes({ ...itemNotes, [item.item_id]: e.target.value })}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {quantity === 0 ? (
+                            <Button
+                              type="button"
+                              data-testid="customer-preorder-add-button"
+                              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 text-sm shadow-sm transition-all duration-200"
+                              disabled={!itemAvailable || cartInputsDisabled}
+                              onClick={() => updateCartItem(item.item_id, 1)}
+                            >
+                              Thêm vào đặt trước
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex flex-col gap-1 items-end">
+                                <Label htmlFor={`preorder-qty-${item.item_id}`} className="text-xs text-gray-500">Số lượng</Label>
+                                <Input
+                                  id={`preorder-qty-${item.item_id}`}
+                                  data-testid="customer-preorder-quantity-input"
+                                  aria-label={`Số lượng ${item.name}`}
+                                  type="number"
+                                  min={0}
+                                  className="min-h-10 w-20 rounded-lg text-center"
+                                  value={quantity}
+                                  disabled={cartInputsDisabled}
+                                  onChange={(event) =>
+                                    updateCartItem(item.item_id, Number(event.target.value))
+                                  }
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                data-testid="customer-preorder-remove-button"
+                                className="rounded-lg min-h-10 mt-5 font-semibold transition-all duration-200"
+                                disabled={cartInputsDisabled}
+                                onClick={() => updateCartItem(item.item_id, 0)}
+                              >
+                                Xóa
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );
@@ -473,6 +542,7 @@ export function PreorderPanel({ reservationId }: { reservationId: number }) {
                   {canSubmit ? (
                     <Button
                       type="button"
+                      data-testid="customer-preorder-submit-button"
                       className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
                       disabled={mutationPending}
                       onClick={() => submitMutation.mutate()}

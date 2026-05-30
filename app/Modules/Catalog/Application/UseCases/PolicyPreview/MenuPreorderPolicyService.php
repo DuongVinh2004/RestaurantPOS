@@ -7,6 +7,7 @@ namespace App\Modules\Catalog\Application\UseCases\PolicyPreview;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
 use App\Enums\ReservationStatus;
+use App\Modules\BranchScheduling\Application\Services\BranchSchedulingPolicyService;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
@@ -16,6 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class MenuPreorderPolicyService
 {
+    public function __construct(
+        private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
+    ) {}
+
     /**
      * @param  array<int, array{item_id:int, quantity:int}>  $requestedItems
      * @return array{
@@ -24,7 +29,7 @@ class MenuPreorderPolicyService
      *   price_rows: Collection<int, MenuItemPrice>
      * }
      */
-    public function prepareRequestedItems(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null): array
+    public function prepareRequestedItems(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null, string $currency = 'VND', ?int $branchId = null): array
     {
         $rows = $this->normalizeRequestedItems($requestedItems);
         if ($rows === []) {
@@ -70,6 +75,7 @@ class MenuPreorderPolicyService
             itemIds: array_keys($requestedQuantityByItemId),
             serviceStart: $serviceStart,
             ignoreReservationId: $ignoreReservationId,
+            branchId: $branchId,
         );
 
         foreach ($requestedQuantityByItemId as $itemId => $requestedQuantity) {
@@ -114,6 +120,7 @@ class MenuPreorderPolicyService
         /** @var Collection<int, MenuItemPrice> $priceRows */
         $priceRows = MenuItemPrice::query()
             ->whereIn('item_id', $itemIds)
+            ->where('currency', $currency)
             ->effectiveAt($serviceStart)
             ->orderBy('item_id')
             ->orderByDesc('effective_from')
@@ -197,14 +204,15 @@ class MenuPreorderPolicyService
      * @param  array<int, int>  $itemIds
      * @return array<int, int>
      */
-    private function existingDailyPreorderQuantities(array $itemIds, Carbon $serviceStart, ?int $ignoreReservationId = null): array
+    private function existingDailyPreorderQuantities(array $itemIds, Carbon $serviceStart, ?int $ignoreReservationId = null, ?int $branchId = null): array
     {
         if ($itemIds === []) {
             return [];
         }
 
-        $dayStart = $serviceStart->copy()->startOfDay();
-        $dayEnd = $serviceStart->copy()->endOfDay();
+        $tz = $this->branchSchedulingPolicyService->branchTimezone($branchId, false);
+        $dayStart = $serviceStart->copy()->setTimezone($tz)->startOfDay()->utc();
+        $dayEnd = $serviceStart->copy()->setTimezone($tz)->endOfDay()->utc();
 
         return ReservationOrderItem::query()
             ->join('reservation_orders as ro', 'ro.order_id', '=', 'reservation_order_items.order_id')

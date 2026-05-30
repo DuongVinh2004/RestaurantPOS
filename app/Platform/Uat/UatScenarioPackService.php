@@ -768,6 +768,10 @@ class UatScenarioPackService
         $patioFourSeatTableId = (int) data_get($tables, 'patio_4p.table_id');
         $vipFourSeatTableId = (int) data_get($tables, 'vip_4p.table_id');
 
+        RestaurantTable::where('table_id', $mainFourSeatTableId)->update(['qr_payment_token' => 'uat-qr-token-main-4p']);
+        RestaurantTable::where('table_id', $patioFourSeatTableId)->update(['qr_payment_token' => 'uat-qr-token-patio-4p']);
+        RestaurantTable::where('table_id', $vipFourSeatTableId)->update(['qr_payment_token' => 'uat-qr-token-vip-4p']);
+
         $depositReservationId = $this->upsertReservation([
             'reservation_code' => self::RESERVATION_CODES['deposit_pending'],
             'branch_id' => (int) $branch->branch_id,
@@ -1440,6 +1444,7 @@ class UatScenarioPackService
             'template_id' => (int) ($table->template_id ?? 0),
             'template_code' => (string) ($table->template?->template_code ?? ''),
             'seats' => (int) ($table->template?->seats ?? 0),
+            'qr_payment_token' => $table->qr_payment_token,
         ];
     }
 

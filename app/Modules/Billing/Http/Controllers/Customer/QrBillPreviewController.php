@@ -22,10 +22,15 @@ class QrBillPreviewController extends Controller
 
     public function show(string $token, Request $request): JsonResponse
     {
+        $token = trim($token);
+        if ($token === '') {
+            return ApiErrorResponse::notFound($request, 'Invalid QR token.');
+        }
+
         // Find the table by QR token
         $table = RestaurantTable::where('qr_payment_token', $token)->first();
 
-        if (! $table) {
+        if (! $table || ! hash_equals((string) $table->qr_payment_token, $token)) {
             return ApiErrorResponse::notFound($request, 'Invalid QR token.');
         }
 

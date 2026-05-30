@@ -87,6 +87,19 @@ class ReservationSessionAccessWorkflow
 
     public function canAccessReservationBySession(Reservation $reservation, string $sessionId): bool
     {
+        // Khach da dang nhap (claimed) thi chi duoc truy cap qua OWNER scope neu session thuoc ve user khac.
+        if ($reservation->user_id !== null) {
+            $sessionBelongsToDifferentUser = DB::table('table_holds')
+                ->where('session_id', $sessionId)
+                ->whereNotNull('user_id')
+                ->where('user_id', '!=', (int) $reservation->user_id)
+                ->exists();
+
+            if ($sessionBelongsToDifferentUser) {
+                return false;
+            }
+        }
+
         // Buoc 1: exact-link access la duong chuan, uu tien vi hold da lien ket truc tiep voi reservation.
         if ($sessionId === '') {
             return false;
