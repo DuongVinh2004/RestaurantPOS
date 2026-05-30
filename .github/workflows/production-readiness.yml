@@ -1,0 +1,42 @@
+name: Production Readiness Gate
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  secret-scan:
+    name: Secret Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  verify-artifacts:
+    name: Verify Release Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: Install Dependencies
+        run: composer install --no-interaction --prefer-dist
+      - name: Run Deploy Check (Preflight)
+        run: php artisan booking:deploy-check --mode=preflight --strict --json
+      - name: Run Doctor
+        run: php artisan booking:doctor --json
+      - name: Run Release Manifest Check
+        run: php artisan booking:release-manifest --json
