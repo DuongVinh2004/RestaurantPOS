@@ -1,0 +1,113 @@
+name: Production Deployment Readiness
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  verification-gate:
+    name: Production Deployment Verification Gate
+    runs-on: ubuntu-latest
+    
+    # This workflow does NOT auto-deploy. It is a strict verification gate.
+    
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: restaurantpos_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=3
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.4'
+        extensions: mbstring, xml, ctype, iconv, intl, pdo_sqlite, dom, filter, gd, iconv, json, mbstring, pdo, tokenizer, xml
+        coverage: none
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+
+    - name: Copy .env
+      run: cp .env.example .env
+
+    - name: Install PHP Dependencies
+      run: composer install --q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+    - name: Run Pint (Style Check)
+      run: vendor/bin/pint --test -v
+
+    - name: Bootstrap SQL-First DB
+      run: mysql -h 127.0.0.1 -u root -proot restaurantpos_test < database/schema/mysql-schema.sql
+      
+    - name: Run Targeted PHPUnit Tests
+      env:
+        DB_CONNECTION: mysql
+        DB_HOST: 127.0.0.1
+        DB_PORT: 3306
+        DB_DATABASE: restaurantpos_test
+        DB_USERNAME: root
+        DB_PASSWORD: root
+      run: |
+        vendor/bin/phpunit --filter=Reservation
+        vendor/bin/phpunit --filter=Preorder
+        vendor/bin/phpunit --filter=Voucher
+        vendor/bin/phpunit --filter=Loyalty
+        vendor/bin/phpunit --filter=Checkout
+
+    - name: Staff-Web Build Check
+      working-directory: ./staff-web
+      run: |
+        npm ci
+        npx tsc --noEmit
+        npm run build
+
+    - name: Customer-Web Build Check
+      working-directory: ./customer-web
+      run: |
+        npm ci
+        npx tsc --noEmit
+        npm run build
+
+    - name: API Contract & Release Manifest Verification
+      run: |
+        php artisan booking:api-contract --write
+        php artisan booking:release-manifest --write
+        # Ensure no uncommitted contract changes
+        git diff --exit-code
+
+    - name: Booking Doctor Check
+      run: php artisan booking:doctor --json
+
+    - name: Outbox Health Check
+      run: php artisan notifications:outbox-health --json
+
+    - name: Launch Readiness Gate
+      run: php artisan booking:launch-readiness --target=staging --json
+
+    - name: Security/Secret Scan
+      run: |
+        if grep -q "DB_PASSWORD=.*[a-zA-Z0-9]" .env.example; then
+          echo "FAIL: Hardcoded secret detected in .env.example"
+          exit 1
+        fi
