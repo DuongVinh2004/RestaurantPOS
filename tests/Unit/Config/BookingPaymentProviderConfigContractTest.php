@@ -37,5 +37,18 @@ final class BookingPaymentProviderConfigContractTest extends TestCase
         self::assertSame('sha256', config('booking.payment_providers.providers.generic_http_hmac.webhook.algorithm'));
         self::assertSame('X-Payment-Timestamp', config('booking.payment_providers.providers.generic_http_hmac.webhook.timestamp_header'));
         self::assertSame(300, config('booking.payment_providers.providers.generic_http_hmac.webhook.max_age_seconds'));
+
+        // VNPay config assertions
+        self::assertFalse((bool) config('booking.payment_providers.providers.vnpay.enabled'));
+        self::assertSame('sandbox', config('booking.payment_providers.providers.vnpay.mode'));
+        self::assertSame('', config('booking.payment_providers.providers.vnpay.tmn_code'));
+        self::assertSame('', config('booking.payment_providers.providers.vnpay.hash_secret'));
+
+        // MoMo config assertions
+        self::assertFalse((bool) config('booking.payment_providers.providers.momo.enabled'));
+        self::assertSame('sandbox', config('booking.payment_providers.providers.momo.mode'));
+        self::assertSame('', config('booking.payment_providers.providers.momo.partner_code'));
+        self::assertSame('', config('booking.payment_providers.providers.momo.access_key'));
+        self::assertSame('', config('booking.payment_providers.providers.momo.secret_key'));
     }
 }

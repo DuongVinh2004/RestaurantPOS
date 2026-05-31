@@ -1,0 +1,225 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Modules\Payments\Infrastructure\Integrations\PaymentProviders;
+
+use App\Enums\PaymentSessionScope;
+use App\Modules\Reservations\Domain\Models\Reservation;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
+
+class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
+{
+    public function code(): string
+    {
+        return 'vnpay';
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    public function createSession(PaymentSessionScope $scope, Reservation $reservation, int $customerUserId, array $payload): array
+    {
+        $config = $this->providerConfig();
+        if (! (bool) ($config['enabled'] ?? false)) {
+            throw ValidationException::withMessages([
+                'provider_code' => ['VNPay provider is disabled.'],
+            ]);
+        }
+
+        $sessionCode = 'vnp-'.Str::uuid()->toString();
+        $amount = (int) ($payload['amount'] ?? 0);
+
+        // Mock session creation as direct provider endpoints are sandbox/placeholders
+        return [
+            'provider_code' => $this->code(),
+            'provider_session_code' => $sessionCode,
+            'provider_payment_code' => null,
+            'payment_method' => 'VNPay',
+            'session_status' => 'Pending',
+            'provider_payload' => [
+                'mode' => $config['mode'] ?? 'sandbox',
+                'payment_scope' => $scope->value,
+                'tmn_code' => $config['tmn_code'] ?? '',
+                'amount' => $amount,
+                'payment_url' => ($config['ipn_url'] ?? 'http://localhost').'/checkout/'.$sessionCode,
+            ],
+            'provider_expires_at' => Carbon::now('UTC')->addMinutes(15),
+            'payment_url' => ($config['ipn_url'] ?? 'http://localhost').'/checkout/'.$sessionCode,
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    public function refreshSession(PaymentSessionScope $scope, Reservation $reservation, Model $session, array $payload): array
+    {
+        return $this->normalizeRefreshOrConfirmPayload($scope, $session, $payload, false);
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    public function confirmSession(PaymentSessionScope $scope, Reservation $reservation, Model $session, array $payload): array
+    {
+        return $this->normalizeRefreshOrConfirmPayload($scope, $session, $payload, true);
+    }
+
+    /**
+     * @param  array<string,string>  $headers
+     */
+    public function verifyWebhookSignature(string $rawBody, array $headers): bool
+    {
+        $config = $this->providerConfig();
+        $secret = trim((string) ($config['hash_secret'] ?? ''));
+        if ($secret === '') {
+            return false;
+        }
+
+        $params = $this->parseParams($rawBody);
+        $secureHash = trim((string) ($params['vnp_SecureHash'] ?? ''));
+        if ($secureHash === '') {
+            return false;
+        }
+
+        // Filter and sort parameters starting with vnp_ (excluding vnp_SecureHash)
+        $vnpParams = [];
+        foreach ($params as $key => $value) {
+            if (str_starts_with($key, 'vnp_') && $key !== 'vnp_SecureHash' && $key !== 'vnp_SecureHashType') {
+                $valueStr = trim((string) $value);
+                if ($valueStr !== '') {
+                    $vnpParams[$key] = $valueStr;
+                }
+            }
+        }
+
+        ksort($vnpParams);
+
+        // Build query string according to VNPay specs
+        $queryParts = [];
+        foreach ($vnpParams as $key => $value) {
+            $queryParts[] = urlencode($key).'='.urlencode($value);
+        }
+        $queryString = implode('&', $queryParts);
+
+        $expected = hash_hmac('sha512', $queryString, $secret);
+
+        return hash_equals(strtolower($expected), strtolower($secureHash));
+    }
+
+    /**
+     * @param  array<string,string>  $headers
+     * @return array<string,mixed>
+     */
+    public function parseWebhook(string $rawBody, array $headers): array
+    {
+        $params = $this->parseParams($rawBody);
+
+        $sessionCode = trim((string) ($params['vnp_TxnRef'] ?? ''));
+        if ($sessionCode === '') {
+            throw ValidationException::withMessages([
+                'provider_session_code' => ['Webhook payload must include vnp_TxnRef.'],
+            ]);
+        }
+
+        $responseCode = trim((string) ($params['vnp_ResponseCode'] ?? ''));
+        $status = $responseCode === '00' ? 'Succeeded' : 'Failed';
+
+        $providerEventCode = trim((string) ($params['vnp_TransactionNo'] ?? ''));
+        if ($providerEventCode === '') {
+            $providerEventCode = 'vnpay-webhook-'.sha1($rawBody);
+        }
+
+        $orderInfo = trim((string) ($params['vnp_OrderInfo'] ?? ''));
+        $scope = null;
+        if (str_contains(strtolower($orderInfo), 'deposit')) {
+            $scope = 'deposit';
+        } elseif (str_contains(strtolower($orderInfo), 'bill')) {
+            $scope = 'bill';
+        }
+
+        return [
+            'provider_code' => $this->code(),
+            'provider_event_code' => $providerEventCode,
+            'provider_session_code' => $sessionCode,
+            'provider_payment_code' => $providerEventCode !== '' ? $providerEventCode : null,
+            'payment_scope' => $scope,
+            'event_type' => 'payment.session.updated',
+            'session_status' => $status,
+            'failure_code' => $status === 'Failed' ? $responseCode : null,
+            'failure_message' => $status === 'Failed' ? 'VNPay transaction failed with response code '.$responseCode : null,
+            'provider_payload' => [
+                'mode' => $this->providerConfig()['mode'] ?? 'sandbox',
+                'raw' => $params,
+            ],
+            'provider_expires_at' => null,
+            'request_signature' => trim((string) ($params['vnp_SecureHash'] ?? '')),
+            'occurred_at' => Carbon::now('UTC'),
+        ];
+    }
+
+    public function supportsWebhookEventType(string $eventType): bool
+    {
+        return in_array(trim($eventType), [
+            'payment.session.updated',
+            'payment.session.succeeded',
+            'payment.session.failed',
+        ], true);
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function parseParams(string $rawBody): array
+    {
+        $decoded = json_decode($rawBody, true);
+        if (is_array($decoded)) {
+            return $decoded;
+        }
+
+        $params = [];
+        parse_str($rawBody, $params);
+
+        return $params;
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function providerConfig(): array
+    {
+        return (array) config('booking.payment_providers.providers.vnpay', []);
+    }
+
+    /**
+     * @param  array<string,mixed>  $payload
+     * @return array<string,mixed>
+     */
+    private function normalizeRefreshOrConfirmPayload(PaymentSessionScope $scope, Model $session, array $payload, bool $isConfirm): array
+    {
+        $status = trim((string) ($payload['session_status'] ?? ($isConfirm ? 'Succeeded' : 'Pending')));
+
+        return [
+            'provider_code' => $this->code(),
+            'provider_session_code' => (string) $session->provider_session_code,
+            'provider_payment_code' => $session->provider_payment_code ?? ($status === 'Succeeded' ? 'vnp-mock-payment-code' : null),
+            'payment_method' => 'VNPay',
+            'session_status' => $status,
+            'failure_code' => $status === 'Failed' ? 'vnp_failed' : null,
+            'failure_message' => $status === 'Failed' ? 'VNPay session failed.' : null,
+            'provider_payload' => array_merge((array) ($session->provider_payload_json ?? []), [
+                'payment_scope' => $scope->value,
+                'mutated_by' => $isConfirm ? 'confirm' : 'refresh',
+            ]),
+            'provider_expires_at' => null,
+            'event_type' => 'payment.session.updated',
+            'payment_scope' => $scope->value,
+        ];
+    }
+}
