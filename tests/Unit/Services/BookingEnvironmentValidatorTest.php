@@ -313,11 +313,57 @@ class BookingEnvironmentValidatorTest extends TestCase
         $this->assertSame('warning', $result['checks']['customer_auth']['severity']);
     }
 
+    #[Group('booking-smoke')]
+    public function test_it_passes_observability_validation_outside_production(): void
+    {
+        config()->set('app.env', 'testing');
+        config()->set('services.sentry.dsn', '');
+        config()->set('logging.channels.slack.url', '');
+
+        $result = app(BookingEnvironmentValidator::class)->validate();
+
+        $this->assertTrue($result['ok']);
+        $this->assertTrue($result['checks']['observability.sentry']['ok']);
+        $this->assertTrue($result['checks']['observability.alerting']['ok']);
+    }
+
+    #[Group('booking-smoke')]
+    public function test_it_fails_observability_validation_in_production_like_when_empty(): void
+    {
+        $this->configureProductionLikeBaseline('production');
+        config()->set('services.sentry.dsn', '');
+        config()->set('logging.channels.slack.url', '');
+
+        $result = app(BookingEnvironmentValidator::class)->validate();
+
+        $this->assertFalse($result['ok']);
+        $this->assertFalse($result['checks']['observability.sentry']['ok']);
+        $this->assertFalse($result['checks']['observability.alerting']['ok']);
+        $this->assertSame('error', $result['checks']['observability.sentry']['severity']);
+        $this->assertSame('error', $result['checks']['observability.alerting']['severity']);
+    }
+
+    #[Group('booking-smoke')]
+    public function test_it_passes_observability_validation_in_production_like_when_configured(): void
+    {
+        $this->configureProductionLikeBaseline('production');
+        config()->set('services.sentry.dsn', 'https://12345@sentry.io/1');
+        config()->set('logging.channels.slack.url', 'https://slack.myorg.org/hooks/123/456');
+
+        $result = app(BookingEnvironmentValidator::class)->validate();
+
+        $this->assertTrue($result['checks']['observability.sentry']['ok']);
+        $this->assertTrue($result['checks']['observability.alerting']['ok']);
+        $this->assertTrue($result['ok']);
+    }
+
     private function configureProductionLikeBaseline(string $environment): void
     {
         config()->set('app.env', $environment);
         config()->set('app.debug', false);
         config()->set('app.key', 'base64:K2Y5M2FhYjI3MDkxNGRiYjgxOWQ2OTZlY2MxZDIwYWE=');
+        config()->set('services.sentry.dsn', 'https://12345@sentry.io/1');
+        config()->set('logging.channels.slack.url', 'https://slack.myorg.org/hooks/123/456');
         config()->set('queue.default', 'database');
         config()->set('cache.default', 'redis');
         config()->set('session.driver', 'database');

@@ -8,14 +8,21 @@ use App\Modules\Notifications\Application\Services\NotificationOutboxHealthServi
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Waitlist\Application\Services\StaffWaitingListService;
 use App\Platform\Metrics\Services\OperationalInsightsService;
+use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Mail;
 use Mockery;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
 class NotificationOpsCommandsTest extends TestCase
 {
+    use BuildsBookingScenario;
+    use DatabaseTransactions;
+
     protected function tearDown(): void
     {
         Mockery::close();
@@ -250,5 +257,45 @@ class NotificationOpsCommandsTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertStringContainsString('Expired 1 waiting-list notified entry(s).', Artisan::output());
+    }
+
+    #[Group('booking-ops')]
+    public function test_delivery_smoke_command_fails_without_recipient(): void
+    {
+        $exitCode = Artisan::call('notifications:delivery-smoke', [
+            '--recipient' => '',
+        ]);
+
+        $this->assertSame(1, $exitCode);
+        $this->assertStringContainsString('No recipient provided', Artisan::output());
+    }
+
+    #[Group('booking-ops')]
+    public function test_delivery_smoke_command_runs_rehearsal_successfully(): void
+    {
+        $this->requireBookingSchema();
+        $this->ensureNotificationOutboxSchema();
+
+        Mail::fake();
+        $evidenceDir = base_path('storage/app/booking_release/manual_evidence');
+        if (is_dir($evidenceDir)) {
+            File::cleanDirectory($evidenceDir);
+        }
+
+        $exitCode = Artisan::call('notifications:delivery-smoke', [
+            '--recipient' => 'smoke@example.test',
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $output = Artisan::output();
+        $this->assertStringContainsString('Starting notification delivery smoke rehearsal', $output);
+        $this->assertStringContainsString('Captured delivery rehearsal evidence', $output);
+
+        $files = File::files($evidenceDir);
+        $this->assertCount(1, $files);
+        $content = json_decode($files[0]->getContents(), true);
+        $this->assertSame('Email', $content['channel']);
+        $this->assertSame('smo***@example.test', $content['recipient_masked']);
+        $this->assertSame('Sent', $content['status']);
     }
 }

@@ -4,6 +4,7 @@ use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
 use Monolog\Processor\PsrLogMessageProcessor;
+use Sentry\Laravel\ServiceProvider;
 
 return [
 
@@ -96,12 +97,10 @@ return [
             'handler' => NullHandler::class,
         ],
 
-        // Sentry is documented as a future integration for production.
-        // Requires running: composer require sentry/sentry-laravel
-        // 'sentry' => [
-        //     'driver' => 'sentry',
-        //     'level' => env('LOG_LEVEL', 'error'),
-        // ],
+        'sentry' => [
+            'driver' => class_exists(ServiceProvider::class) ? 'sentry' : 'null',
+            'level' => env('LOG_LEVEL', 'error'),
+        ],
 
         'emergency' => [
             'path' => storage_path('logs/laravel.log'),

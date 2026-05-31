@@ -37,6 +37,8 @@ class BookingEnvironmentValidator
         $this->addCheck($checks, 'customer_auth', $this->validateCustomerAuthConfig());
         $this->addCheck($checks, 'credentials.production_readiness', $this->validateCredentialProductionReadiness());
         $this->addCheck($checks, 'payment_providers', $this->validatePaymentProviderConfig());
+        $this->addCheck($checks, 'observability.sentry', $this->validateSentryConfig());
+        $this->addCheck($checks, 'observability.alerting', $this->validateAlertingConfig());
 
         $errors = [];
         $warnings = [];
@@ -805,6 +807,60 @@ class BookingEnvironmentValidator
         }
 
         return $this->ok('Payment provider rollout configuration looks valid for customer self-pay.', $meta);
+    }
+
+    private function validateSentryConfig(): array
+    {
+        $dsn = trim((string) config('services.sentry.dsn', ''));
+        $isProductionLike = $this->isProductionLikeEnvironment();
+
+        $meta = [
+            'configured' => $dsn !== '',
+            'is_production_like' => $isProductionLike,
+            'environment' => $this->currentEnvironment(),
+        ];
+
+        if ($dsn === '') {
+            return $isProductionLike
+                ? $this->error('Sentry DSN is missing in production-like environment.', $meta)
+                : $this->ok('Sentry is disabled (optional locally).', $meta);
+        }
+
+        if ($this->secretLooksPlaceholder($dsn)) {
+            return $isProductionLike
+                ? $this->error('Sentry DSN is configured but appears to be a placeholder.', $meta)
+                : $this->warning('Sentry DSN appears to be a placeholder.', $meta);
+        }
+
+        return $this->ok('Sentry configuration is valid.', $meta);
+    }
+
+    private function validateAlertingConfig(): array
+    {
+        $slackWebhook = trim((string) config('logging.channels.slack.url', ''));
+        $opsWebhook = trim((string) env('OPS_ALERTS_WEBHOOK_URL', ''));
+        $isProductionLike = $this->isProductionLikeEnvironment();
+
+        $meta = [
+            'slack_webhook_configured' => $slackWebhook !== '',
+            'ops_webhook_configured' => $opsWebhook !== '',
+            'is_production_like' => $isProductionLike,
+            'environment' => $this->currentEnvironment(),
+        ];
+
+        if ($isProductionLike && $slackWebhook === '' && $opsWebhook === '') {
+            return $this->error('Observability alert webhook (LOG_SLACK_WEBHOOK_URL or OPS_ALERTS_WEBHOOK_URL) is missing in production-like environment.', $meta);
+        }
+
+        if ($slackWebhook !== '' && $this->secretLooksPlaceholder($slackWebhook)) {
+            return $this->warning('Slack webhook appears to be a placeholder.', $meta);
+        }
+
+        if ($opsWebhook !== '' && $this->secretLooksPlaceholder($opsWebhook)) {
+            return $this->warning('Ops alerts webhook appears to be a placeholder.', $meta);
+        }
+
+        return $this->ok('Alerting webhook is configured.', $meta);
     }
 
     private function currentEnvironment(): string
