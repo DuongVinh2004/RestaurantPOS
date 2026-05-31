@@ -94,13 +94,13 @@ return [
             'expect_nonzero' => false,
         ],
         'restaurant_tables' => [
-            'columns' => ['table_id', 'branch_id', 'zone_id', 'capacity'],
+            'columns' => ['table_id', 'branch_id', 'zone', 'status'],
             'order_by' => 'table_id',
             'expect_nonzero' => true,
         ],
         'waiting_list' => [
-            'columns' => ['waiting_list_id', 'status', 'party_size', 'created_at'],
-            'order_by' => 'waiting_list_id',
+            'columns' => ['waiting_id', 'status', 'guest_count', 'created_at'],
+            'order_by' => 'waiting_id',
             'expect_nonzero' => false,
         ],
         'payments' => [

@@ -2,17 +2,22 @@
 
 declare(strict_types=1);
 
-require_once __DIR__.'/../../app/Support/BackupArtifactManifest.php';
-require_once __DIR__.'/../../app/Platform/Delivery/Release/Application/Verifiers/PortableSqlSanitizer.php';
-
-use App\Platform\Backup\Support\BackupArtifactManifest;
-use App\Platform\Delivery\Release\Application\Verifiers\PortableSqlSanitizer;
-
 $rootDir = realpath(__DIR__.'/../../');
 if ($rootDir === false) {
     fwrite(STDERR, "Unable to resolve project root.\n");
     exit(1);
 }
+
+$autoload = $rootDir.'/vendor/autoload.php';
+if (is_file($autoload)) {
+    require_once $autoload;
+} else {
+    require_once $rootDir.'/app/Platform/Backup/Support/BackupArtifactManifest.php';
+    require_once $rootDir.'/app/Platform/Delivery/Release/Application/Verifiers/PortableSqlSanitizer.php';
+}
+
+use App\Platform\Backup\Support\BackupArtifactManifest;
+use App\Platform\Delivery\Release\Application\Verifiers\PortableSqlSanitizer;
 
 $options = parseOptions($argv);
 $dbHost = envOr('DB_HOST', envOr('MYSQL_HOST', '127.0.0.1'));
@@ -79,7 +84,7 @@ try {
             @unlink($schemaPath);
         }
 
-        $relativePath = relativePath($finalSchemaPath, $rootDir);
+        $relativePath = basename($finalSchemaPath);
         $artifacts['schema'] = BackupArtifactManifest::describeFile($finalSchemaPath, $relativePath) + [
             'portable' => true,
             'compressed' => $compress,
@@ -112,7 +117,7 @@ try {
             @unlink($fullPath);
         }
 
-        $relativePath = relativePath($finalFullPath, $rootDir);
+        $relativePath = basename($finalFullPath);
         $artifacts['full'] = BackupArtifactManifest::describeFile($finalFullPath, $relativePath) + [
             'portable' => false,
             'compressed' => $compress,
@@ -227,7 +232,7 @@ function normalizePath(string $path, string $rootDir): string
         return $rootDir.DIRECTORY_SEPARATOR.'storage/app/booking_backups';
     }
 
-    if ($path[0] === '/' || preg_match('/^[A-Za-z]:[\\\/]/', $path) === 1) {
+    if ($path[0] === '/' || preg_match('#^[A-Za-z]:[\\\\/]#', $path) === 1) {
         return rtrim($path, '\\/');
     }
 
