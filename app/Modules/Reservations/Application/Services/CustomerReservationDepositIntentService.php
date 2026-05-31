@@ -245,9 +245,6 @@ class CustomerReservationDepositIntentService
             if ($reservation instanceof Reservation) {
                 return $reservation;
             }
-
-            // Ném lỗi 404 thay vì 403 để hacker không dò được ID đơn hàng có tồn tại hay không
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         // Kịch bản 2: Khách vãng lai (Guest)

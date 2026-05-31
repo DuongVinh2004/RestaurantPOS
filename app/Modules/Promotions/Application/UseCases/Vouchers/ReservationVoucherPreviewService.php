@@ -20,14 +20,16 @@ class ReservationVoucherPreviewService
     /**
      * @return list<array<string,mixed>>
      */
-    public function listVoucherOptions(Reservation $reservation): array
+    public function listVoucherOptions(Reservation $reservation, ?int $customerUserId = null): array
     {
         $reservation->loadMissing(['user', 'appliedUserVoucher.voucher']);
 
         $orders = $this->loadOrdersForReservation((int) $reservation->reservation_id);
+        $userIdToMatch = $customerUserId !== null && $customerUserId > 0 ? $customerUserId : (int) $reservation->user_id;
+
         $voucherRows = UserVoucher::query()
             ->with(['voucher.freeItem'])
-            ->where('user_id', (int) $reservation->user_id)
+            ->where('user_id', $userIdToMatch)
             ->orderBy('user_voucher_id')
             ->get();
 

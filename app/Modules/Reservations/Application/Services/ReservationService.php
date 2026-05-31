@@ -336,7 +336,7 @@ class ReservationService
                         ]);
                     }
 
-                    $preparedPreorder = $this->menuPreorderPolicyService->prepareRequestedItems($preOrderItems, $startUtc);
+                    $preparedPreorder = $this->menuPreorderPolicyService->prepareRequestedItems($preOrderItems, $startUtc, null, (string) ($reservation->currency ?? 'VND'), (int) $reservation->branch_id);
                     $normalizedPreOrderItems = $preparedPreorder['rows'];
                     $menuItems = $preparedPreorder['menu_items'];
                     $priceRows = $preparedPreorder['price_rows'];
@@ -609,7 +609,7 @@ class ReservationService
                             'actor_user_id' => $actorUserId,
                         ]);
 
-                        return;
+                        return $reservation;
                     }
 
                     ReservationStatusTransitionPolicy::assertTransitionAllowed($current, $target, $force);

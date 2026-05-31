@@ -379,7 +379,14 @@ class CustomerReservationBillPaymentService
     private function findAccessibleReservation(int $reservationId, ?int $customerUserId, ?string $sessionAccessId): Reservation
     {
         if ($customerUserId !== null) {
-            return $this->findOwnedReservation($reservationId, $customerUserId);
+            $reservation = Reservation::query()
+                ->whereKey($reservationId)
+                ->where('user_id', $customerUserId)
+                ->first();
+
+            if ($reservation instanceof Reservation) {
+                return $reservation;
+            }
         }
 
         $resolvedSessionId = trim((string) $sessionAccessId);
@@ -394,7 +401,15 @@ class CustomerReservationBillPaymentService
     private function findAccessibleReservationForUpdate(int $reservationId, ?int $customerUserId, ?string $sessionAccessId): Reservation
     {
         if ($customerUserId !== null) {
-            return $this->findOwnedReservationForUpdate($reservationId, $customerUserId);
+            $reservation = Reservation::query()
+                ->whereKey($reservationId)
+                ->where('user_id', $customerUserId)
+                ->lockForUpdate()
+                ->first();
+
+            if ($reservation instanceof Reservation) {
+                return $reservation;
+            }
         }
 
         $resolvedSessionId = trim((string) $sessionAccessId);
@@ -465,35 +480,6 @@ class CustomerReservationBillPaymentService
         }
 
         return (int) $reservation->user_id;
-    }
-
-    private function findOwnedReservation(int $reservationId, int $customerUserId): Reservation
-    {
-        $reservation = Reservation::query()
-            ->whereKey($reservationId)
-            ->where('user_id', $customerUserId)
-            ->first();
-
-        if (! $reservation instanceof Reservation) {
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
-        }
-
-        return $reservation;
-    }
-
-    private function findOwnedReservationForUpdate(int $reservationId, int $customerUserId): Reservation
-    {
-        $reservation = Reservation::query()
-            ->whereKey($reservationId)
-            ->where('user_id', $customerUserId)
-            ->lockForUpdate()
-            ->first();
-
-        if (! $reservation instanceof Reservation) {
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
-        }
-
-        return $reservation;
     }
 
     private function findOwnedSession(int $reservationId, int $sessionId, int $customerUserId): ReservationBillPaymentSession

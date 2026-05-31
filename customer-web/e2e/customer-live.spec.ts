@@ -1171,8 +1171,8 @@ test.describe("Wave 1 live Laravel runtime", () => {
       await createDepositSession,
       "POST /api/v1/reservations/{id}/deposit/payment-sessions",
     );
-    await expect(depositCard.getByText("Hoàn tất thanh toán rồi cập nhật")).first().toBeVisible();
-    await expect(depositCard.getByText("Thanh toán đặt cọc", { exact: true })).first().toBeVisible();
+    await expect(depositCard.getByText("Hoàn tất thanh toán rồi cập nhật").first()).toBeVisible();
+    await expect(depositCard.getByText("Thanh toán đặt cọc", { exact: true }).first()).toBeVisible();
     await expectOk(
       await request.get(
         liveApiUrl(

@@ -15,8 +15,10 @@ use App\Modules\Ordering\Domain\Models\PreorderItem;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
+use App\Support\DatabaseWriteConflictMapper;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -56,6 +58,8 @@ class CustomerReservationPreorderService
             requestedItems: $requestedItems,
             serviceStart: Carbon::parse((string) $reservation->start_time)->utc(),
             ignoreReservationId: (int) $reservation->reservation_id,
+            currency: (string) ($reservation->currency ?? 'VND'),
+            branchId: (int) $reservation->branch_id,
         );
 
         return [
@@ -69,152 +73,172 @@ class CustomerReservationPreorderService
     public function replaceAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-            return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-                $reservation = $this->loadAccessibleReservation(
-                    reservationId: $reservationId,
-                    customerUserId: $customerUserId,
-                    sessionId: $sessionId,
-                    lockForUpdate: true,
-                );
+            try {
+                return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
+                    $reservation = $this->loadAccessibleReservation(
+                        reservationId: $reservationId,
+                        customerUserId: $customerUserId,
+                        sessionId: $sessionId,
+                        lockForUpdate: true,
+                    );
 
-                $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
-                $this->assertReservationPreorderMutable($reservation);
+                    $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
+                    $this->assertReservationPreorderMutable($reservation);
 
-                $prepared = $this->menuPreorderPolicyService->prepareRequestedItems(
-                    (array) $payload['pre_order_items'],
-                    Carbon::parse((string) $reservation->start_time)->utc(),
-                    (int) $reservation->reservation_id,
-                );
+                    $prepared = $this->menuPreorderPolicyService->prepareRequestedItems(
+                        (array) $payload['pre_order_items'],
+                        Carbon::parse((string) $reservation->start_time)->utc(),
+                        (int) $reservation->reservation_id,
+                        (string) ($reservation->currency ?? 'VND'),
+                        (int) $reservation->branch_id
+                    );
 
-                $preorder = $reservation->preorder()->lockForUpdate()->first();
-                if ($preorder instanceof Preorder) {
-                    $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
-                    // Drop old items. Customer is replacing the cart.
-                    $preorder->items()->delete();
-                    $this->incrementPreorderRowVersion($preorder);
-                    $preorder->status = PreorderStatus::Draft;
-                    $preorder->customer_user_id = $customerUserId;
-                    $preorder->save();
-                } else {
-                    $preorder = new Preorder;
-                    $preorder->reservation_id = (int) $reservation->reservation_id;
-                    $preorder->status = PreorderStatus::Draft;
-                    $preorder->notes = 'Customer managed pre-order';
-                    $preorder->customer_user_id = $customerUserId;
-                    $preorder->save();
-                }
+                    $preorder = $reservation->preorder()->lockForUpdate()->first();
+                    if ($preorder instanceof Preorder) {
+                        $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+                        // Drop old items. Customer is replacing the cart.
+                        $preorder->items()->delete();
+                        $this->incrementPreorderRowVersion($preorder);
+                        $preorder->status = PreorderStatus::Draft;
+                        $preorder->customer_user_id = $customerUserId;
+                        $preorder->save();
+                    } else {
+                        $preorder = new Preorder;
+                        $preorder->reservation_id = (int) $reservation->reservation_id;
+                        $preorder->status = PreorderStatus::Draft;
+                        $preorder->notes = 'Customer managed pre-order';
+                        $preorder->customer_user_id = $customerUserId;
+                        $preorder->save();
+                    }
 
-                $this->persistPreparedRows($preorder, $prepared);
+                    $this->persistPreparedRows($preorder, $prepared);
 
-                AuditEvent::info('customer.reservation.preorder.replaced', [
-                    'reservation_id' => (int) $reservation->reservation_id,
-                    'preorder_id' => (int) $preorder->preorder_id,
-                    'customer_user_id' => $customerUserId,
-                    'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
-                    'line_count' => count((array) $prepared['rows']),
-                ]);
+                    AuditEvent::info('customer.reservation.preorder.replaced', [
+                        'reservation_id' => (int) $reservation->reservation_id,
+                        'preorder_id' => (int) $preorder->preorder_id,
+                        'customer_user_id' => $customerUserId,
+                        'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
+                        'line_count' => count((array) $prepared['rows']),
+                    ]);
 
-                $freshReservation = $this->loadAccessibleReservation(
-                    reservationId: $reservationId,
-                    customerUserId: $customerUserId,
-                    sessionId: $sessionId,
-                    lockForUpdate: false,
-                );
+                    $freshReservation = $this->loadAccessibleReservation(
+                        reservationId: $reservationId,
+                        customerUserId: $customerUserId,
+                        sessionId: $sessionId,
+                        lockForUpdate: false,
+                    );
 
-                return $this->buildResponse($freshReservation, $freshReservation->preorder);
-            });
+                    return $this->buildResponse($freshReservation, $freshReservation->preorder);
+                });
+            } catch (QueryException $e) {
+                throw DatabaseWriteConflictMapper::toValidationException($e);
+            }
         });
     }
 
     public function submitAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-            return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-                $reservation = $this->loadAccessibleReservation(
-                    reservationId: $reservationId,
-                    customerUserId: $customerUserId,
-                    sessionId: $sessionId,
-                    lockForUpdate: true,
-                );
+            try {
+                return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
+                    $reservation = $this->loadAccessibleReservation(
+                        reservationId: $reservationId,
+                        customerUserId: $customerUserId,
+                        sessionId: $sessionId,
+                        lockForUpdate: true,
+                    );
 
-                $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
-                $this->assertReservationPreorderMutable($reservation);
+                    $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
+                    $this->assertReservationPreorderMutable($reservation);
 
-                $preorder = $reservation->preorder()->lockForUpdate()->first();
-                if (! $preorder instanceof Preorder) {
-                    throw ValidationExceptionFactory::make([
-                        'pre_order' => ['No pre-order exists to submit.'],
+                    $preorder = $reservation->preorder()->lockForUpdate()->first();
+                    if (! $preorder instanceof Preorder) {
+                        throw ValidationExceptionFactory::make([
+                            'pre_order' => ['No pre-order exists to submit.'],
+                        ]);
+                    }
+
+                    if ($preorder->status !== PreorderStatus::Draft) {
+                        throw ValidationExceptionFactory::make([
+                            'pre_order' => ['Only Draft pre-orders can be submitted.'],
+                        ]);
+                    }
+
+                    $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+
+                    $preorder->status = PreorderStatus::Submitted;
+                    $preorder->submitted_at = Carbon::now('UTC');
+                    $preorder->customer_user_id = $customerUserId;
+                    $this->incrementPreorderRowVersion($preorder);
+                    $preorder->save();
+
+                    AuditEvent::info('customer.reservation.preorder.submitted', [
+                        'reservation_id' => (int) $reservation->reservation_id,
+                        'preorder_id' => (int) $preorder->preorder_id,
+                        'customer_user_id' => $customerUserId,
+                        'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
                     ]);
-                }
 
-                $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+                    $freshReservation = $this->loadAccessibleReservation(
+                        reservationId: $reservationId,
+                        customerUserId: $customerUserId,
+                        sessionId: $sessionId,
+                        lockForUpdate: false,
+                    );
 
-                $preorder->status = PreorderStatus::Submitted;
-                $preorder->submitted_at = Carbon::now('UTC');
-                $preorder->customer_user_id = $customerUserId;
-                $this->incrementPreorderRowVersion($preorder);
-                $preorder->save();
-
-                AuditEvent::info('customer.reservation.preorder.submitted', [
-                    'reservation_id' => (int) $reservation->reservation_id,
-                    'preorder_id' => (int) $preorder->preorder_id,
-                    'customer_user_id' => $customerUserId,
-                    'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
-                ]);
-
-                $freshReservation = $this->loadAccessibleReservation(
-                    reservationId: $reservationId,
-                    customerUserId: $customerUserId,
-                    sessionId: $sessionId,
-                    lockForUpdate: false,
-                );
-
-                return $this->buildResponse($freshReservation, $freshReservation->preorder);
-            });
+                    return $this->buildResponse($freshReservation, $freshReservation->preorder);
+                });
+            } catch (QueryException $e) {
+                throw DatabaseWriteConflictMapper::toValidationException($e);
+            }
         });
     }
 
     public function clearAccessiblePreorder(int $reservationId, ?int $customerUserId, ?string $sessionId, array $payload): array
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-            return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
-                $reservation = $this->loadAccessibleReservation(
-                    reservationId: $reservationId,
-                    customerUserId: $customerUserId,
-                    sessionId: $sessionId,
-                    lockForUpdate: true,
-                );
+            try {
+                return DB::transaction(function () use ($reservationId, $customerUserId, $sessionId, $payload) {
+                    $reservation = $this->loadAccessibleReservation(
+                        reservationId: $reservationId,
+                        customerUserId: $customerUserId,
+                        sessionId: $sessionId,
+                        lockForUpdate: true,
+                    );
 
-                $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
-                $this->assertReservationPreorderMutable($reservation);
+                    $this->assertReservationRowVersion($reservation, (int) $payload['row_version']);
+                    $this->assertReservationPreorderMutable($reservation);
 
-                $preorder = $reservation->preorder()->lockForUpdate()->first();
-                if ($preorder instanceof Preorder) {
-                    $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
+                    $preorder = $reservation->preorder()->lockForUpdate()->first();
+                    if ($preorder instanceof Preorder) {
+                        $this->assertPreorderRowVersion($preorder, $payload['pre_order_row_version'] ?? null);
 
-                    $preorder->status = PreorderStatus::Cancelled;
-                    $preorder->cancelled_at = Carbon::now('UTC');
-                    $preorder->customer_user_id = $customerUserId;
-                    $this->incrementPreorderRowVersion($preorder);
-                    $preorder->save();
+                        $preorder->status = PreorderStatus::Cancelled;
+                        $preorder->cancelled_at = Carbon::now('UTC');
+                        $preorder->customer_user_id = $customerUserId;
+                        $this->incrementPreorderRowVersion($preorder);
+                        $preorder->save();
 
-                    AuditEvent::info('customer.reservation.preorder.cleared', [
-                        'reservation_id' => (int) $reservation->reservation_id,
-                        'preorder_id' => (int) $preorder->preorder_id,
-                        'customer_user_id' => $customerUserId,
-                        'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
-                    ]);
-                }
+                        AuditEvent::info('customer.reservation.preorder.cleared', [
+                            'reservation_id' => (int) $reservation->reservation_id,
+                            'preorder_id' => (int) $preorder->preorder_id,
+                            'customer_user_id' => $customerUserId,
+                            'customer_session_id' => $customerUserId === null ? trim((string) $sessionId) : null,
+                        ]);
+                    }
 
-                $freshReservation = $this->loadAccessibleReservation(
-                    reservationId: $reservationId,
-                    customerUserId: $customerUserId,
-                    sessionId: $sessionId,
-                    lockForUpdate: false,
-                );
+                    $freshReservation = $this->loadAccessibleReservation(
+                        reservationId: $reservationId,
+                        customerUserId: $customerUserId,
+                        sessionId: $sessionId,
+                        lockForUpdate: false,
+                    );
 
-                return $this->buildResponse($freshReservation, $freshReservation->preorder);
-            });
+                    return $this->buildResponse($freshReservation, $freshReservation->preorder);
+                });
+            } catch (QueryException $e) {
+                throw DatabaseWriteConflictMapper::toValidationException($e);
+            }
         });
     }
 
@@ -243,8 +267,6 @@ class CustomerReservationPreorderService
             if ($reservation instanceof Reservation) {
                 return $reservation;
             }
-
-            throw (new ModelNotFoundException)->setModel(Reservation::class, [$reservationId]);
         }
 
         $trimmedSessionId = trim((string) $sessionId);
@@ -388,12 +410,14 @@ class CustomerReservationPreorderService
         ];
     }
 
-    private function buildRequestedPreorderPreview(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null): array
+    private function buildRequestedPreorderPreview(array $requestedItems, Carbon $serviceStart, ?int $ignoreReservationId = null, string $currency = 'VND', ?int $branchId = null): array
     {
         $prepared = $this->menuPreorderPolicyService->prepareRequestedItems(
             requestedItems: $requestedItems,
             serviceStart: $serviceStart,
             ignoreReservationId: $ignoreReservationId,
+            currency: $currency,
+            branchId: $branchId,
         );
 
         /** @var Collection<int, MenuItem> $menuItems */

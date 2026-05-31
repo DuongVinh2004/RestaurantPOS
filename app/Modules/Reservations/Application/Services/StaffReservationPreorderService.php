@@ -14,8 +14,10 @@ use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\AuditEvent;
+use App\Support\DatabaseWriteConflictMapper;
 use App\Support\ValidationExceptionFactory;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -72,124 +74,136 @@ class StaffReservationPreorderService
     public function confirmPreorder(int $reservationId, int $staffId): Preorder
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $staffId) {
-            return DB::transaction(function () use ($reservationId, $staffId) {
-                $reservation = $this->getReservation($reservationId);
-                $preorder = $this->getPreorderForUpdate($reservation);
+            try {
+                return DB::transaction(function () use ($reservationId, $staffId) {
+                    $reservation = $this->getReservation($reservationId);
+                    $preorder = $this->getPreorderForUpdate($reservation);
 
-                if ($preorder->status !== PreorderStatus::Submitted) {
-                    throw ValidationExceptionFactory::make([
-                        'status' => ['Only submitted pre-orders can be confirmed.'],
+                    if ($preorder->status !== PreorderStatus::Submitted) {
+                        throw ValidationExceptionFactory::make([
+                            'status' => ['Only submitted pre-orders can be confirmed.'],
+                        ]);
+                    }
+
+                    $preorder->status = PreorderStatus::Confirmed;
+                    $preorder->confirmed_at = Carbon::now('UTC');
+                    $preorder->save();
+
+                    AuditEvent::info('staff.reservation.preorder.confirmed', [
+                        'reservation_id' => $reservationId,
+                        'preorder_id' => $preorder->preorder_id,
+                        'staff_user_id' => $staffId,
                     ]);
-                }
 
-                $preorder->status = PreorderStatus::Confirmed;
-                $preorder->confirmed_at = Carbon::now('UTC');
-                $preorder->save();
-
-                AuditEvent::info('staff.reservation.preorder.confirmed', [
-                    'reservation_id' => $reservationId,
-                    'preorder_id' => $preorder->preorder_id,
-                    'staff_user_id' => $staffId,
-                ]);
-
-                return $preorder;
-            });
+                    return $preorder;
+                });
+            } catch (QueryException $e) {
+                throw DatabaseWriteConflictMapper::toValidationException($e);
+            }
         });
     }
 
     public function rejectPreorder(int $reservationId, int $staffId): Preorder
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $staffId) {
-            return DB::transaction(function () use ($reservationId, $staffId) {
-                $reservation = $this->getReservation($reservationId);
-                $preorder = $this->getPreorderForUpdate($reservation);
+            try {
+                return DB::transaction(function () use ($reservationId, $staffId) {
+                    $reservation = $this->getReservation($reservationId);
+                    $preorder = $this->getPreorderForUpdate($reservation);
 
-                if (! in_array($preorder->status, [PreorderStatus::Submitted, PreorderStatus::Confirmed], true)) {
-                    throw ValidationExceptionFactory::make([
-                        'status' => ['Only submitted or confirmed pre-orders can be rejected.'],
+                    if (! in_array($preorder->status, [PreorderStatus::Submitted, PreorderStatus::Confirmed], true)) {
+                        throw ValidationExceptionFactory::make([
+                            'status' => ['Only submitted or confirmed pre-orders can be rejected.'],
+                        ]);
+                    }
+
+                    $preorder->status = PreorderStatus::Rejected;
+                    $preorder->rejected_at = Carbon::now('UTC');
+                    $preorder->save();
+
+                    AuditEvent::info('staff.reservation.preorder.rejected', [
+                        'reservation_id' => $reservationId,
+                        'preorder_id' => $preorder->preorder_id,
+                        'staff_user_id' => $staffId,
                     ]);
-                }
 
-                $preorder->status = PreorderStatus::Rejected;
-                $preorder->rejected_at = Carbon::now('UTC');
-                $preorder->save();
-
-                AuditEvent::info('staff.reservation.preorder.rejected', [
-                    'reservation_id' => $reservationId,
-                    'preorder_id' => $preorder->preorder_id,
-                    'staff_user_id' => $staffId,
-                ]);
-
-                return $preorder;
-            });
+                    return $preorder;
+                });
+            } catch (QueryException $e) {
+                throw DatabaseWriteConflictMapper::toValidationException($e);
+            }
         });
     }
 
     public function convertPreorder(int $reservationId, int $staffId): ReservationOrder
     {
         return $this->locks->withReservationLock($reservationId, function () use ($reservationId, $staffId) {
-            return DB::transaction(function () use ($reservationId, $staffId) {
-                $reservation = $this->getReservation($reservationId);
-                $preorder = $this->getPreorderForUpdate($reservation);
+            try {
+                return DB::transaction(function () use ($reservationId, $staffId) {
+                    $reservation = $this->getReservation($reservationId);
+                    $preorder = $this->getPreorderForUpdate($reservation);
 
-                if ($preorder->status !== PreorderStatus::Confirmed) {
-                    throw ValidationExceptionFactory::make([
-                        'status' => ['Only confirmed pre-orders can be converted to active orders.'],
+                    if ($preorder->status !== PreorderStatus::Confirmed) {
+                        throw ValidationExceptionFactory::make([
+                            'status' => ['Only confirmed pre-orders can be converted to active orders.'],
+                        ]);
+                    }
+
+                    if ($reservation->checked_in_at === null) {
+                        throw ValidationExceptionFactory::make([
+                            'reservation' => ['Reservation must be checked in before converting pre-order.'],
+                        ]);
+                    }
+
+                    $now = Carbon::now('UTC');
+
+                    // Create a new OnSpot ReservationOrder based on the Preorder
+                    $order = new ReservationOrder;
+                    $order->reservation_id = $reservationId;
+                    $order->order_type = ReservationOrderType::OnSpot;
+                    $order->status = ReservationOrderStatus::Active;
+                    $order->notes = 'Converted from Preorder #'.$preorder->preorder_id;
+                    $order->created_by = $staffId;
+                    $order->updated_by = $staffId;
+                    $order->created_at = $now;
+                    $order->updated_at = $now;
+                    $order->save();
+
+                    // Convert items
+                    foreach ($preorder->items as $preorderItem) {
+                        $item = new ReservationOrderItem;
+                        $item->order_id = $order->order_id;
+                        $item->item_id = $preorderItem->menu_item_id;
+                        $item->quantity = $preorderItem->quantity;
+                        $item->unit_price = $preorderItem->unit_price_snapshot;
+                        $item->line_total = $preorderItem->line_total_snapshot;
+                        $item->currency = $preorderItem->currency;
+                        $item->item_name_snapshot = $preorderItem->item_name_snapshot;
+                        $item->status = ReservationOrderItemStatus::Ordered;
+                        $item->notes = $preorderItem->notes;
+                        $item->updated_by = $staffId;
+                        $item->created_at = $now;
+                        $item->updated_at = $now;
+                        $item->save();
+                    }
+
+                    // Update Preorder Status
+                    $preorder->status = PreorderStatus::Converted;
+                    $preorder->converted_at = $now;
+                    $preorder->save();
+
+                    AuditEvent::info('staff.reservation.preorder.converted', [
+                        'reservation_id' => $reservationId,
+                        'preorder_id' => $preorder->preorder_id,
+                        'order_id' => $order->order_id,
+                        'staff_user_id' => $staffId,
                     ]);
-                }
 
-                if ($reservation->checked_in_at === null) {
-                    throw ValidationExceptionFactory::make([
-                        'reservation' => ['Reservation must be checked in before converting pre-order.'],
-                    ]);
-                }
-
-                $now = Carbon::now('UTC');
-
-                // Create a new OnSpot ReservationOrder based on the Preorder
-                $order = new ReservationOrder;
-                $order->reservation_id = $reservationId;
-                $order->order_type = ReservationOrderType::OnSpot;
-                $order->status = ReservationOrderStatus::Active;
-                $order->notes = 'Converted from Preorder #'.$preorder->preorder_id;
-                $order->created_by = $staffId;
-                $order->updated_by = $staffId;
-                $order->created_at = $now;
-                $order->updated_at = $now;
-                $order->save();
-
-                // Convert items
-                foreach ($preorder->items as $preorderItem) {
-                    $item = new ReservationOrderItem;
-                    $item->order_id = $order->order_id;
-                    $item->item_id = $preorderItem->menu_item_id;
-                    $item->quantity = $preorderItem->quantity;
-                    $item->unit_price = $preorderItem->unit_price_snapshot;
-                    $item->line_total = $preorderItem->line_total_snapshot;
-                    $item->currency = $preorderItem->currency;
-                    $item->item_name_snapshot = $preorderItem->item_name_snapshot;
-                    $item->status = ReservationOrderItemStatus::Ordered;
-                    $item->notes = $preorderItem->notes;
-                    $item->updated_by = $staffId;
-                    $item->created_at = $now;
-                    $item->updated_at = $now;
-                    $item->save();
-                }
-
-                // Update Preorder Status
-                $preorder->status = PreorderStatus::Converted;
-                $preorder->converted_at = $now;
-                $preorder->save();
-
-                AuditEvent::info('staff.reservation.preorder.converted', [
-                    'reservation_id' => $reservationId,
-                    'preorder_id' => $preorder->preorder_id,
-                    'order_id' => $order->order_id,
-                    'staff_user_id' => $staffId,
-                ]);
-
-                return $order->load('items.item');
-            });
+                    return $order->load('items.item');
+                });
+            } catch (QueryException $e) {
+                throw DatabaseWriteConflictMapper::toValidationException($e);
+            }
         });
     }
 

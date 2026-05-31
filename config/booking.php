@@ -401,6 +401,22 @@ return [
                     'merchant_reference_prefix' => (string) env('PAYMENT_PROVIDER_GENERIC_HTTP_HMAC_BILL_MERCHANT_REFERENCE_PREFIX', 'reservation-bill-'),
                 ],
             ],
+            'vnpay' => [
+                'enabled' => (bool) env('PAYMENT_PROVIDER_VNPAY_ENABLED', false),
+                'mode' => (string) env('PAYMENT_PROVIDER_VNPAY_MODE', 'sandbox'),
+                'tmn_code' => (string) env('VNPAY_TMN_CODE', ''),
+                'hash_secret' => (string) env('VNPAY_HASH_SECRET', ''),
+                'return_url' => (string) env('VNPAY_RETURN_URL', ''),
+                'ipn_url' => (string) env('VNPAY_IPN_URL', ''),
+            ],
+            'momo' => [
+                'enabled' => (bool) env('PAYMENT_PROVIDER_MOMO_ENABLED', false),
+                'mode' => (string) env('PAYMENT_PROVIDER_MOMO_MODE', 'sandbox'),
+                'partner_code' => (string) env('MOMO_PARTNER_CODE', ''),
+                'access_key' => (string) env('MOMO_ACCESS_KEY', ''),
+                'secret_key' => (string) env('MOMO_SECRET_KEY', ''),
+                'ipn_url' => (string) env('MOMO_IPN_URL', ''),
+            ],
         ],
     ],
 

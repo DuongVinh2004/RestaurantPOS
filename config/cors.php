@@ -7,66 +7,28 @@ return [
     | Cross-Origin Resource Sharing (CORS) Configuration
     |--------------------------------------------------------------------------
     |
-    | Explicit CORS contract for the split frontend architecture:
-    |   - customer-web (Next.js + TypeScript)
-    |   - staff-web    (React + TypeScript + Vite)
+    | Here you may configure your settings for cross-origin resource sharing
+    | or "CORS". This determines what cross-origin operations may execute
+    | in web browsers. You are free to adjust these settings as needed.
     |
-    | Origins are env-driven. In production, only explicitly listed origins
-    | are allowed. An empty CORS_ALLOWED_ORIGINS denies all cross-origin
-    | requests (same-origin only).
-    |
-    | The default API contract uses header-based authentication
-    | (X-Customer-Token, X-Staff-Key), so supports_credentials is false.
-    | Staff browser refresh cookies are opt-in only; when enabled, credentials
-    | are still constrained to exact origins from CORS_ALLOWED_ORIGINS.
-    |
-    | See: docs/runbooks/api-consumer-artifacts.md, section "Cross-Origin (CORS)"
+    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
     |
     */
 
-    'paths' => ['api/*'],
+    'paths' => ['api/*', 'sanctum/csrf-cookie'],
 
-    'allowed_methods' => [
-        'GET',
-        'POST',
-        'PUT',
-        'PATCH',
-        'DELETE',
-        'OPTIONS',
-    ],
+    'allowed_methods' => ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
 
-    'allowed_origins' => array_filter(
-        array_map(
-            'trim',
-            explode(',', (string) env('CORS_ALLOWED_ORIGINS', ''))
-        )
-    ),
+    'allowed_origins' => explode(',', env('CORS_ALLOWED_ORIGINS', 'http://localhost:3000,http://localhost:5173')),
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => [
-        'Content-Type',
-        'Accept',
-        'Authorization',
-        'X-Customer-Token',
-        'X-Staff-Key',
-        'X-Staff-CSRF',
-        'X-Session-Id',
-        'Idempotency-Key',
-        'X-Idempotency-Key',
-        'X-Request-Id',
-        'X-Requested-With',
-    ],
+    'allowed_headers' => ['*'],
 
-    'exposed_headers' => [
-        'X-Request-Id',
-    ],
+    'exposed_headers' => [],
 
-    'max_age' => 7200,
+    'max_age' => 0,
 
-    'supports_credentials' => (bool) env(
-        'CORS_SUPPORTS_CREDENTIALS',
-        (bool) env('STAFF_AUTH_BROWSER_SESSION_COOKIE_ENABLED', false)
-    ),
+    'supports_credentials' => true,
 
 ];

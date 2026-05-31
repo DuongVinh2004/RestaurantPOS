@@ -12,6 +12,8 @@ class PaymentProviderRegistry
         private readonly PaymentProviderRolloutConfig $rolloutConfig,
         private readonly SimulatedPaymentProviderAdapter $simulatedProvider,
         private readonly GenericHttpHmacPaymentProviderAdapter $genericHttpHmacProvider,
+        private readonly VNPayPaymentProviderAdapter $vnpayProvider,
+        private readonly MoMoPaymentProviderAdapter $momoProvider,
     ) {}
 
     public function resolve(?string $providerCode = null): PaymentProviderAdapter
@@ -24,6 +26,8 @@ class PaymentProviderRegistry
         $provider = match ($providerCode) {
             'simulated' => $this->simulatedProvider,
             'generic_http_hmac' => $this->genericHttpHmacProvider,
+            'vnpay' => $this->vnpayProvider,
+            'momo' => $this->momoProvider,
             default => throw ValidationException::withMessages([
                 'provider_code' => ['Unsupported payment provider.'],
             ]),
