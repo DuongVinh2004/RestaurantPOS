@@ -152,3 +152,118 @@ Artisan::command('waiting-list:expire-notified {--at= : Expire entries using the
     $count = app(StaffWaitingListService::class)->expireNotifiedEntries($now);
     $command->info(sprintf('Expired %d waiting-list notified entry(s).', $count));
 })->purpose('Return expired notified waiting-list entries back to waiting state');
+
+Artisan::command('notifications:delivery-smoke {--recipient= : Safe smoke email recipient} {--channel=Email : Rehearsal channel} {--force : Force rehearsal in production}', function () {
+    /** @var ConsoleCommand $command */
+    // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
+    $command = $this;
+
+    $channel = (string) $command->option('channel');
+    $recipient = (string) $command->option('recipient');
+    $force = (bool) $command->option('force');
+
+    $env = app()->environment();
+    $isProd = in_array(strtolower($env), ['production', 'staging', 'limited-production'], true);
+
+    if ($isProd && ! $force) {
+        $command->error(sprintf('Delivery smoke rehearsal is blocked in production-like environments [%s] unless --force is specified.', $env));
+
+        return 1;
+    }
+
+    if ($recipient === '') {
+        $recipient = (string) env('NOTIFICATION_SMOKE_EMAIL', '');
+    }
+
+    if ($recipient === '') {
+        $command->error('No recipient provided. Pass --recipient=<email> or set NOTIFICATION_SMOKE_EMAIL in your environment.');
+
+        return 1;
+    }
+
+    if (! filter_var($recipient, FILTER_VALIDATE_EMAIL)) {
+        $command->error(sprintf('Invalid smoke email recipient [%s].', $recipient));
+
+        return 1;
+    }
+
+    $command->info('Starting notification delivery smoke rehearsal...');
+    $command->info(sprintf('Environment: %s', $env));
+    $command->info(sprintf('Channel:     %s', $channel));
+    $command->info(sprintf('Recipient:   %s', $recipient));
+
+    $outboxService = app(NotificationOutboxService::class);
+    $idempotencyKey = 'smoke:delivery:'.uniqid('', true);
+
+    $message = $outboxService->enqueueMessage([
+        'channel' => $channel,
+        'recipient' => $recipient,
+        'template_key' => 'reservation.created',
+        'idempotency_key' => $idempotencyKey,
+        'payload' => [
+            'reservation_code' => 'RSV-SMOKE-999',
+            'customer_name' => 'Smoke Test Recipient',
+            'restaurant_name' => 'Mộc Sen Bistro (Smoke Rehearsal)',
+            'start_time_local' => '12:00 01/01/2027',
+            'end_time_local' => '14:00 01/01/2027',
+            'start_time_utc' => '2027-01-01 05:00:00 UTC',
+            'end_time_utc' => '2027-01-01 07:00:00 UTC',
+            'tables' => [
+                ['table_code' => 'T-SMOKE', 'guest_count' => 2],
+            ],
+        ],
+        'missing_recipient_audit_context' => [
+            'smoke' => true,
+        ],
+    ]);
+
+    if ($message === null) {
+        $command->error('Failed to enqueue smoke message. Check if notifications or outbox are disabled in configuration.');
+
+        return 1;
+    }
+
+    $command->info(sprintf('Enqueued smoke message ID: %d', $message->outbox_id));
+
+    $processed = $outboxService->processDueMessages(10, 'smoke-worker');
+    $message->refresh();
+
+    $command->info(sprintf('Processed messages count: %d', $processed));
+    $command->info(sprintf('Smoke message status:     %s', $message->status));
+
+    if ($message->status !== 'Sent') {
+        $command->error(sprintf('Delivery rehearsal failed. Status: %s. Last error: %s', $message->status, $message->last_error ?? 'None'));
+
+        return 1;
+    }
+
+    $evidenceDir = base_path('storage/app/booking_release/manual_evidence');
+    if (! is_dir($evidenceDir)) {
+        mkdir($evidenceDir, 0755, true);
+    }
+
+    $timestamp = date('Ymd_His');
+    $evidenceFilename = sprintf('notification-delivery-%s.json', $timestamp);
+    $evidencePath = $evidenceDir.'/'.$evidenceFilename;
+
+    $emailParts = explode('@', $recipient);
+    $maskedEmail = substr($emailParts[0], 0, 3).'***@'.$emailParts[1];
+
+    $evidence = [
+        'rehearsal_type' => 'notification_delivery_rehearsal',
+        'channel' => $channel,
+        'recipient_masked' => $maskedEmail,
+        'environment' => $env,
+        'outbox_id' => $message->outbox_id,
+        'status' => $message->status,
+        'attempt_count' => $message->attempt_count,
+        'processed_at_utc' => now('UTC')->toIso8601String(),
+        'mailer' => config('notifications.outbox.mailer', config('mail.default')),
+        'success' => true,
+    ];
+
+    file_put_contents($evidencePath, json_encode($evidence, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    $command->info(sprintf('Captured delivery rehearsal evidence at: %s', 'storage/app/booking_release/manual_evidence/'.$evidenceFilename));
+
+    return 0;
+})->purpose('Run a safe staging/local notification delivery rehearsal and write evidence JSON');
