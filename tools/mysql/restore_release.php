@@ -82,7 +82,10 @@ if (! function_exists('restore_exit')) {
             2 => ['pipe', 'w'],
         ];
 
-        $environment = array_merge($_ENV, $_SERVER, $envOverrides);
+        $environment = array_filter(
+            array_merge($_ENV, $_SERVER, $envOverrides),
+            static fn (mixed $value): bool => is_scalar($value) || $value === null
+        );
         $process = proc_open($args, $descriptors, $pipes, $cwd, $environment);
         if (! is_resource($process)) {
             throw new RuntimeException('Unable to start external process.');
