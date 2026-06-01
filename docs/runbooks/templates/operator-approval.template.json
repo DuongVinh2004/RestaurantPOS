@@ -1,0 +1,9 @@
+{
+  "operator_approval": {
+    "status": "pending",
+    "operator_initials": "OP",
+    "reviewer_initials": "REV",
+    "verified_at": "YYYY-MM-DDTHH:MM:SSZ",
+    "notes": "Operator sign-off template for staging rehearsal."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "alerting": {
+    "status": "pass",
+    "performed_by": "operator.initials",
+    "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+    "channels_tested": ["Sentry", "Slack"],
+    "webhook_url_redacted": "https://hooks.slack.com/services/[redacted]",
+    "notes": "Staging alert routing checks are healthy and verified."
+  }
+}
