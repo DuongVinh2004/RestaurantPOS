@@ -90,6 +90,22 @@ class LaunchReadinessService
         }
 
         $manualChecks = $this->evaluateManualChecks($target, $manualEvidence);
+
+        $truthfulnessResult = $this->runTruthfulnessCheck($target, $manualEvidence, $doctor);
+        $checks[] = array_merge([
+            'key' => 'launch_readiness_truthfulness',
+            'group' => 'release_artifact_integrity',
+            'label' => 'Launch readiness truthfulness gate',
+            'source' => 'SaaS credentials & live evidence inspection',
+            'severity' => 'blocking',
+            'automation' => 'automated',
+        ], [
+            'status' => $truthfulnessResult['status'],
+            'summary' => $truthfulnessResult['summary'],
+            'findings' => $truthfulnessResult['findings'],
+            'evidence' => $truthfulnessResult['evidence'],
+        ]);
+
         $groups = $this->summarizeGroups(
             (array) config('booking_launch_readiness.groups', []),
             array_merge($checks, $manualChecks),
@@ -99,6 +115,9 @@ class LaunchReadinessService
         $baseline = $this->buildBaselineBuckets($checks, $manualChecks, $runtimeBaselineBlocked);
         $informationalFindings = $this->buildInformationalFindings($checks, $manualChecks, $manualEvidence);
         $followUpActions = $this->buildFollowUpActions($target, $manualChecks, $manualEvidence, $evaluatedAt);
+        if (! empty($truthfulnessResult['next_actions'])) {
+            $followUpActions = array_merge($followUpActions, $truthfulnessResult['next_actions']);
+        }
         $releaseHandoff = $this->buildReleaseHandoff(
             $manualEvidence,
             $manualChecks,
@@ -112,6 +131,15 @@ class LaunchReadinessService
         if ($blockingFailures !== []) {
             $decision = 'not_ready';
             $exitCode = 1;
+
+            if ($runtimeBaselineBlocked) {
+                $decision = 'blocked_runtime_failure';
+            } elseif (isset($truthfulnessResult['decision']) && $truthfulnessResult['decision'] !== 'ready') {
+                $decision = $truthfulnessResult['decision'];
+                if ($decision === 'partial_real_staging_evidence' && strtolower($target) !== 'staging') {
+                    $decision = 'not_ready';
+                }
+            }
         } elseif ($majorWarnings !== []) {
             $decision = 'ready_with_warnings';
             $exitCode = 2;
@@ -2421,6 +2449,326 @@ class LaunchReadinessService
         }
 
         return implode(PHP_EOL, $lines).PHP_EOL;
+    }
+
+    /**
+     * Run the truthfulness check for external SaaS credentials & live evidence.
+     *
+     * @return array<string, mixed>
+     */
+    public function runTruthfulnessCheck(string $target, array $manualEvidence, array $doctor): array
+    {
+        $isStagingLike = in_array(strtolower($target), ['staging', 'limited-production'], true);
+        if (! $isStagingLike) {
+            return [
+                'status' => 'pass',
+                'summary' => 'Launch readiness truthfulness gate is not applicable for target '.$target,
+                'findings' => [],
+                'evidence' => [],
+                'decision' => 'ready',
+                'next_actions' => [],
+            ];
+        }
+
+        $checks = (array) ($manualEvidence['checks'] ?? []);
+        $blockers = [];
+        $securityIssues = [];
+        $missingCredentials = [];
+
+        // Helper to check placeholders/missing env vars
+        $isSet = function (?string $val): bool {
+            if ($val === null) {
+                return false;
+            }
+            $val = trim($val);
+            if ($val === '') {
+                return false;
+            }
+            if (preg_match('/^(placeholder|your_.*|secret|your-.*|abc|123|dummy.*|test.*)$/i', $val)) {
+                return false;
+            }
+
+            return true;
+        };
+
+        // 1. Core runtime baseline checks (Doctor checks)
+        $runtimeBaselineBlocked = $this->runtimeBaselineBlocked($doctor);
+        if ($runtimeBaselineBlocked) {
+            return [
+                'status' => 'fail',
+                'summary' => 'Runtime baseline has blocking dependency failures (Doctor checks failed).',
+                'findings' => [
+                    [
+                        'severity' => 'blocking',
+                        'message' => 'Runtime baseline is blocked (MySQL/Redis/Scheduler unhealthy).',
+                    ],
+                ],
+                'evidence' => [],
+                'decision' => 'blocked_runtime_failure',
+                'next_actions' => [],
+            ];
+        }
+
+        // 2. Secret safety & Security preflight check (Phase 13)
+        // Detect if any manual evidence contains credentials, or if it leaks actual secrets
+        $piiPattern = '/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/'; // raw email without redaction
+        $webhookPattern = '/hooks\.slack\.com/i';
+        $s3KeyPattern = '/AKIA[A-Z0-9]{16}/i';
+
+        $hasSecurityRisk = false;
+        $scanEvidenceForSecrets = function ($item, $path) use (&$securityIssues, &$hasSecurityRisk, $piiPattern, $webhookPattern, $s3KeyPattern) {
+            if (is_string($item)) {
+                if (preg_match($webhookPattern, $item) || preg_match($s3KeyPattern, $item)) {
+                    $securityIssues[] = "Sensitive pattern detected at $path";
+                    $hasSecurityRisk = true;
+                }
+                // Check if email is raw without redaction
+                if (preg_match($piiPattern, $item) && ! str_contains($item, 'redacted') && ! str_contains($item, 'example.com')) {
+                    $securityIssues[] = "Unredacted PII (email) detected at $path";
+                    $hasSecurityRisk = true;
+                }
+            }
+        };
+
+        foreach ($checks as $checkKey => $checkData) {
+            if (is_array($checkData)) {
+                foreach ($checkData as $prop => $val) {
+                    if (is_string($val)) {
+                        $scanEvidenceForSecrets($val, "checks.$checkKey.$prop");
+                    } elseif (is_array($val)) {
+                        foreach ($val as $subProp => $subVal) {
+                            if (is_string($subVal)) {
+                                $scanEvidenceForSecrets($subVal, "checks.$checkKey.$prop.$subProp");
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if ($hasSecurityRisk) {
+            $findings = [];
+            foreach ($securityIssues as $issue) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => $issue,
+                ];
+            }
+
+            return [
+                'status' => 'fail',
+                'summary' => 'Security/PII leak guard blocked launch readiness.',
+                'findings' => $findings,
+                'evidence' => [],
+                'decision' => 'blocked_security_risk',
+                'next_actions' => [],
+            ];
+        }
+
+        // 3. Env/Credentials wiring validation
+        $coreVars = ['DB_PASSWORD', 'REDIS_HOST'];
+        $externalVars = [
+            's3_dr_restore' => ['AWS_ACCESS_KEY_ID', 'BACKUP_S3_BUCKET'],
+            'smtp_delivery' => ['MAIL_USERNAME', 'MAIL_PASSWORD'],
+            'sentry_alerting' => ['SENTRY_LARAVEL_DSN'],
+            'ops_alerting' => ['OPS_ALERTS_WEBHOOK_URL'],
+            'payment_provider_callbacks' => ['VNPAY_TMN_CODE', 'MOMO_PARTNER_CODE'],
+            'frontend_smoke' => ['STAGING_BASE_URL'],
+        ];
+
+        // Check required core credentials
+        foreach ($coreVars as $var) {
+            $val = env($var, config(strtolower(str_replace('_', '.', $var))));
+            if (! $isSet($val)) {
+                $missingCredentials[] = "Core credential $var is missing or placeholder.";
+            }
+        }
+
+        // Check external required credentials
+        $missingExternalKeys = [];
+        foreach ($externalVars as $area => $vars) {
+            foreach ($vars as $var) {
+                $val = env($var);
+                if (! $isSet($val)) {
+                    $missingExternalKeys[] = $var;
+                    $missingCredentials[] = "External credential $var is missing or placeholder.";
+                }
+            }
+        }
+
+        // 4. Evidence Verification & truthfulness model evaluation
+        $drRestore = $checks['disaster_recovery_restore_evidence'] ?? null;
+        $smtpDelivery = $checks['notification_provider_external_e2e'] ?? null;
+        $paymentCallbacks = $checks['payment_provider_external_e2e'] ?? null;
+        $uatReplay = $checks['uat_scenario_pack_replay'] ?? null;
+        $opApproval = $checks['operator_approval'] ?? null;
+
+        $drRestoreStatus = strtolower(trim((string) ($drRestore['status'] ?? '')));
+        $smtpDeliveryStatus = strtolower(trim((string) ($smtpDelivery['status'] ?? '')));
+        $paymentCallbacksStatus = strtolower(trim((string) ($paymentCallbacks['status'] ?? '')));
+        $uatReplayStatus = strtolower(trim((string) ($uatReplay['status'] ?? '')));
+        $opApprovalStatus = strtolower(trim((string) ($opApproval['status'] ?? '')));
+
+        // Check S3 DR Restore truthfulness
+        $isDrRestoreReal = true;
+        if (! $drRestore || ! in_array($drRestoreStatus, ['pass', 'passed', 'ok', 'ready'], true)) {
+            $isDrRestoreReal = false;
+            $blockers[] = 's3_dr_restore: disaster_recovery_restore_evidence is missing or status is not pass.';
+        } else {
+            $notes = strtolower((string) ($drRestore['notes'] ?? ''));
+            $dumpId = strtolower((string) ($drRestore['restored_dump_identifier'] ?? ''));
+            if (str_contains($notes, 'local-only') || str_contains($notes, 'local_only') || str_contains($notes, 'dry-run') || str_contains($notes, 'dry_run') || str_contains($notes, 'simulated') || str_contains($notes, 'local-smoke') || str_contains($notes, 'k6 unavailable') || ! $isSet(env('BACKUP_S3_BUCKET'))) {
+                $isDrRestoreReal = false;
+                $blockers[] = 's3_dr_restore: Rehearsal was local-only or dry-run, not real S3 staging evidence.';
+            }
+        }
+
+        // Check SMTP truthfulness
+        $isSmtpReal = true;
+        if (! $smtpDelivery || ! in_array($smtpDeliveryStatus, ['pass', 'passed', 'ok', 'ready'], true)) {
+            $isSmtpReal = false;
+            $blockers[] = 'smtp_delivery: notification_provider_external_e2e is missing or status is not pass.';
+        } else {
+            $notes = strtolower((string) ($smtpDelivery['notes'] ?? ''));
+            $mailer = strtolower((string) ($smtpDelivery['mailer'] ?? env('MAIL_MAILER', config('mail.default', ''))));
+            if ($mailer === 'log' || str_contains($notes, 'log') || str_contains($notes, 'simulated') || ! $isSet(env('MAIL_PASSWORD'))) {
+                $isSmtpReal = false;
+                $blockers[] = 'smtp_delivery: Mailer is log, not real SMTP relay evidence.';
+            }
+        }
+
+        // Check Sentry/Slack Alerting truthfulness
+        $isAlertingReal = true;
+        if (! $isSet(env('SENTRY_LARAVEL_DSN')) && ! $isSet(env('OPS_ALERTS_WEBHOOK_URL'))) {
+            $isAlertingReal = false;
+            $blockers[] = 'sentry_alerting: Sentry DSN and Slack alerting webhook are missing or placeholders.';
+        }
+
+        // Check Payment Sandbox callbacks truthfulness
+        $isPaymentReal = true;
+        if (! $paymentCallbacks || ! in_array($paymentCallbacksStatus, ['pass', 'passed', 'ok', 'ready'], true)) {
+            $isPaymentReal = false;
+            $blockers[] = 'payment_provider_callbacks: payment_provider_external_e2e is missing or status is not pass.';
+        } else {
+            $notes = strtolower((string) ($paymentCallbacks['notes'] ?? ''));
+            $providerCode = strtolower((string) ($paymentCallbacks['provider_code'] ?? ''));
+            $customerSelfPay = (bool) ($paymentCallbacks['customer_self_pay_enabled'] ?? false);
+            if ($providerCode === 'simulated' || str_contains($notes, 'simulated') || str_contains($notes, 'test-vector') || str_contains($notes, 'test_vector') || ! $isSet(env('VNPAY_TMN_CODE')) || ! $isSet(env('MOMO_PARTNER_CODE'))) {
+                $isPaymentReal = false;
+                $blockers[] = 'payment_provider_callbacks: Payment provider is simulated or test-vector only, not real sandbox callback evidence.';
+            }
+        }
+
+        // Check Frontend Staging smoke
+        $isFrontendReal = true;
+        if (! $isSet(env('STAGING_BASE_URL'))) {
+            $isFrontendReal = false;
+            $blockers[] = 'frontend_smoke: STAGING_BASE_URL is missing or placeholder.';
+        }
+
+        // Check UAT & operator approval
+        $isLaunchReadinessReal = true;
+        if (! $uatReplay || ! in_array($uatReplayStatus, ['pass', 'passed', 'ok', 'ready'], true)) {
+            $isLaunchReadinessReal = false;
+            $blockers[] = 'launch_readiness: UAT scenario pack replay is missing or status is not pass.';
+        }
+        if (! $opApproval || ! in_array($opApprovalStatus, ['approved', 'pass', 'passed', 'ok', 'ready'], true)) {
+            $isLaunchReadinessReal = false;
+            $blockers[] = 'launch_readiness: Operator manual approval sign-off is pending.';
+        }
+
+        // Staging targets always keep production_cutover_approved as false
+        $prodCutoverApproved = (bool) ($opApproval['production_cutover_approved'] ?? false);
+        if ($target === 'staging' && $prodCutoverApproved) {
+            $blockers[] = 'launch_readiness: production_cutover_approved must strictly remain false for staging target.';
+        }
+
+        // Compile findings
+        $findings = [];
+        $decision = 'ready';
+
+        if ($missingCredentials !== [] && $missingExternalKeys !== []) {
+            $decision = 'blocked_missing_staging_credentials';
+            foreach ($missingCredentials as $credError) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => $credError,
+                ];
+            }
+            $nextActions = [
+                [
+                    'kind' => 'wire_credentials',
+                    'label' => 'Wire real staging credentials',
+                    'reason' => 'External SaaS credentials are missing or placeholders.',
+                    'runbook_path' => 'docs/runbooks/operator-staging-credentials-provisioning.md',
+                    'commands' => [
+                        'check-staging-credentials.sh --strict',
+                    ],
+                    'notes' => [
+                        'Provision S3, SMTP, Sentry, Slack webhooks, and payment sandbox keys in environment configuration.',
+                    ],
+                ],
+            ];
+
+            return [
+                'status' => 'fail',
+                'summary' => 'Launch readiness truthfulness check failed due to missing SaaS credentials.',
+                'findings' => $findings,
+                'evidence' => [],
+                'decision' => $decision,
+                'next_actions' => $nextActions,
+            ];
+        }
+
+        if ($blockers !== []) {
+            $decision = 'partial_real_staging_evidence';
+            foreach ($blockers as $blocker) {
+                $findings[] = [
+                    'severity' => 'blocking',
+                    'message' => $blocker,
+                ];
+            }
+            $nextActions = [
+                [
+                    'kind' => 'external_evidence_rehearsal',
+                    'label' => 'Execute real external staging evidence rehearsals',
+                    'reason' => 'Staging baseline gates are PASS but required external SaaS evidence remains missing, blocked, or local-only.',
+                    'runbook_path' => 'docs/runbooks/booking-launch-readiness.md',
+                    'commands' => [
+                        'run-dr-rehearsal.sh --staging',
+                        'notifications:delivery-smoke --target=staging',
+                    ],
+                    'notes' => [
+                        'Perform actual S3 backups, SMTP relay deliveries, live webhook alerting, and payment sandbox callbacks to generate genuine external evidence.',
+                    ],
+                ],
+            ];
+
+            return [
+                'status' => 'fail',
+                'summary' => 'Launch readiness truthfulness check failed due to missing or local-only external evidence.',
+                'findings' => $findings,
+                'evidence' => [],
+                'decision' => $decision,
+                'next_actions' => $nextActions,
+            ];
+        }
+
+        return [
+            'status' => 'pass',
+            'summary' => 'Launch readiness truthfulness gate passed successfully with real external staging evidence.',
+            'findings' => [],
+            'evidence' => [
+                's3_dr_restore' => 'pass',
+                'smtp_delivery' => 'pass',
+                'sentry_alerting' => 'pass',
+                'payment_provider_callbacks' => 'pass',
+                'frontend_smoke' => 'pass',
+                'launch_readiness' => 'pass',
+            ],
+            'decision' => 'ready',
+            'next_actions' => [],
+        ];
     }
 
     private function groupLabel(string $groupKey): string

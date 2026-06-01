@@ -30,12 +30,34 @@ final class LaunchReadinessServiceTest extends TestCase
         config()->set('booking_launch_readiness.artifact_root', $this->artifactRoot);
         config()->set('booking.payment_providers.customer_self_pay.enabled', false);
         Carbon::setTestNow(Carbon::parse('2026-04-28T10:00:00Z'));
+
+        // Wire mock external credentials for tests
+        putenv('BACKUP_S3_BUCKET=my-real-s3-bucket');
+        putenv('AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE');
+        putenv('MAIL_USERNAME=smtp-user');
+        putenv('MAIL_PASSWORD=smtp-pass');
+        putenv('SENTRY_LARAVEL_DSN=https://sentry.io/123456');
+        putenv('OPS_ALERTS_WEBHOOK_URL=https://hooks.slack.com/services/T0000/B0000/XXXX');
+        putenv('VNPAY_TMN_CODE=VNPAY_TMN_CODE');
+        putenv('MOMO_PARTNER_CODE=MOMO_PARTNER_CODE');
+        putenv('STAGING_BASE_URL=https://staging.restaurantpos.vn');
     }
 
     protected function tearDown(): void
     {
         Carbon::setTestNow();
         File::deleteDirectory(base_path($this->artifactRoot));
+
+        // Clear mock external credentials
+        putenv('BACKUP_S3_BUCKET');
+        putenv('AWS_ACCESS_KEY_ID');
+        putenv('MAIL_USERNAME');
+        putenv('MAIL_PASSWORD');
+        putenv('SENTRY_LARAVEL_DSN');
+        putenv('OPS_ALERTS_WEBHOOK_URL');
+        putenv('VNPAY_TMN_CODE');
+        putenv('MOMO_PARTNER_CODE');
+        putenv('STAGING_BASE_URL');
 
         parent::tearDown();
     }
@@ -225,6 +247,16 @@ final class LaunchReadinessServiceTest extends TestCase
                     'performed_by' => 'qa.release',
                     'performed_at_utc' => '2026-04-28T09:45:00Z',
                     'notes' => 'Completed contention rehearsal.',
+                ],
+                'operator_approval' => [
+                    'status' => 'approved',
+                    'operator_initials' => 'qa.release',
+                    'reviewer_initials' => 'release.lead',
+                    'verified_at' => '2026-04-27T09:30:00Z',
+                    'role' => 'release-owner',
+                    'approved_at' => '2026-04-27T09:30:00Z',
+                    'scope' => 'staging-rehearsal',
+                    'production_cutover_approved' => false,
                 ],
             ],
         ];

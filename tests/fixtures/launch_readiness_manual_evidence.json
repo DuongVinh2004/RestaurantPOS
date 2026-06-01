@@ -85,6 +85,16 @@
       "performed_by": "qa.release",
       "performed_at_utc": "2026-04-27T09:45:00Z",
       "notes": "Completed Redis/MySQL multi-process contention rehearsal."
+    },
+    "operator_approval": {
+      "status": "approved",
+      "operator_initials": "qa.release",
+      "reviewer_initials": "release.lead",
+      "verified_at": "2026-04-27T09:30:00Z",
+      "role": "release-owner",
+      "approved_at": "2026-04-27T09:30:00Z",
+      "scope": "staging-rehearsal",
+      "production_cutover_approved": false
     }
   }
 }

@@ -32,11 +32,33 @@ class BookingLaunchReadinessCommandTest extends TestCase
         config()->set('booking_launch_readiness.artifact_root', $this->artifactRoot);
         // Keep freshness-sensitive manual evidence fixtures deterministic across CI dates.
         Carbon::setTestNow(Carbon::parse('2026-04-28T10:00:00Z'));
+
+        // Wire mock external credentials for tests
+        putenv('BACKUP_S3_BUCKET=my-real-s3-bucket');
+        putenv('AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE');
+        putenv('MAIL_USERNAME=smtp-user');
+        putenv('MAIL_PASSWORD=smtp-pass');
+        putenv('SENTRY_LARAVEL_DSN=https://sentry.io/123456');
+        putenv('OPS_ALERTS_WEBHOOK_URL=https://hooks.slack.com/services/T0000/B0000/XXXX');
+        putenv('VNPAY_TMN_CODE=VNPAY_TMN_CODE');
+        putenv('MOMO_PARTNER_CODE=MOMO_PARTNER_CODE');
+        putenv('STAGING_BASE_URL=https://staging.restaurantpos.vn');
     }
 
     protected function tearDown(): void
     {
         Carbon::setTestNow();
+
+        // Clear mock external credentials
+        putenv('BACKUP_S3_BUCKET');
+        putenv('AWS_ACCESS_KEY_ID');
+        putenv('MAIL_USERNAME');
+        putenv('MAIL_PASSWORD');
+        putenv('SENTRY_LARAVEL_DSN');
+        putenv('OPS_ALERTS_WEBHOOK_URL');
+        putenv('VNPAY_TMN_CODE');
+        putenv('MOMO_PARTNER_CODE');
+        putenv('STAGING_BASE_URL');
 
         foreach ($this->manualEvidenceFixtures as $fixturePath) {
             File::delete($fixturePath);
@@ -176,8 +198,8 @@ class BookingLaunchReadinessCommandTest extends TestCase
             ->mapWithKeys(static fn (array $check): array => [(string) ($check['key'] ?? '') => (string) ($check['status'] ?? '')])
             ->all();
 
-        $this->assertSame(2, $exitCode);
-        $this->assertSame('ready_with_warnings', $payload['decision'] ?? null);
+        $this->assertSame(1, $exitCode);
+        $this->assertSame('partial_real_staging_evidence', $payload['decision'] ?? null);
         $this->assertSame('warn', $manualStatuses['uat_scenario_pack_replay'] ?? null);
         $this->assertSame('warn', $manualStatuses['disaster_recovery_restore_evidence'] ?? null);
         $this->assertSame('warn', $manualStatuses['payment_provider_external_e2e'] ?? null);
@@ -247,7 +269,7 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
         $firstAction = (array) data_get($payload, 'follow_up_actions.0', []);
 
-        $this->assertSame(2, $exitCode);
+        $this->assertSame(1, $exitCode);
         $this->assertSame('manual_evidence_template', $firstAction['kind'] ?? null);
         $this->assertSame('Use existing operator-owned manual evidence template', $firstAction['label'] ?? null);
         $this->assertTrue((bool) ($firstAction['template_exists'] ?? false));
@@ -340,7 +362,7 @@ class BookingLaunchReadinessCommandTest extends TestCase
         $issueAction = collect((array) ($payload['follow_up_actions'] ?? []))
             ->first(static fn (array $action): bool => (string) ($action['kind'] ?? '') === 'manual_evidence_issue');
 
-        $this->assertSame(2, $exitCode);
+        $this->assertSame(1, $exitCode);
         $this->assertIsArray($issueAction);
         $this->assertSame(
             'php artisan booking:manual-evidence:init --target=staging --candidate=20991230 --output=storage/framework/testing/launch_readiness_command/missing/manual-evidence.json --overwrite --json',
