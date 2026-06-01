@@ -132,9 +132,17 @@ class LaunchReadinessService
             $decision = 'not_ready';
             $exitCode = 1;
 
-            if ($runtimeBaselineBlocked) {
+            $deployCheckFailed = collect($checks)
+                ->filter(fn (array $check) => ($check['key'] ?? '') === 'deploy_preflight_guardrail' && ($check['status'] ?? 'pass') === 'fail')
+                ->isNotEmpty();
+
+            // Check if there are blocking failures OTHER than the truthfulness gate itself
+            $hasOtherBlockingFailures = collect($blockingFailures)
+                ->contains(fn (array $finding) => ($finding['check_key'] ?? '') !== 'launch_readiness_truthfulness');
+
+            if ($runtimeBaselineBlocked || $deployCheckFailed) {
                 $decision = 'blocked_runtime_failure';
-            } elseif (isset($truthfulnessResult['decision']) && $truthfulnessResult['decision'] !== 'ready') {
+            } elseif (! $hasOtherBlockingFailures && isset($truthfulnessResult['decision']) && $truthfulnessResult['decision'] !== 'ready') {
                 $decision = $truthfulnessResult['decision'];
                 if ($decision === 'partial_real_staging_evidence' && strtolower($target) !== 'staging') {
                     $decision = 'not_ready';
@@ -2578,7 +2586,7 @@ class LaunchReadinessService
 
         // Check required core credentials
         foreach ($coreVars as $var) {
-            $val = env($var, config(strtolower(str_replace('_', '.', $var))));
+            $val = config("booking_launch_readiness.credentials.$var");
             if (! $isSet($val)) {
                 $missingCredentials[] = "Core credential $var is missing or placeholder.";
             }
@@ -2588,7 +2596,7 @@ class LaunchReadinessService
         $missingExternalKeys = [];
         foreach ($externalVars as $area => $vars) {
             foreach ($vars as $var) {
-                $val = env($var);
+                $val = config("booking_launch_readiness.credentials.$var");
                 if (! $isSet($val)) {
                     $missingExternalKeys[] = $var;
                     $missingCredentials[] = "External credential $var is missing or placeholder.";
@@ -2617,7 +2625,7 @@ class LaunchReadinessService
         } else {
             $notes = strtolower((string) ($drRestore['notes'] ?? ''));
             $dumpId = strtolower((string) ($drRestore['restored_dump_identifier'] ?? ''));
-            if (str_contains($notes, 'local-only') || str_contains($notes, 'local_only') || str_contains($notes, 'dry-run') || str_contains($notes, 'dry_run') || str_contains($notes, 'simulated') || str_contains($notes, 'local-smoke') || str_contains($notes, 'k6 unavailable') || ! $isSet(env('BACKUP_S3_BUCKET'))) {
+            if (str_contains($notes, 'local-only') || str_contains($notes, 'local_only') || str_contains($notes, 'dry-run') || str_contains($notes, 'dry_run') || str_contains($notes, 'simulated') || str_contains($notes, 'local-smoke') || str_contains($notes, 'k6 unavailable') || ! $isSet(config('booking_launch_readiness.credentials.BACKUP_S3_BUCKET'))) {
                 $isDrRestoreReal = false;
                 $blockers[] = 's3_dr_restore: Rehearsal was local-only or dry-run, not real S3 staging evidence.';
             }
@@ -2630,8 +2638,8 @@ class LaunchReadinessService
             $blockers[] = 'smtp_delivery: notification_provider_external_e2e is missing or status is not pass.';
         } else {
             $notes = strtolower((string) ($smtpDelivery['notes'] ?? ''));
-            $mailer = strtolower((string) ($smtpDelivery['mailer'] ?? env('MAIL_MAILER', config('mail.default', ''))));
-            if ($mailer === 'log' || str_contains($notes, 'log') || str_contains($notes, 'simulated') || ! $isSet(env('MAIL_PASSWORD'))) {
+            $mailer = strtolower((string) ($smtpDelivery['mailer'] ?? config('mail.default', '')));
+            if ($mailer === 'log' || str_contains($notes, 'log') || str_contains($notes, 'simulated') || ! $isSet(config('booking_launch_readiness.credentials.MAIL_PASSWORD'))) {
                 $isSmtpReal = false;
                 $blockers[] = 'smtp_delivery: Mailer is log, not real SMTP relay evidence.';
             }
@@ -2639,7 +2647,7 @@ class LaunchReadinessService
 
         // Check Sentry/Slack Alerting truthfulness
         $isAlertingReal = true;
-        if (! $isSet(env('SENTRY_LARAVEL_DSN')) && ! $isSet(env('OPS_ALERTS_WEBHOOK_URL'))) {
+        if (! $isSet(config('booking_launch_readiness.credentials.SENTRY_LARAVEL_DSN')) && ! $isSet(config('booking_launch_readiness.credentials.OPS_ALERTS_WEBHOOK_URL'))) {
             $isAlertingReal = false;
             $blockers[] = 'sentry_alerting: Sentry DSN and Slack alerting webhook are missing or placeholders.';
         }
@@ -2653,7 +2661,7 @@ class LaunchReadinessService
             $notes = strtolower((string) ($paymentCallbacks['notes'] ?? ''));
             $providerCode = strtolower((string) ($paymentCallbacks['provider_code'] ?? ''));
             $customerSelfPay = (bool) ($paymentCallbacks['customer_self_pay_enabled'] ?? false);
-            if ($providerCode === 'simulated' || str_contains($notes, 'simulated') || str_contains($notes, 'test-vector') || str_contains($notes, 'test_vector') || ! $isSet(env('VNPAY_TMN_CODE')) || ! $isSet(env('MOMO_PARTNER_CODE'))) {
+            if ($providerCode === 'simulated' || str_contains($notes, 'simulated') || str_contains($notes, 'test-vector') || str_contains($notes, 'test_vector') || ! $isSet(config('booking_launch_readiness.credentials.VNPAY_TMN_CODE')) || ! $isSet(config('booking_launch_readiness.credentials.MOMO_PARTNER_CODE'))) {
                 $isPaymentReal = false;
                 $blockers[] = 'payment_provider_callbacks: Payment provider is simulated or test-vector only, not real sandbox callback evidence.';
             }
@@ -2661,7 +2669,7 @@ class LaunchReadinessService
 
         // Check Frontend Staging smoke
         $isFrontendReal = true;
-        if (! $isSet(env('STAGING_BASE_URL'))) {
+        if (! $isSet(config('booking_launch_readiness.credentials.STAGING_BASE_URL'))) {
             $isFrontendReal = false;
             $blockers[] = 'frontend_smoke: STAGING_BASE_URL is missing or placeholder.';
         }

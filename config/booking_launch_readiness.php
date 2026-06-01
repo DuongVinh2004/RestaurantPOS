@@ -486,4 +486,17 @@ return [
             'recommended_evidence' => 'Attach the result of a staging concurrency rehearsal before limited production.',
         ],
     ],
+    'credentials' => [
+        'DB_PASSWORD' => env('DB_PASSWORD'),
+        'REDIS_HOST' => env('REDIS_HOST'),
+        'AWS_ACCESS_KEY_ID' => env('AWS_ACCESS_KEY_ID'),
+        'BACKUP_S3_BUCKET' => env('BACKUP_S3_BUCKET'),
+        'MAIL_USERNAME' => env('MAIL_USERNAME'),
+        'MAIL_PASSWORD' => env('MAIL_PASSWORD'),
+        'SENTRY_LARAVEL_DSN' => env('SENTRY_LARAVEL_DSN'),
+        'OPS_ALERTS_WEBHOOK_URL' => env('OPS_ALERTS_WEBHOOK_URL'),
+        'VNPAY_TMN_CODE' => env('VNPAY_TMN_CODE'),
+        'MOMO_PARTNER_CODE' => env('MOMO_PARTNER_CODE'),
+        'STAGING_BASE_URL' => env('STAGING_BASE_URL'),
+    ],
 ];

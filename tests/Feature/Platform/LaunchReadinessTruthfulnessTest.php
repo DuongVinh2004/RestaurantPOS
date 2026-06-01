@@ -30,6 +30,9 @@ class LaunchReadinessTruthfulnessTest extends TestCase
         Carbon::setTestNow(Carbon::parse('2026-04-28T10:00:00Z'));
         $this->tempFixturePath = base_path($this->artifactRoot.'/temp_evidence.json');
         File::ensureDirectoryExists(dirname($this->tempFixturePath));
+
+        config()->set('booking_launch_readiness.credentials.DB_PASSWORD', 'testing');
+        config()->set('booking_launch_readiness.credentials.REDIS_HOST', '127.0.0.1');
     }
 
     protected function tearDown(): void
@@ -303,6 +306,17 @@ class LaunchReadinessTruthfulnessTest extends TestCase
         putenv('VNPAY_TMN_CODE=VNPAY_TMN_CODE');
         putenv('MOMO_PARTNER_CODE=MOMO_PARTNER_CODE');
         putenv('STAGING_BASE_URL=https://staging.restaurantpos.vn');
+
+        config()->set('booking_launch_readiness.credentials.AWS_ACCESS_KEY_ID', 'AKIAIOSFODNN7EXAMPLE');
+        config()->set('booking_launch_readiness.credentials.BACKUP_S3_BUCKET', 'my-real-s3-bucket');
+        config()->set('booking_launch_readiness.credentials.MAIL_USERNAME', 'smtp-user');
+        config()->set('booking_launch_readiness.credentials.MAIL_PASSWORD', 'smtp-pass');
+        config()->set('booking_launch_readiness.credentials.SENTRY_LARAVEL_DSN', 'https://sentry.io/123456');
+        config()->set('booking_launch_readiness.credentials.OPS_ALERTS_WEBHOOK_URL', 'https://hooks.slack.com/services/T0000/B0000/XXXX');
+        config()->set('booking_launch_readiness.credentials.VNPAY_TMN_CODE', 'VNPAY_TMN_CODE');
+        config()->set('booking_launch_readiness.credentials.MOMO_PARTNER_CODE', 'MOMO_PARTNER_CODE');
+        config()->set('booking_launch_readiness.credentials.STAGING_BASE_URL', 'https://staging.restaurantpos.vn');
+        config()->set('mail.default', 'smtp');
     }
 
     /**

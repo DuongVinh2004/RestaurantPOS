@@ -16,27 +16,143 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-      - name: TruffleHog OSS
+      - name: Secret scan with TruffleHog on pull request
+        if: github.event_name == 'pull_request'
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: ${{ github.event.repository.default_branch }}
-          head: HEAD
+          base: ${{ github.event.pull_request.base.sha }}
+          head: ${{ github.event.pull_request.head.sha }}
+
+      - name: Secret scan with TruffleHog on push
+        if: github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000'
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.before }}
+          head: ${{ github.sha }}
 
   verify-artifacts:
     name: Verify Release Artifacts
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      APP_DEBUG: true
+      APP_NAME: RestaurantPOS
+      APP_KEY: base64:TGSYwo/ySw5TozAQw5bBUJCv4L3WNC7KSokVxs+fBDQ=
+      APP_URL: http://127.0.0.1
+      LOG_CHANNEL: stack
+      LOG_LEVEL: debug
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_DATABASE: restaurantpos_ci
+      DB_USERNAME: restaurantpos
+      DB_PASSWORD: restaurantpos
+      REQUIRE_REDIS_FOR_BOOKING_API: true
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: database
+      SESSION_DRIVER: database
+      MAIL_MAILER: log
+      CUSTOMER_AUTH_JWT_SECRET: booking-ci-customer-auth-secret-2026
+      REDIS_CLIENT: phpredis
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_CACHE_DB: 1
+      BOOKING_CI_BOOTSTRAP_DATABASE: true
+      BOOKING_CI_BOOTSTRAP_SITE: true
+      BOOKING_CI_BOOTSTRAP_REPORTING: true
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: restaurantpos_ci
+          MYSQL_USER: restaurantpos
+          MYSQL_PASSWORD: restaurantpos
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=12
+
     steps:
       - uses: actions/checkout@v3
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.3'
+          extensions: mbstring, dom, pdo_mysql, redis, phar
+          ini-values: memory_limit=3G
+          tools: composer:v2
+          coverage: none
+
+      - name: Install MySQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..30}; do
+            mysqladmin ping -h 127.0.0.1 -P 3306 -uroot -proot --silent && exit 0
+            sleep 2
+          done
+          echo "MySQL service did not become healthy in time." >&2
+          exit 1
+
+      - name: Allow CI routine creators
+        run: |
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "SET GLOBAL log_bin_trust_function_creators = 1;"
+          mysql -h 127.0.0.1 -P 3306 -uroot -proot -e "SHOW VARIABLES LIKE 'log_bin_trust_function_creators';"
+
+      - name: Wait for Redis
+        run: |
+          php -r '
+          $host = getenv("REDIS_HOST") ?: "127.0.0.1";
+          $port = (int) (getenv("REDIS_PORT") ?: 6379);
+          for ($i = 0; $i < 30; $i++) {
+              try {
+                  $redis = new Redis();
+                  if (@$redis->connect($host, $port, 1.0) && $redis->ping()) {
+                      exit(0);
+                  }
+              } catch (Throwable) {
+                  // Retry until the service container is reachable from the runner.
+              }
+              sleep(2);
+          }
+          fwrite(STDERR, "Redis service did not become ready in time.\n");
+          exit(1);
+          '
+
       - name: Install Dependencies
         run: composer install --no-interaction --prefer-dist
+
+      - name: Bootstrap CI environment
+        run: |
+          set -o pipefail
+          bash scripts/ci/booking-ci-bootstrap.sh 2>&1 | tee build/booking-ci/bootstrap.log
+
       - name: Run Deploy Check (Preflight)
         run: php artisan booking:deploy-check --mode=preflight --strict --json
+
       - name: Run Doctor
         run: php artisan booking:doctor --json
+
       - name: Run Release Manifest Check
         run: php artisan booking:release-manifest --json
