@@ -1,0 +1,78 @@
+{
+  "evidence_pack_id": "staging-rehearsal-YYYYMMDD-HHMMSS",
+  "target": "staging",
+  "generated_at": "YYYY-MM-DDTHH:MM:SSZ",
+  "source_commit": "[git_commit_sha]",
+  "checks": {
+    "uat_scenario_pack_replay": {
+      "status": "pass",
+      "performed_by": "operator.initials",
+      "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "notes": "Canonical UAT scenarios executed successfully on staging.",
+      "scenario_pack_version": "v1.0.0",
+      "replayed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "verification_result": "pass",
+      "production_artifact_contains_demo_credentials": false,
+      "scenario_results": {
+        "customer_reservation_hold_access_session": "pass",
+        "staff_auth_branch_scope": "pass",
+        "walk_in_table_service_session": "pass",
+        "order_item_lifecycle": "pass",
+        "kds_dispatch_update": "pass",
+        "checkout_cashier_shift": "pass",
+        "refund_cancel_after_payment": "pass",
+        "inventory_consumption_adjustment": "pass",
+        "notification_outbox_visibility": "pass"
+      }
+    },
+    "disaster_recovery_restore_evidence": {
+      "status": "pass",
+      "performed_by": "operator.initials",
+      "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "notes": "Non-destructive dry/isolated restore rehearsal completed.",
+      "restored_dump_identifier": "backup-YYYYMMDD-HHMMSS.sql.gz",
+      "restore_target": "restaurant_pos_restore_drill",
+      "verification_command": "php artisan db:table-check",
+      "verification_result": "pass",
+      "operator": "operator.initials",
+      "reviewer": "reviewer.initials"
+    },
+    "performance_verification_report": {
+      "status": "pass",
+      "performed_by": "operator.initials",
+      "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "notes": "Performance verification harness completed all scenario sets.",
+      "report_path": "storage/app/booking_release/performance/report-[commit_sha].json",
+      "profile": "staging",
+      "evidence_level": "release_candidate",
+      "verification_result": "pass",
+      "evaluated_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "local_smoke_only": false,
+      "scenario_matrix": {
+        "table_board_load": "pass",
+        "open_walk_in_service_session": "pass",
+        "add_order_item": "pass",
+        "kds_board_dispatch": "pass",
+        "checkout_payment_capture": "pass",
+        "refund_preview_execute": "pass",
+        "inventory_stock_read_adjustment": "pass",
+        "reporting_snapshot_read": "pass"
+      }
+    },
+    "payment_provider_external_e2e": {
+      "status": "pass",
+      "performed_by": "operator.initials",
+      "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "notes": "Customer self-pay stays disabled for day-1. Confirmed staff settlement path.",
+      "customer_self_pay_enabled": false,
+      "provider_mode": "staff_settlement_only",
+      "staff_settlement_day1_path_confirmed": true
+    },
+    "notification_provider_external_e2e": {
+      "status": "pass",
+      "performed_by": "operator.initials",
+      "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+      "notes": "Safe notification delivered end-to-end to rehearsal recipient successfully."
+    }
+  }
+}

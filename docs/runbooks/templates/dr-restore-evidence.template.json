@@ -1,0 +1,14 @@
+{
+  "disaster_recovery_restore_evidence": {
+    "status": "pass",
+    "performed_by": "operator.initials",
+    "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+    "restored_dump_identifier": "backup-YYYYMMDD-HHMMSS.sql.gz",
+    "restore_target": "restaurant_pos_restore_drill",
+    "verification_command": "php artisan db:table-check",
+    "verification_result": "pass",
+    "operator": "operator.initials",
+    "reviewer": "reviewer.initials",
+    "notes": "Full isolated non-destructive database backup import and integrity verify rehearsal."
+  }
+}

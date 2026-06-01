@@ -1,0 +1,11 @@
+{
+  "notification_provider_external_e2e": {
+    "status": "pass",
+    "performed_by": "operator.initials",
+    "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+    "channel": "Email",
+    "recipient_redacted": "smoke-test-[redacted]@example.com",
+    "delivery_attempt_id": "outbox-YYYYMMDD-HHMMSS-01",
+    "notes": "Safe outbound email delivered successfully to a controlled staging mailbox."
+  }
+}

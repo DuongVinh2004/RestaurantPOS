@@ -1,0 +1,12 @@
+{
+  "payment_provider_external_e2e": {
+    "status": "pass",
+    "performed_by": "operator.initials",
+    "performed_at_utc": "YYYY-MM-DDTHH:MM:SSZ",
+    "customer_self_pay_enabled": false,
+    "staff_settlement_day1_path_confirmed": true,
+    "provider_code": "simulated",
+    "provider_mode": "staff_settlement_only",
+    "notes": "Staging configured to staff-settlement-only Day 1. Customer self-pay disabled."
+  }
+}
