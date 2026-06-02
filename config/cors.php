@@ -23,12 +23,24 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => [
+        'Content-Type',
+        'X-Requested-With',
+        'Authorization',
+        'Accept',
+        'X-Customer-Token',
+        'X-Staff-Key',
+        'X-Staff-CSRF',
+        'X-Session-Id',
+        'Idempotency-Key',
+        'X-Idempotency-Key',
+        'X-Request-Id',
+    ],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['X-Request-Id'],
 
-    'max_age' => 0,
+    'max_age' => 7200,
 
-    'supports_credentials' => true,
+    'supports_credentials' => false,
 
 ];

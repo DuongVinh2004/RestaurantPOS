@@ -838,7 +838,7 @@ class BookingEnvironmentValidator
     private function validateAlertingConfig(): array
     {
         $slackWebhook = trim((string) config('logging.channels.slack.url', ''));
-        $opsWebhook = trim((string) env('OPS_ALERTS_WEBHOOK_URL', ''));
+        $opsWebhook = trim((string) config('booking.ops.alerts.webhook_url', ''));
         $isProductionLike = $this->isProductionLikeEnvironment();
 
         $meta = [
