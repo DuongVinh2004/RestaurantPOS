@@ -73,3 +73,18 @@ yarn-error.log*
 # Playwright Test Artifacts
 /staff-web/test-results/
 /staff-web/playwright-report/
+
+# Local AI/agent scratch files
+*_plan.md
+*walkthrough*.md
+pr_*_body.md
+pr-*.md
+php-artisan-test-result.txt
+test_proc.php
+
+# Local evidence/log output
+*.tmp
+*.bak
+*.old
+*.orig
+*.rej
