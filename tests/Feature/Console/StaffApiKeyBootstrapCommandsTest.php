@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Console;
 
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -17,7 +18,7 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
     {
         parent::setUp();
 
-        \Illuminate\Support\Carbon::setTestNow(\Illuminate\Support\Carbon::parse('2026-05-15T10:00:00Z'));
+        Carbon::setTestNow(Carbon::parse('2026-05-15T10:00:00Z'));
 
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
@@ -92,7 +93,7 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
 
     protected function tearDown(): void
     {
-        \Illuminate\Support\Carbon::setTestNow();
+        Carbon::setTestNow();
         parent::tearDown();
     }
 
