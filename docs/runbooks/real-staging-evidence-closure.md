@@ -40,3 +40,23 @@ This runbook validates real staging evidence only. It does not approve productio
 * Adapter/unit test khÃ´ng pháº£i real provider callback.
 * `production_cutover_approved` luÃ´n false trong staging review.
 * Production cutover cáº§n batch riÃªng.
+
+## Operator Credential Handoff
+* [Staging Credential Operator Handoff](staging-credential-operator-handoff.md)
+* [Staging Env Template](templates/staging.env.template)
+
+## Tooling
+Cách ch?y PowerShell evidence pack:
+`powershell
+powershell -ExecutionPolicy Bypass -File scripts/ops/build-staging-evidence-pack.ps1 -Target staging -Strict
+`
+
+Cách ch?y launch-readiness sau dó:
+`ash
+php artisan booking:launch-readiness --target=staging --manual-evidence=storage/app/booking_release/manual_evidence/manual_evidence.json --json
+`
+
+> **Note**: 
+> - N?u credentials chua có, expected decision là locked_missing_staging_credentials.
+> - Không du?c coi pack generated là evidence pass.
+> - Pack generated ch? là container; evidence bên trong m?i quy?t d?nh readiness.
