@@ -17,6 +17,8 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
     {
         parent::setUp();
 
+        \Illuminate\Support\Carbon::setTestNow(\Illuminate\Support\Carbon::parse('2026-05-15T10:00:00Z'));
+
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
         config()->set('staff_auth.database_store_enabled', true);
@@ -86,6 +88,12 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
                 'updated_at' => now('UTC'),
             ],
         ]);
+    }
+
+    protected function tearDown(): void
+    {
+        \Illuminate\Support\Carbon::setTestNow();
+        parent::tearDown();
     }
 
     #[Group('booking-ops')]

@@ -146,6 +146,7 @@ jobs:
       - name: Bootstrap CI environment
         run: |
           set -o pipefail
+          mkdir -p build/booking-ci
           bash scripts/ci/booking-ci-bootstrap.sh 2>&1 | tee build/booking-ci/bootstrap.log
 
       - name: Run Deploy Check (Preflight)
