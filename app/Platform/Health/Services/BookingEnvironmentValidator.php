@@ -853,11 +853,15 @@ class BookingEnvironmentValidator
         }
 
         if ($slackWebhook !== '' && $this->secretLooksPlaceholder($slackWebhook)) {
-            return $this->warning('Slack webhook appears to be a placeholder.', $meta);
+            return $isProductionLike
+                ? $this->error('Slack webhook appears to be a placeholder.', $meta)
+                : $this->warning('Slack webhook appears to be a placeholder.', $meta);
         }
 
         if ($opsWebhook !== '' && $this->secretLooksPlaceholder($opsWebhook)) {
-            return $this->warning('Ops alerts webhook appears to be a placeholder.', $meta);
+            return $isProductionLike
+                ? $this->error('Ops alerts webhook appears to be a placeholder.', $meta)
+                : $this->warning('Ops alerts webhook appears to be a placeholder.', $meta);
         }
 
         return $this->ok('Alerting webhook is configured.', $meta);
