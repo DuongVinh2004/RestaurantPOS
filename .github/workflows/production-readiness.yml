@@ -63,6 +63,8 @@ jobs:
       BOOKING_CI_BOOTSTRAP_DATABASE: true
       BOOKING_CI_BOOTSTRAP_SITE: true
       BOOKING_CI_BOOTSTRAP_REPORTING: true
+      BOOTSTRAP_ADMIN_USERNAME: admin_cuahang
+      BOOTSTRAP_STAFF_USERNAME: staff_cuahang
 
     services:
       mysql:
