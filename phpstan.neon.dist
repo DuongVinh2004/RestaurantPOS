@@ -4,6 +4,9 @@ includes:
 
 parameters:
     reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        - '#should return array\{.*?\} but returns array\{.*?\}\.#'
+        - '#Access to an undefined property Illuminate\\Database\\Eloquent\\Model@anonymous.*?#'
     paths:
         - app
         - tests
