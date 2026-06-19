@@ -7,11 +7,11 @@
             "path": "database/schema/mysql-schema.sql",
             "exists": true,
             "optional": false,
-            "sha256": "d2c97cf9141af19a3dd8b0217fe9ce224e485c60e0c689d8c608aad9728f4dc6",
-            "bytes": 181645,
-            "line_count": 2679,
-            "modified_epoch": 1781861486,
-            "modified_at_utc": "2026-06-19T09:31:26+00:00",
+            "sha256": "4da663f2ab76a8215a19a25f7cb3be3e154a611a2aa2a5cb04fcf6b580c75b32",
+            "bytes": 183840,
+            "line_count": 2723,
+            "modified_epoch": 1781863820,
+            "modified_at_utc": "2026-06-19T10:10:20+00:00",
             "required_fragment_count": 64,
             "missing_fragments": []
         },
@@ -19,11 +19,11 @@
             "path": "db_all.sql",
             "exists": true,
             "optional": false,
-            "sha256": "cbfa8e01c0aea73f074b8791476cee4fde3202caf182fec3886d6d3c67fd9294",
-            "bytes": 177130,
-            "line_count": 2600,
-            "modified_epoch": 1781862927,
-            "modified_at_utc": "2026-06-19T09:55:27+00:00",
+            "sha256": "1d728ebe320e77674b1fff08140e36648a23a97bfb50688b6762c1d4e02438b1",
+            "bytes": 179417,
+            "line_count": 2647,
+            "modified_epoch": 1781863858,
+            "modified_at_utc": "2026-06-19T10:10:58+00:00",
             "required_fragment_count": 64,
             "missing_fragments": []
         },
@@ -211,11 +211,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "ddc9def9057863b799a203797d5b60dfe2b74d4bcf8dd97cafd0117075169cfe",
-            "bytes": 18182,
-            "line_count": 358,
-            "modified_epoch": 1781861869,
-            "modified_at_utc": "2026-06-19T09:37:49+00:00",
+            "sha256": "8ebbf89eabfb624b42ba60e9a808118911f772dcc49e97db2faa972e8e8d3ebe",
+            "bytes": 18425,
+            "line_count": 362,
+            "modified_epoch": 1781862936,
+            "modified_at_utc": "2026-06-19T09:55:36+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -353,7 +353,7 @@
         "required_count": 57
     },
     "meta": {
-        "generated_at_utc": "2026-06-19T09:55:36+00:00"
+        "generated_at_utc": "2026-06-19T10:51:02+00:00"
     },
     "definition_path": "config/booking_release.php",
     "definition_sha256": "ee3507bac8ca49e5fdd3a302ff1e18a69839b0040346b9d04ee29aad1cdfd675",
