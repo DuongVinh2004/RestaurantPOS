@@ -24,6 +24,10 @@ class SiteBootstrapCommandTest extends TestCase
         putenv('BOOTSTRAP_STAFF_USERNAME');
         unset($_ENV['BOOTSTRAP_ADMIN_USERNAME'], $_ENV['BOOTSTRAP_STAFF_USERNAME']);
         unset($_SERVER['BOOTSTRAP_ADMIN_USERNAME'], $_SERVER['BOOTSTRAP_STAFF_USERNAME']);
+        
+        // Ensure config is also cleared since it might have been loaded during app boot
+        config()->set('booking.bootstrap.admin_username', null);
+        config()->set('booking.bootstrap.staff_username', null);
 
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
