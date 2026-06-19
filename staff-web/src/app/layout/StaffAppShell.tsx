@@ -9,6 +9,9 @@ import { AdminShell } from './AdminShell';
 import { KitchenShell } from './KitchenShell';
 import { OpsShell } from './OpsShell';
 import { useStaffShellContext, type RouteScopedNotice } from './useStaffShellContext';
+import { ConcurrencyProvider } from '../../shared/concurrency';
+import { PresenceProvider } from '../../shared/presence';
+import { OfflineStatusIndicator } from '../../shared/ui/offline/OfflineStatusIndicator';
 
 const StaffShellCommandPalette = lazy(
   () => import('./StaffShellCommandPalette').then((module) => ({ default: module.StaffShellCommandPalette })),
@@ -187,6 +190,14 @@ export function StaffAppShell() {
     }
   }
 
+  function handleExecuteCommand(command: string, args: Record<string, string | number | boolean>) {
+    window.alert(`Đã thực thi lệnh: ${command}`);
+    console.log('Command executed:', command, args);
+    // TODO: Wire to actual domain actions
+    setCommandOpen(false);
+    setCommandQuery('');
+  }
+
   if (!session) {
     return null;
   }
@@ -261,40 +272,45 @@ export function StaffAppShell() {
       );
 
   return (
-    <>
-      {shell}
+    <ConcurrencyProvider>
+      <PresenceProvider>
+        <>
+          {shell}
 
-      {commandOpen ? (
-        <Suspense fallback={null}>
-          <StaffShellCommandPalette
-            activeIndex={commandActiveIndex}
-            groupedItems={groupedCommandItems}
-            items={filteredCommandItems}
-            open={commandOpen}
-            query={commandQuery}
-            onActivate={setCommandActiveIndex}
-            onClose={() => {
-              setCommandOpen(false);
-              setCommandQuery('');
-              setCommandActiveIndex(0);
-            }}
-            onInputKeyDown={handleCommandKeyDown}
-            onOpenPath={openPath}
-            onQueryChange={setCommandQuery}
-          />
-        </Suspense>
-      ) : null}
+          {commandOpen ? (
+            <Suspense fallback={null}>
+              <StaffShellCommandPalette
+                activeIndex={commandActiveIndex}
+                groupedItems={groupedCommandItems}
+                items={filteredCommandItems}
+                open={commandOpen}
+                query={commandQuery}
+                onActivate={setCommandActiveIndex}
+                onClose={() => {
+                  setCommandOpen(false);
+                  setCommandQuery('');
+                  setCommandActiveIndex(0);
+                }}
+                onInputKeyDown={handleCommandKeyDown}
+                onOpenPath={openPath}
+                onQueryChange={setCommandQuery}
+                onExecuteCommand={handleExecuteCommand}
+              />
+            </Suspense>
+          ) : null}
 
-      {navDrawerOpen ? (
-        <Suspense fallback={null}>
-          <StaffShellNavDrawer
-            content={navDrawerContent}
-            open={navDrawerOpen}
-            onClose={() => setNavDrawerOpen(false)}
-          />
-        </Suspense>
-      ) : null}
-    </>
+          {navDrawerOpen ? (
+            <Suspense fallback={null}>
+              <StaffShellNavDrawer
+                content={navDrawerContent}
+                open={navDrawerOpen}
+                onClose={() => setNavDrawerOpen(false)}
+              />
+            </Suspense>
+          ) : null}
+        </>
+      </PresenceProvider>
+    </ConcurrencyProvider>
   );
 }
 

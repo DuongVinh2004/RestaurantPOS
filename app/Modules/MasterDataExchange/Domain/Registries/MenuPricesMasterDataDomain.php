@@ -245,7 +245,7 @@ final class MenuPricesMasterDataDomain extends AbstractMasterDataDomain implemen
             'item_code' => $price->relationLoaded('item')
                 ? ($price->item?->code !== null ? (string) $price->item->code : null)
                 : ($price->item()->value('code') !== null ? (string) $price->item()->value('code') : null),
-            'price' => number_format((float) $price->price, 2, '.', ''),
+            'price' => number_format((float) $price->price, 0, '.', ''),
             'currency' => (string) ($price->currency ?? 'VND'),
             'effective_from' => $this->isoDateTime($price->effective_from),
             'effective_to' => $this->isoDateTime($price->effective_to),

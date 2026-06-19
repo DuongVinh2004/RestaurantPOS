@@ -45,8 +45,8 @@ class CustomerReservationOrderBillControllerTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'discount_amount' => '10000.00',
-            'final_bill_amount' => '90000.00',
+            'discount_amount' => '10000',
+            'final_bill_amount' => '90000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -60,16 +60,16 @@ class CustomerReservationOrderBillControllerTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $itemId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
             'item_name_snapshot' => 'Fried Rice',
         ]);
         $this->createPayment([
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '30000.00',
+            'amount' => '30000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-BILL-1',
         ]);
@@ -81,10 +81,10 @@ class CustomerReservationOrderBillControllerTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.access_scope', 'owner')
             ->assertJsonPath('data.bill.scope', 'reservation')
-            ->assertJsonPath('data.bill.total_due', '90000.00')
+            ->assertJsonPath('data.bill.total_due', '90000')
             ->assertJsonPath('data.bill.is_locked', true)
-            ->assertJsonPath('data.settlement.deposit_applied', '30000.00')
-            ->assertJsonPath('data.settlement.remaining_due', '60000.00')
+            ->assertJsonPath('data.settlement.deposit_applied', '30000')
+            ->assertJsonPath('data.settlement.remaining_due', '60000')
             ->assertJsonPath('data.workflow.payment_session_support.create', false)
             ->assertJsonCount(1, 'data.orders')
             ->assertJsonPath('data.orders.0.items.0.item.name', 'Fried Rice');
@@ -111,9 +111,9 @@ class CustomerReservationOrderBillControllerTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '75000.00',
+            'unit_price' => '75000',
             'currency' => 'VND',
-            'line_total' => '75000.00',
+            'line_total' => '75000',
             'item_name_snapshot' => 'Tea',
         ]);
 
@@ -141,8 +141,8 @@ class CustomerReservationOrderBillControllerTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('data.access_scope', 'session')
-            ->assertJsonPath('data.bill.total_due', '75000.00')
-            ->assertJsonPath('data.settlement.remaining_due', '75000.00');
+            ->assertJsonPath('data.bill.total_due', '75000')
+            ->assertJsonPath('data.settlement.remaining_due', '75000');
 
         Carbon::setTestNow();
     }
@@ -163,9 +163,9 @@ class CustomerReservationOrderBillControllerTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '100000.00',
+            'unit_price' => '100000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $otherUser = User::query()->findOrFail($otherUserId);
@@ -190,9 +190,9 @@ class CustomerReservationOrderBillControllerTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '100000.00',
+            'unit_price' => '100000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $customer = User::query()->findOrFail($customerId);

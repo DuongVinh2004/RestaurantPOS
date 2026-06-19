@@ -40,8 +40,8 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '200000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '200000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
 
@@ -83,8 +83,8 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(30),
             'checked_out_at' => $this->nowUtc()->copy()->subMinutes(5),
             'no_show_at' => $this->nowUtc()->copy()->subHour(),
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
         ]);
         $this->attachReservationTable($reservationId);
@@ -92,7 +92,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'transaction_code' => 'DEP-PAID-1',
         ]);
 
@@ -131,8 +131,8 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -140,7 +140,7 @@ class StaffCheckoutRefundAndCancelServiceTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'transaction_code' => 'DEP-AUDIT-1',
         ]);
 

@@ -146,7 +146,7 @@ describe("HomePage", () => {
     expect(screen.getByRole("link", { name: /^Xem thực đơn$/ })).toHaveAttribute("href", "/menu");
     expect(screen.getByRole("link", { name: /^Đặt bàn ngay$/ })).toHaveAttribute("href", "/booking");
     expect(screen.getByRole("button", { name: "Chi nhánh chính" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Tìm bàn$/ })).toHaveAttribute("href", "/booking?guest_count=2&date=today&time=19%3A00");
+    expect(screen.getByRole("link", { name: /^Tìm bàn$/ })).toHaveAttribute("href", "/booking?guest_count=2&date=today&time=19%3A00&branch_id=1");
   });
 
   it("starts a guest session from the personal session panel", async () => {

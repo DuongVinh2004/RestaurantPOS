@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, CalendarClock, CheckCircle2, RefreshCw, Search, Users } from "lucide-react";
@@ -36,6 +37,7 @@ import {
   formatCustomerZone,
   translateCustomerStatus,
 } from "@/lib/i18n/customer-display";
+import { cn } from "@/lib/utils";
 import { cancelTableHold, createTableHold, refreshTableHold, searchAvailableTables, type AvailableTablesResult } from "./api";
 import { availabilitySearchSchema, type AvailabilitySearchValues } from "./schemas";
 import {
@@ -329,15 +331,81 @@ export function TableBookingPage() {
   const [heldTableIds, setHeldTableIds] = useState<number[]>(() => initialSession.snapshot?.table_ids ?? []);
   const [selectedTableIds, setSelectedTableIds] = useState<number[]>(() => initialSession.snapshot?.table_ids ?? []);
 
+  const searchParams = useSearchParams();
+  const qGuestCount = searchParams.get("guest_count");
+  const qDate = searchParams.get("date");
+  const qTime = searchParams.get("time");
+  const qBranchId = searchParams.get("branch_id");
+
+  const initialStartTime = useMemo(() => {
+    if (restoredVisitDetails?.start_time) {
+      return restoredVisitDetails.start_time;
+    }
+    if (qDate && qTime) {
+      const date = new Date();
+      if (qDate === "tomorrow") {
+        date.setDate(date.getDate() + 1);
+      } else if (qDate === "weekend") {
+        const currentDay = date.getDay();
+        const daysUntilSaturday = currentDay === 6 ? 0 : (6 - currentDay + 7) % 7 || 7;
+        date.setDate(date.getDate() + daysUntilSaturday);
+      }
+      
+      const [hours, minutes] = qTime.split(":").map(Number);
+      if (Number.isInteger(hours) && Number.isInteger(minutes)) {
+        date.setHours(hours, minutes, 0, 0);
+      } else {
+        date.setHours(19, 0, 0, 0);
+      }
+      return formatLocalDateTimeInput(date);
+    }
+    return initialSession.draft?.start_time ?? createRoundedFutureLocalDateTimeInput();
+  }, [restoredVisitDetails, qDate, qTime, initialSession.draft?.start_time]);
+
+  const initialGuestCount = useMemo(() => {
+    if (restoredVisitDetails?.guest_count) {
+      return restoredVisitDetails.guest_count;
+    }
+    if (qGuestCount) {
+      const count = parseInt(qGuestCount, 10);
+      if (Number.isInteger(count) && count >= 1 && count <= 20) {
+        return count;
+      }
+    }
+    return initialSession.draft?.guest_count ?? 2;
+  }, [restoredVisitDetails, qGuestCount, initialSession.draft?.guest_count]);
+
+  const initialBranchId = useMemo(() => {
+    if (restoredVisitDetails?.branch_id) {
+      return restoredVisitDetails.branch_id;
+    }
+    if (qBranchId) {
+      const bId = parseInt(qBranchId, 10);
+      if (Number.isInteger(bId)) {
+        return bId;
+      }
+    }
+    return initialSession.draft?.branch_id ?? branchSelection.selectedBranch?.branchId ?? undefined;
+  }, [restoredVisitDetails, qBranchId, initialSession.draft?.branch_id, branchSelection.selectedBranch]);
+
   const form = useForm<AvailabilitySearchValues>({
     resolver: zodResolver(availabilitySearchSchema),
     defaultValues: {
-      start_time: restoredVisitDetails?.start_time ?? initialSession.draft?.start_time ?? createRoundedFutureLocalDateTimeInput(),
+      start_time: initialStartTime,
       duration_minutes: restoredVisitDetails?.duration_minutes ?? initialSession.draft?.duration_minutes ?? 90,
-      guest_count: restoredVisitDetails?.guest_count ?? initialSession.draft?.guest_count ?? 2,
-      branch_id: restoredVisitDetails?.branch_id ?? initialSession.draft?.branch_id ?? branchSelection.selectedBranch?.branchId ?? undefined,
+      guest_count: initialGuestCount,
+      branch_id: initialBranchId,
     },
   });
+
+  useEffect(() => {
+    if (qBranchId) {
+      const bId = parseInt(qBranchId, 10);
+      if (Number.isInteger(bId) && bId !== branchSelection.selectedBranchId) {
+        branchSelection.selectBranch(bId);
+      }
+    }
+  }, [qBranchId, branchSelection]);
   const startTimeValue = useWatch({ control: form.control, name: "start_time" });
   const guestCountValue = useWatch({ control: form.control, name: "guest_count" });
   const durationMinutesValue = useWatch({ control: form.control, name: "duration_minutes" });
@@ -538,7 +606,7 @@ export function TableBookingPage() {
   const isHoldTransitionPending = holdSelectionMutation.isPending || cancelHoldMutation.isPending;
   const searchPending = searchMutation.isPending || isHoldTransitionPending;
   const reservationCreateHref = holdState?.isActive && heldVisitDetails && !isHoldTransitionPending
-    ? `/reservations/new?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(isoStartTime)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}&branch_id=${heldVisitDetails.branch_id ?? branchSelection.selectedBranch?.branchId ?? ""}`
+    ? `/booking/preorder?hold_id=${encodeURIComponent(holdState.holdId)}&hold_status=${encodeURIComponent(holdState.status)}&hold_expires_at=${encodeURIComponent(holdState.expiresAt ?? "")}&tables=${heldTableIds.join(",")}&start_time=${encodeURIComponent(isoStartTime)}&duration_minutes=${heldVisitDetails.duration_minutes}&guest_count=${heldVisitDetails.guest_count}&branch_id=${heldVisitDetails.branch_id ?? branchSelection.selectedBranch?.branchId ?? ""}`
     : null;
   const activeHoldSessionError = Boolean(holdSelectionMutation.error && isActiveTableHoldSessionError(holdSelectionMutation.error));
 
@@ -721,19 +789,19 @@ export function TableBookingPage() {
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[320px_minmax(0,1fr)_320px]">
-        <Card className="h-fit rounded-lg">
-          <CardHeader>
-            <CardTitle>Thông tin bữa ăn</CardTitle>
+        <Card className="h-fit rounded-lg shadow-[var(--restaurant-shadow)]">
+          <CardHeader className="border-b bg-secondary/30 pb-4">
+            <CardTitle className="text-xl">Thông tin bữa ăn</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <form className="space-y-4" onSubmit={form.handleSubmit(submitAvailabilitySearch)}>
-              <section className="rounded-lg border bg-background/70 p-3">
+              <section className="rounded-lg border bg-background/50 p-4 shadow-sm transition-shadow hover:shadow-md">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-semibold">1. Chọn số khách</p>
                     <p className="text-xs text-muted-foreground">Dùng chip nhanh hoặc nhập số chính xác.</p>
                   </div>
-                  <Badge variant="outline" className="rounded-md">{guestCountValue ?? 0} khách</Badge>
+                  <Badge variant="outline" className="rounded-md bg-background">{guestCountValue ?? 0} khách</Badge>
                 </div>
                 <div className="mb-3 flex flex-wrap gap-2">
                   {guestQuickOptions.map((option) => (
@@ -741,7 +809,7 @@ export function TableBookingPage() {
                       key={option.label}
                       type="button"
                       variant={guestCountValue === option.value ? "default" : "outline"}
-                      className="min-h-10 rounded-lg"
+                      className={cn("min-h-10 rounded-lg transition-all", guestCountValue !== option.value && "hover:-translate-y-0.5 hover:shadow-sm")}
                       aria-pressed={guestCountValue === option.value}
                       onClick={() => form.setValue("guest_count", option.value, { shouldDirty: true, shouldValidate: true })}
                     >
@@ -756,7 +824,7 @@ export function TableBookingPage() {
                 </div>
               </section>
 
-              <section className="rounded-lg border bg-background/70 p-3">
+              <section className="rounded-lg border bg-background/50 p-4 shadow-sm transition-shadow hover:shadow-md">
                 <div className="mb-3">
                   <p className="text-sm font-semibold">2. Chọn ngày</p>
                   <p className="text-xs text-muted-foreground">Giữ nguyên giờ đang chọn khi đổi ngày nhanh.</p>
@@ -770,7 +838,7 @@ export function TableBookingPage() {
                         key={option.key}
                         type="button"
                         variant={selected ? "default" : "outline"}
-                        className="min-h-10 rounded-lg"
+                        className={cn("min-h-10 rounded-lg transition-all", !selected && "hover:-translate-y-0.5 hover:shadow-sm")}
                         aria-pressed={selected}
                         onClick={() => form.setValue("start_time", option.getValue(startTimeValue), { shouldDirty: true, shouldValidate: true })}
                       >
@@ -781,7 +849,7 @@ export function TableBookingPage() {
                 </div>
               </section>
 
-              <section className="rounded-lg border bg-background/70 p-3">
+              <section className="rounded-lg border bg-background/50 p-4 shadow-sm transition-shadow hover:shadow-md">
                 <div className="mb-3">
                   <p className="text-sm font-semibold">3. Chọn giờ</p>
                   <p className="text-xs text-muted-foreground">Có thể bấm khung giờ gợi ý hoặc nhập trực tiếp.</p>

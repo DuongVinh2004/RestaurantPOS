@@ -55,21 +55,21 @@ final class RefundAllocationPolicyTest extends TestCase
         $allocations = RefundAllocationPolicy::allocate([
             [
                 'source_key' => '1',
-                'captured_amount' => '0.10',
-                'already_refunded_amount' => '0.00',
+                'captured_amount' => 100.0,
+                'already_refunded_amount' => 90.0,
             ],
             [
                 'source_key' => '2',
-                'captured_amount' => '0.30',
-                'already_refunded_amount' => '0.10',
+                'captured_amount' => 200.0,
+                'already_refunded_amount' => 0.0,
             ],
-        ], '0.30');
+        ], 210.0);
 
         self::assertSame('1', $allocations[0]['source_key']);
-        self::assertSame(0.10, $allocations[0]['allocation_amount']);
-        self::assertSame(0.10, $allocations[0]['refundable_amount']);
+        self::assertSame(10.0, $allocations[0]['allocation_amount']);
+        self::assertSame(10.0, $allocations[0]['refundable_amount']);
         self::assertSame('2', $allocations[1]['source_key']);
-        self::assertSame(0.20, $allocations[1]['allocation_amount']);
-        self::assertSame(0.20, $allocations[1]['refundable_amount']);
+        self::assertSame(200.0, $allocations[1]['allocation_amount']);
+        self::assertSame(200.0, $allocations[1]['refundable_amount']);
     }
 }

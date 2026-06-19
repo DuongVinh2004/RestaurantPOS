@@ -19,6 +19,11 @@ import {
   listAdminMenuCategories,
   listAdminMenuItemPrices,
   listAdminMenuItems,
+  listAdminIngredients,
+  updateAdminMenuCategory,
+  updateAdminMenuItem,
+  uploadAdminMedia,
+  listAdminMenuModifierGroups,
 } from '../../../../shared/api/staff-api';
 import { formatApiError, isKnownApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
@@ -28,6 +33,8 @@ import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
+import { AdminModifierGroupsPanel } from './components/AdminModifierGroupsPanel';
+import { RecipeModal } from '../inventory/RecipeModal';
 
 export function AdminCatalogPage() {
   const queryClient = useQueryClient();
@@ -39,19 +46,29 @@ export function AdminCatalogPage() {
     categoryIdInput: '',
     selectedItemIdInput: '',
   });
-  const [categoryForm, setCategoryForm] = useState({ name: '', description: '', sortOrder: '0' });
-  const [itemForm, setItemForm] = useState({
+  const [categoryForm, setCategoryForm] = useState<{ id: number | null, name: string, description: string, sortOrder: string }>({ id: null, name: '', description: '', sortOrder: '0' });
+  const [itemForm, setItemForm] = useState<{ id: number | null, code: string, name: string, categoryId: string, description: string, imgUrl: string, available: boolean, modifierGroupIds: number[], isCombo: boolean, servingSize: string, comboComponents: { component_item_id: number, quantity: number }[] }>({
+    id: null,
     code: '',
     name: '',
     categoryId: '',
     description: '',
+    imgUrl: '',
     available: true,
+    modifierGroupIds: [],
+    isCombo: false,
+    servingSize: '',
+    comboComponents: [],
   });
   const [priceForm, setPriceForm] = useState({
     price: '',
     currency: 'VND',
     effectiveFrom: new Date().toISOString().slice(0, 16),
   });
+
+  const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
+  const [recipeMenuItemId, setRecipeMenuItemId] = useState<number | null>(null);
+  const [recipeMenuItemName, setRecipeMenuItemName] = useState<string>('');
 
   const selectedItemId = readSelectedCatalogItemId(filters);
 
@@ -68,6 +85,17 @@ export function AdminCatalogPage() {
     queryFn: () => listAdminMenuItemPrices(selectedItemId as number, buildAdminMenuItemPriceQuery()),
     enabled: selectedItemId !== null,
   });
+  const ingredientsQuery = useQuery({
+    queryKey: ['admin-inventory-ingredients'],
+    queryFn: () => listAdminIngredients({ per_page: 500 }),
+    enabled: isRecipeModalOpen,
+  });
+
+  const { data: modifierGroupsData } = useQuery({
+    queryKey: ['admin-modifier-groups'],
+    queryFn: () => listAdminMenuModifierGroups({ per_page: 200 }),
+  });
+  const allModifierGroups = modifierGroupsData?.data ?? [];
 
   const categories = useMemo(() => categoriesQuery.data?.data ?? [], [categoriesQuery.data?.data]);
   const items = useMemo(() => itemsQuery.data?.data ?? [], [itemsQuery.data?.data]);
@@ -91,9 +119,18 @@ export function AdminCatalogPage() {
       });
     },
     onSuccess: async () => {
-      setCategoryForm({ name: '', description: '', sortOrder: '0' });
+      setCategoryForm({ id: null, name: '', description: '', sortOrder: '0' });
       await queryClient.invalidateQueries({ queryKey: ['admin-catalog-categories'] });
       toast.success('Đã tạo loại món.');
+    },
+  });
+
+  const updateCategoryMutation = useMutation({
+    mutationFn: (variables: { id: number, payload: any }) => updateAdminMenuCategory(variables.id, variables.payload),
+    onSuccess: async () => {
+      setCategoryForm({ id: null, name: '', description: '', sortOrder: '0' });
+      await queryClient.invalidateQueries({ queryKey: ['admin-catalog-categories'] });
+      toast.success('Đã cập nhật loại món.');
     },
   });
 
@@ -104,18 +141,34 @@ export function AdminCatalogPage() {
         throw new Error('Hãy nhập tên món.');
       }
 
-      return createAdminMenuItem({
+      const payload = {
         code: itemForm.code.trim() || null,
         name: itemForm.name.trim(),
         category_id: Number.isInteger(categoryId) && categoryId > 0 ? categoryId : null,
         description: itemForm.description.trim() || null,
+        img_url: itemForm.imgUrl.trim() || null,
+        is_combo: itemForm.isCombo,
+        serving_size: itemForm.isCombo && itemForm.servingSize ? Number(itemForm.servingSize) : null,
+        combo_components: itemForm.isCombo && itemForm.comboComponents.length > 0 ? itemForm.comboComponents : null,
         is_available: itemForm.available,
-      });
+        modifier_group_ids: itemForm.modifierGroupIds,
+      };
+
+      return createAdminMenuItem(payload);
     },
     onSuccess: async () => {
-      setItemForm((current) => ({ ...current, code: '', name: '', description: '' }));
+      setItemForm((current) => ({ ...current, id: null, code: '', name: '', description: '', imgUrl: '', modifierGroupIds: [], isCombo: false, servingSize: '', comboComponents: [] }));
       await queryClient.invalidateQueries({ queryKey: ['admin-catalog-items'] });
       toast.success('Đã tạo món ăn.');
+    },
+  });
+
+  const updateItemMutation = useMutation({
+    mutationFn: (variables: { id: number, payload: any }) => updateAdminMenuItem(variables.id, variables.payload),
+    onSuccess: async () => {
+      setItemForm((current) => ({ ...current, id: null, code: '', name: '', description: '', imgUrl: '', modifierGroupIds: [], isCombo: false, servingSize: '', comboComponents: [] }));
+      await queryClient.invalidateQueries({ queryKey: ['admin-catalog-items'] });
+      toast.success('Đã cập nhật món ăn.');
     },
   });
 
@@ -145,11 +198,13 @@ export function AdminCatalogPage() {
 
   const updateCategoryForm = (patch: Partial<typeof categoryForm>) => {
     createCategoryMutation.reset();
+    updateCategoryMutation.reset();
     setCategoryForm((current) => ({ ...current, ...patch }));
   };
 
   const updateItemForm = (patch: Partial<typeof itemForm>) => {
     createItemMutation.reset();
+    updateItemMutation.reset();
     setItemForm((current) => ({ ...current, ...patch }));
   };
 
@@ -273,6 +328,24 @@ export function AdminCatalogPage() {
                   </div>
                   <Space wrap size={6}>
                     <StatusChip label={category.is_deleted ? 'Đã xóa' : 'Đang dùng'} tone={category.is_deleted ? 'warning' : 'success'} />
+                    <Button
+                      size="small"
+                      onClick={() => setCategoryForm({
+                        id: category.category_id,
+                        name: category.name,
+                        description: category.description || '',
+                        sortOrder: String(category.sort_order),
+                      })}
+                    >Sửa</Button>
+                    <Button
+                      size="small"
+                      danger
+                      onClick={() => {
+                        if (confirm(`Bạn có chắc muốn ${category.is_deleted ? 'khôi phục' : 'xóa'} loại món này?`)) {
+                          updateCategoryMutation.mutate({ id: category.category_id, payload: { is_deleted: !category.is_deleted } });
+                        }
+                      }}
+                    >{category.is_deleted ? 'Khôi phục' : 'Xóa'}</Button>
                   </Space>
                   <Typography.Text type="secondary">{category.description ?? 'Chưa có mô tả'}</Typography.Text>
                 </div>
@@ -306,6 +379,44 @@ export function AdminCatalogPage() {
                   <Space wrap size={6}>
                     <StatusChip label={item.is_available ? 'Đang bán' : 'Tạm ngưng'} tone={item.is_available ? 'success' : 'warning'} />
                     <StatusChip label={item.current_price ? formatCatalogPrice(item.current_price.price, item.current_price.currency) : 'Chưa có giá hiện tại'} tone={item.current_price ? 'success' : 'warning'} />
+                    <Button
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setItemForm({
+                          id: item.item_id,
+                          code: item.code || '',
+                          name: item.name,
+                          categoryId: item.category_id ? String(item.category_id) : '',
+                          description: item.description || '',
+                          imgUrl: item.img_url || '',
+                          available: item.is_available,
+                          modifierGroupIds: item.modifier_groups?.map((g: any) => g.group_id) || [],
+                          isCombo: item.is_combo || false,
+                          servingSize: item.serving_size ? String(item.serving_size) : '',
+                          comboComponents: item.combo_components || [],
+                        });
+                      }}
+                    >Sửa</Button>
+                    <Button
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setRecipeMenuItemId(item.item_id);
+                        setRecipeMenuItemName(item.name);
+                        setIsRecipeModalOpen(true);
+                      }}
+                    >Định lượng</Button>
+                    <Button
+                      size="small"
+                      danger
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Bạn có chắc muốn ${item.is_available ? 'tạm ngưng' : 'mở bán lại'} món này?`)) {
+                          updateItemMutation.mutate({ id: item.item_id, payload: { is_available: !item.is_available } });
+                        }
+                      }}
+                    >{item.is_available ? 'Tạm ngưng' : 'Mở bán lại'}</Button>
                   </Space>
                 </button>
               ))}
@@ -318,7 +429,7 @@ export function AdminCatalogPage() {
 
   const side = (
     <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="staff-workspace-detail-card" title="Tạo loại món">
+      <Card className="staff-workspace-detail-card" title={categoryForm.id ? "Cập nhật loại món" : "Tạo loại món"}>
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Input
               aria-label="Tên loại món mới"
@@ -340,19 +451,44 @@ export function AdminCatalogPage() {
               value={Number(categoryForm.sortOrder)}
               onChange={(value) => updateCategoryForm({ sortOrder: value === null ? '0' : String(value) })}
             />
-          <Button type="primary" loading={createCategoryMutation.isPending} disabled={createCategoryMutation.isPending} onClick={() => createCategoryMutation.mutate()}>
-            Tạo loại món
-          </Button>
+          <Space size={8}>
+            <Button
+              type="primary"
+              loading={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+              onClick={() => {
+                if (categoryForm.id) {
+                  updateCategoryMutation.mutate({
+                    id: categoryForm.id,
+                    payload: {
+                      name: categoryForm.name.trim(),
+                      description: categoryForm.description.trim() || null,
+                      sort_order: Number(categoryForm.sortOrder),
+                    }
+                  });
+                } else {
+                  createCategoryMutation.mutate();
+                }
+              }}
+            >
+              {categoryForm.id ? "Lưu thay đổi" : "Tạo loại món"}
+            </Button>
+            {categoryForm.id && (
+              <Button onClick={() => setCategoryForm({ id: null, name: '', description: '', sortOrder: '0' })}>
+                Hủy
+              </Button>
+            )}
+          </Space>
           <CatalogMutationErrorBlock
-            error={createCategoryMutation.error}
-            fallback="Chưa tạo được loại món."
-            onRetry={() => createCategoryMutation.mutate()}
+            error={createCategoryMutation.error || updateCategoryMutation.error}
+            fallback="Chưa lưu được loại món."
+            onRetry={() => {}}
             validationTitle="Thông tin loại món chưa hợp lệ"
           />
         </Space>
       </Card>
 
-      <Card className="staff-workspace-detail-card" title="Tạo món ăn">
+      <Card className="staff-workspace-detail-card" title={itemForm.id ? "Cập nhật món ăn" : "Tạo món ăn"}>
         <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <Input
               aria-label="Mã món mới"
@@ -384,6 +520,14 @@ export function AdminCatalogPage() {
               value={itemForm.description}
               onChange={(event) => updateItemForm({ description: event.target.value })}
             />
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder="Chọn các nhóm tùy chọn (Modifiers)"
+            value={itemForm.modifierGroupIds}
+            onChange={(vals) => setItemForm({ ...itemForm, modifierGroupIds: vals })}
+            options={allModifierGroups.map((g: any) => ({ label: g.name, value: g.group_id }))}
+          />
           <label className="staff-admin-switch-row">
             <span>Đang bán</span>
             <Switch
@@ -391,19 +535,140 @@ export function AdminCatalogPage() {
               onChange={(checked) => updateItemForm({ available: checked })}
             />
           </label>
-          <Button type="primary" loading={createItemMutation.isPending} disabled={createItemMutation.isPending} onClick={() => createItemMutation.mutate()}>
-            Tạo món
-          </Button>
+          <label className="staff-admin-switch-row">
+            <span>Là Combo</span>
+            <Switch
+              checked={itemForm.isCombo}
+              onChange={(checked) => updateItemForm({ isCombo: checked })}
+            />
+          </label>
+          {itemForm.isCombo && (
+            <Space direction="vertical" style={{ width: '100%', padding: '12px', background: '#fafafa', borderRadius: '8px' }}>
+              <Typography.Text strong>Chi tiết Combo</Typography.Text>
+              <InputNumber
+                aria-label="Số người ăn"
+                style={{ width: '100%' }}
+                placeholder="Số người ăn (vd: 2, 4)"
+                min={1}
+                value={itemForm.servingSize === '' ? null : Number(itemForm.servingSize)}
+                onChange={(value) => updateItemForm({ servingSize: value === null ? '' : String(value) })}
+              />
+              <Space direction="vertical" style={{ width: '100%' }}>
+                <Typography.Text>Các món trong Combo:</Typography.Text>
+                {itemForm.comboComponents.map((ci, index) => (
+                  <Space key={index} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                    <Select
+                      style={{ width: 250 }}
+                      placeholder="Chọn món"
+                      showSearch
+                      optionFilterProp="label"
+                      value={ci.component_item_id || undefined}
+                      options={items.filter(i => !i.is_combo).map(i => ({ value: i.item_id, label: i.name }))}
+                      onChange={(val) => {
+                        const newItems = [...itemForm.comboComponents];
+                        newItems[index].component_item_id = val;
+                        updateItemForm({ comboComponents: newItems });
+                      }}
+                    />
+                    <InputNumber
+                      min={1}
+                      value={ci.quantity}
+                      onChange={(val) => {
+                        const newItems = [...itemForm.comboComponents];
+                        newItems[index].quantity = val || 1;
+                        updateItemForm({ comboComponents: newItems });
+                      }}
+                    />
+                    <Button
+                      danger
+                      onClick={() => {
+                        const newItems = itemForm.comboComponents.filter((_, i) => i !== index);
+                        updateItemForm({ comboComponents: newItems });
+                      }}
+                    >Xóa</Button>
+                  </Space>
+                ))}
+                <Button
+                  type="dashed"
+                  onClick={() => updateItemForm({ comboComponents: [...itemForm.comboComponents, { component_item_id: 0, quantity: 1 }] })}
+                  block
+                >
+                  + Thêm món vào Combo
+                </Button>
+              </Space>
+            </Space>
+          )}
+          <Space direction="vertical" style={{ width: '100%' }}>
+            <Typography.Text>Ảnh món ăn (tùy chọn)</Typography.Text>
+            {itemForm.imgUrl && (
+              <img src={itemForm.imgUrl} alt="Món ăn" style={{ maxWidth: '100%', maxHeight: 150, objectFit: 'contain' }} />
+            )}
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                try {
+                  const res = await uploadAdminMedia(file, 'menu');
+                  updateItemForm({ imgUrl: res.url });
+                  toast.success('Tải ảnh thành công.');
+                } catch (err) {
+                  toast.error(formatApiError(err, 'Lỗi tải ảnh lên'));
+                }
+              }}
+            />
+            {itemForm.imgUrl && (
+              <Button size="small" onClick={() => updateItemForm({ imgUrl: '' })}>Xóa ảnh</Button>
+            )}
+          </Space>
+          <Space size={8}>
+            <Button
+              type="primary"
+              loading={createItemMutation.isPending || updateItemMutation.isPending}
+              disabled={createItemMutation.isPending || updateItemMutation.isPending}
+              onClick={() => {
+                if (itemForm.id) {
+                  updateItemMutation.mutate({
+                    id: itemForm.id,
+                    payload: {
+                      code: itemForm.code.trim() || null,
+                      name: itemForm.name.trim(),
+                      category_id: Number(itemForm.categoryId) > 0 ? Number(itemForm.categoryId) : null,
+                      description: itemForm.description.trim() || null,
+                      img_url: itemForm.imgUrl.trim() || null,
+                      is_combo: itemForm.isCombo,
+                      serving_size: itemForm.isCombo && itemForm.servingSize ? Number(itemForm.servingSize) : null,
+                      combo_components: itemForm.isCombo && itemForm.comboComponents.length > 0 ? itemForm.comboComponents : null,
+                      is_available: itemForm.available,
+                      modifier_group_ids: itemForm.modifierGroupIds,
+                    }
+                  });
+                } else {
+                  createItemMutation.mutate();
+                }
+              }}
+            >
+              {itemForm.id ? "Lưu thay đổi" : "Tạo món"}
+            </Button>
+            {itemForm.id && (
+              <Button onClick={() => setItemForm({ id: null, code: '', name: '', categoryId: '', description: '', imgUrl: '', available: true, modifierGroupIds: [], isCombo: false, servingSize: '', comboComponents: [] })}>
+                Hủy
+              </Button>
+            )}
+          </Space>
           <CatalogMutationErrorBlock
-            error={createItemMutation.error}
-            fallback="Chưa tạo được món ăn."
-            onRetry={() => createItemMutation.mutate()}
+            error={createItemMutation.error || updateItemMutation.error}
+            fallback="Chưa lưu được món ăn."
+            onRetry={() => {}}
             notFoundTitle="Không còn thấy loại món đã chọn"
             notFoundDescription="Loại món đang gắn cho món mới có thể vừa bị xóa hoặc nằm ngoài phạm vi hiện tại."
             validationTitle="Thông tin món ăn chưa hợp lệ"
           />
         </Space>
       </Card>
+
+      <AdminModifierGroupsPanel />
 
       <Card className="staff-workspace-detail-card" title="Quản lý giá">
         <CatalogPricePanel
@@ -436,7 +701,18 @@ export function AdminCatalogPage() {
     </Space>
   );
 
-  return <SplitWorkspace main={main} side={side} />;
+  return (
+    <>
+      <SplitWorkspace main={main} side={side} />
+      <RecipeModal
+        open={isRecipeModalOpen}
+        onClose={() => setIsRecipeModalOpen(false)}
+        menuItemId={recipeMenuItemId}
+        menuItemName={recipeMenuItemName}
+        ingredients={(ingredientsQuery.data?.data as any) ?? []}
+      />
+    </>
+  );
 }
 
 type CatalogPriceRow = {

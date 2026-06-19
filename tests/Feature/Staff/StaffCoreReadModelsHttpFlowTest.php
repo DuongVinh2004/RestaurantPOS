@@ -36,10 +36,10 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             'user_id' => $customerId,
             'reservation_code' => 'RSV-DETAIL-001',
             'status' => 'Reserved',
-            'deposit_required_amount' => '120000.00',
-            'deposit_paid_amount' => '120000.00',
+            'deposit_required_amount' => '120000',
+            'deposit_paid_amount' => '120000',
             'deposit_status' => 'Paid',
-            'final_bill_amount' => '250000.00',
+            'final_bill_amount' => '250000',
             'bill_currency' => 'VND',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -50,7 +50,7 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '250000.00',
+            'price' => '250000',
             'currency' => 'VND',
             'effective_from' => now('UTC')->subDay(),
         ]);
@@ -63,9 +63,9 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $itemId,
             'quantity' => 1,
-            'unit_price' => '250000.00',
+            'unit_price' => '250000',
             'currency' => 'VND',
-            'line_total' => '250000.00',
+            'line_total' => '250000',
             'status' => 'InProgress',
             'notes' => 'No onion',
         ]);
@@ -73,7 +73,7 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '120000.00',
+            'amount' => '120000',
             'currency' => 'VND',
         ]);
 
@@ -132,7 +132,7 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '95000.00',
+            'price' => '95000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -145,7 +145,7 @@ class StaffCoreReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('meta.total', 1)
             ->assertJsonPath('data.0.item_id', $itemId)
             ->assertJsonPath('data.0.name', 'Pho Tai Staff Filter')
-            ->assertJsonPath('data.0.price.amount', '95000.00');
+            ->assertJsonPath('data.0.price.amount', '95000');
     }
 
     public function test_staff_can_list_active_branches_for_context_switching(): void

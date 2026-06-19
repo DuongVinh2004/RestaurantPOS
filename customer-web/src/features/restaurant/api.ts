@@ -7,3 +7,7 @@ export type RestaurantProfile = RestaurantProfileEnvelope["data"];
 export function getRestaurantProfile(): Promise<RestaurantProfile> {
   return apiCall((client) => client.getV1RestaurantProfile()).then(unwrapData);
 }
+
+export function getRestaurantBranches(): Promise<RestaurantProfile[]> {
+  return apiCall((client) => client.getV1RestaurantBranches()).then(unwrapData);
+}

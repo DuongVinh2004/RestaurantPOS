@@ -59,7 +59,7 @@ export function CustomerHeader({
   const activeItem = getActiveNavItem(navItems, pathname);
 
   return (
-    <header className="sticky top-0 z-30 border-b bg-background/96 backdrop-blur-xl">
+    <header className="sticky top-0 z-30 border-b bg-background/70 backdrop-blur-2xl shadow-sm transition-all">
       <div className="mx-auto flex min-h-[4.5rem] w-full max-w-7xl items-center justify-between gap-3 px-4 py-3">
         <Link href="/" className="group flex min-w-0 items-center gap-3 leading-tight" aria-label={`Trang chủ ${customerBrand.appName}`}>
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-primary-foreground">
@@ -146,9 +146,9 @@ export function CustomerBottomNav({
   return (
     <nav
       aria-label="Điều hướng cuối màn hình"
-      className={cn("fixed inset-x-0 bottom-0 z-30 border-t bg-background/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2 backdrop-blur-xl md:hidden", className)}
+      className={cn("fixed inset-x-0 bottom-0 z-30 border-t bg-background/70 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2 backdrop-blur-2xl md:hidden transition-all", className)}
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1 rounded-lg border bg-background p-1 shadow-[0_14px_38px_oklch(0.2_0.02_255_/_12%)]">
+      <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1 rounded-lg border border-primary/10 bg-background/95 p-1 shadow-[var(--restaurant-shadow-hover)] backdrop-blur-md">
         {items.map((item) => {
           const Icon = item.icon;
           const active = isActivePath(pathname, item.href);

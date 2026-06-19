@@ -100,7 +100,7 @@ final class RefundExecutionServiceTest extends TestCase
             'reservation_id' => 202,
             'payment_type' => 'Deposit',
             'status' => PaymentStatus::Success,
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-FOREIGN-1',
         ]);

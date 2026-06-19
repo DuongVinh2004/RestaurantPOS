@@ -90,17 +90,7 @@ class CustomerBenefitsService
         $reservation = Reservation::query()
             ->with(['user.points', 'user.currentTier', 'appliedUserVoucher.voucher'])
             ->where('reservation_id', $reservationId)
-            ->where(function ($query) use ($userId, $user) {
-                $query->where('user_id', $userId);
-                if ($user) {
-                    if ($user->email) {
-                        $query->orWhere('guest_email', $user->email);
-                    }
-                    if ($user->phone) {
-                        $query->orWhere('guest_phone', $user->phone);
-                    }
-                }
-            })
+            ->where('user_id', $userId)
             ->firstOrFail();
 
         $loyaltySummary = $this->reservationLoyaltySummaryReader->getReservationSummary($reservationId);
@@ -145,7 +135,7 @@ class CustomerBenefitsService
             'voucher_code' => (string) ($voucher?->code ?? ''),
             'description' => (string) ($voucher?->description ?? ''),
             'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
-            'discount_value' => $voucher?->discount_value !== null ? number_format((float) $voucher->discount_value, 2, '.', '') : null,
+            'discount_value' => $voucher?->discount_value !== null ? number_format((float) $voucher->discount_value, 0, '.', '') : null,
             'min_spend' => $voucher?->min_spend !== null ? Money::format($voucher->min_spend, true) : null,
             'free_item' => $voucher && (int) ($voucher->free_item_id ?? 0) > 0 ? [
                 'item_id' => (int) $voucher->free_item_id,

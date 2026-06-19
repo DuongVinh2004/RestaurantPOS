@@ -26,6 +26,11 @@ class MenuItem extends Model
         'is_preorder_enabled',
         'preorder_quota_per_day',
         'preorder_cutoff_minutes',
+        'is_combo',
+        'is_best_seller',
+        'compare_at_price_amount',
+        'serving_size',
+        'combo_items_json',
     ];
 
     protected $casts = [
@@ -35,6 +40,11 @@ class MenuItem extends Model
         'is_preorder_enabled' => 'bool',
         'preorder_quota_per_day' => 'int',
         'preorder_cutoff_minutes' => 'int',
+        'is_combo' => 'bool',
+        'is_best_seller' => 'bool',
+        'compare_at_price_amount' => 'decimal:0',
+        'serving_size' => 'int',
+        'combo_items_json' => 'array',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -49,6 +59,18 @@ class MenuItem extends Model
     public function prices(): HasMany
     {
         return $this->hasMany(MenuItemPrice::class, 'item_id', 'item_id');
+    }
+
+    public function comboComponents(): HasMany
+    {
+        return $this->hasMany(MenuItemComboComponent::class, 'combo_item_id', 'item_id');
+    }
+
+    public function modifierGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(MenuModifierGroup::class, 'menu_item_modifier_groups', 'item_id', 'group_id')
+            ->withPivot('sort_order')
+            ->orderBy('menu_item_modifier_groups.sort_order');
     }
 
     public function scopeAvailable($query)

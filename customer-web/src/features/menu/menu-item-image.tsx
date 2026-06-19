@@ -50,8 +50,8 @@ function imageProfileFor(item: MenuItem): MenuImageProfile {
   return menuImageProfiles.find((profile) => profile.keywords.some((keyword) => searchable.includes(keyword))) ?? defaultMenuImage;
 }
 
-function canUseNextImage(src: string): boolean {
-  return src.startsWith("/");
+function canUseNextImage(_src: string): boolean {
+  return false;
 }
 
 export function MenuItemImage({

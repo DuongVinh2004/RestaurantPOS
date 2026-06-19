@@ -121,7 +121,7 @@ final class LoyaltySyncServicesTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '150000.00',
+            'amount' => '150000',
             'currency' => 'VND',
             'transaction_code' => 'LOYALTY-SYNC-B2-1',
         ]);
@@ -215,7 +215,7 @@ final class LoyaltySyncServicesTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'LOYALTY-SYNC-B3-1',
         ]);
@@ -271,7 +271,7 @@ final class LoyaltySyncServicesTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'LOYALTY-SYNC-DEPOSIT-KEEP-1',
         ]);
@@ -279,7 +279,7 @@ final class LoyaltySyncServicesTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'LOYALTY-SYNC-DEPOSIT-KEEP-2',
         ]);
@@ -311,7 +311,7 @@ final class LoyaltySyncServicesTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Refund',
             'status' => 'Refunded',
-            'amount' => '20000.00',
+            'amount' => '20000',
             'currency' => 'VND',
             'refund_of_payment_id' => $depositPaymentId,
             'transaction_code' => 'LOYALTY-SYNC-DEPOSIT-REFUND-1',

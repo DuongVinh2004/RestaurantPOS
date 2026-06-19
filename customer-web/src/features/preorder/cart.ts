@@ -57,13 +57,24 @@ export function updatePreorderCartItem(
   rawQuantity: number,
 ): PreorderCartItem[] {
   const quantity = Number.isFinite(rawQuantity)
-    ? Math.max(0, Math.floor(rawQuantity))
+    ? Math.max(-1, Math.floor(rawQuantity))
     : 0;
 
-  return normalizePreorderCart([
-    ...cart.filter((item) => item.item_id !== itemId),
-    ...(quantity > 0 ? [{ item_id: itemId, quantity }] : []),
-  ]);
+  if (quantity < 0) {
+    return cart.filter((item) => item.item_id !== itemId);
+  }
+
+  const exists = cart.some((item) => item.item_id === itemId);
+  if (!exists) {
+    return [
+      ...cart,
+      { item_id: itemId, quantity },
+    ].sort((left, right) => left.item_id - right.item_id);
+  }
+
+  return cart.map((item) =>
+    item.item_id === itemId ? { ...item, quantity } : item
+  );
 }
 
 export function preorderCartTotalQuantity(items: PreorderCartItem[]): number {

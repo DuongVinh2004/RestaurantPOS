@@ -3,7 +3,6 @@ param(
     [int] $Port = 8000,
     [switch] $SkipBootstrap,
     [switch] $SkipRedis,
-    [switch] $SkipUatPack,
     [switch] $SkipMySql,
     [switch] $ResetDatabase
 )
@@ -576,17 +575,6 @@ if (-not $SkipBootstrap) {
     & composer @bootstrapCommand
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
-    }
-
-    if (-not $SkipUatPack) {
-        $baseUrl = "http://$HostName`:$Port"
-        $manifestPath = 'storage/app/uat/scenario-pack.json'
-
-        Write-Host "Bootstrapping UAT login/demo data at $manifestPath..."
-        & $phpExecutable artisan booking:uat-pack:bootstrap "--base-url=$baseUrl" "--manifest-path=$manifestPath"
-        if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-        }
     }
 }
 

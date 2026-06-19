@@ -224,5 +224,11 @@ return Application::configure(basePath: dirname(__DIR__))
 
             return ApiErrorResponse::internalError($request);
         });
+
+        $exceptions->reportable(function (Throwable $e) {
+            if (app()->bound('sentry')) {
+                \Sentry\Laravel\Integration::captureUnhandledException($e);
+            }
+        });
     })
     ->create();

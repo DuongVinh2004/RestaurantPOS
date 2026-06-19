@@ -30,8 +30,8 @@ class CustomerReservationDepositPaymentVisibilityFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);

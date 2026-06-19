@@ -46,8 +46,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -68,15 +68,15 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-R5-MATRIX-1',
         ]);
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -181,8 +181,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -203,15 +203,15 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-R5-MATRIX-2',
         ]);
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -306,8 +306,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -316,7 +316,7 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-R5-MATRIX-3',
         ]);
@@ -373,8 +373,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '20000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '20000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -464,8 +464,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -484,8 +484,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -600,8 +600,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -620,8 +620,8 @@ class StaffCheckoutFinancialIntegrationMatrixTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,

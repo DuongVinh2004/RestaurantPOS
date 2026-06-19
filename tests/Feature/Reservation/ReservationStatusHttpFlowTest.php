@@ -219,7 +219,7 @@ class ReservationStatusHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'payment_provider' => 'Cash',
             'payment_method' => 'Cash',
         ]);

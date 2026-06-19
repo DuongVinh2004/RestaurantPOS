@@ -7,6 +7,7 @@ export const queryKeys = {
   },
   restaurant: {
     profile: ["restaurant", "profile"] as const,
+    branches: ["restaurant", "branches"] as const,
   },
   menu: {
     categories: (params?: unknown) => ["menu", "categories", params ?? {}] as const,

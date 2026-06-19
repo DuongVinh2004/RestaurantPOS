@@ -40,7 +40,7 @@ class UserVoucher extends Model
         'is_used' => 'bool',
         'used_date' => 'datetime',
         'used_reservation_id' => 'int',
-        'used_amount' => 'decimal:2',
+        'used_amount' => 'decimal:0',
         'lock_token' => 'string',
         'locked_until' => 'datetime',
         'created_at' => 'datetime',

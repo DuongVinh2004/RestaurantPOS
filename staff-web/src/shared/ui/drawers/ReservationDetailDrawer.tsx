@@ -42,10 +42,21 @@ export function ReservationDetailDrawer({
   const customerLabel = getReservationGuestLabel(reservation);
   const isSnapshotOnlyGuest = isReservationSnapshotOnlyGuest(reservation);
   const tableLabel = getReservationTableLabel(reservation);
+  const hasActiveOrder = !!activeOrder?.data.order;
   const footerActions = [
     onCheckIn ? (
       <Button key="check-in" type="primary" onClick={onCheckIn} loading={busy}>
         Nhận bàn ngay
+      </Button>
+    ) : null,
+    onOpenOrder ? (
+      <Button key="open-order" type={!onCheckIn && hasActiveOrder ? 'primary' : 'default'} onClick={onOpenOrder} loading={busy}>
+        {hasActiveOrder ? 'Mở đơn đang phục vụ' : 'Mở màn hình đơn hàng'}
+      </Button>
+    ) : null,
+    onOpenCheckout && hasActiveOrder ? (
+      <Button key="checkout" onClick={onOpenCheckout} loading={busy}>
+        Mở thanh toán
       </Button>
     ) : null,
     onPayDeposit ? (
@@ -143,18 +154,6 @@ export function ReservationDetailDrawer({
             description={activeOrder?.data.order
               ? 'Có thể mở thẳng đơn đang chạy để tiếp tục món, bếp hoặc thanh toán.'
               : 'Nếu khách đã ngồi bàn, hãy mở màn hình đơn hàng để tạo luồng phục vụ ngay từ đặt bàn này.'}
-            actions={(
-              <Space wrap>
-                <Button type={activeOrder?.data.order ? 'primary' : 'default'} onClick={onOpenOrder}>
-                  {activeOrder?.data.order ? 'Mở đơn đang phục vụ' : 'Mở màn hình đơn hàng'}
-                </Button>
-                {activeOrder?.data.order && onOpenCheckout ? (
-                  <Button onClick={onOpenCheckout}>
-                    Mở thanh toán
-                  </Button>
-                ) : null}
-              </Space>
-            )}
           />
 
           <Divider style={{ margin: 0 }} />

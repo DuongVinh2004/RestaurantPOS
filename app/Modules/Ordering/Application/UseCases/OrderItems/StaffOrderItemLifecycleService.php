@@ -49,6 +49,88 @@ class StaffOrderItemLifecycleService
         $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
     }
 
+    public function swapComponent(
+        int $orderId,
+        int $orderItemId,
+        int $newItemId,
+        ?float $unitPriceOverride,
+        ?int $staffUserId = null,
+        ?int $expectedOrderRowVersion = null,
+        ?int $expectedItemRowVersion = null,
+    ): ReservationOrder {
+        $staffUserId = StaffActorGuard::requireStaffUserId($staffUserId);
+        [$reservationId, $tableIds] = $this->resolveLockContext($orderId);
+
+        try {
+            return $this->locks->withLockKeys(
+                $this->buildLockKeys($reservationId, $tableIds),
+                function () use ($orderId, $orderItemId, $newItemId, $unitPriceOverride, $staffUserId, $expectedOrderRowVersion, $expectedItemRowVersion) {
+                    return DB::transaction(function () use ($orderId, $orderItemId, $newItemId, $unitPriceOverride, $staffUserId, $expectedOrderRowVersion, $expectedItemRowVersion) {
+                        [$order, $item, $branchId] = $this->loadWritableContext(
+                            orderId: $orderId,
+                            orderItemId: $orderItemId,
+                            staffUserId: $staffUserId,
+                            expectedOrderRowVersion: $expectedOrderRowVersion,
+                            expectedItemRowVersion: $expectedItemRowVersion,
+                        );
+
+                        if ($item->parent_order_item_id === null) {
+                            throw ValidationException::withMessages([
+                                'order_item_id' => 'Only component items can be swapped.',
+                            ]);
+                        }
+
+                        $currentStatus = $this->normalizeItemStatus($item);
+                        if (in_array($currentStatus, [ReservationOrderItemStatus::Served->value, ReservationOrderItemStatus::Cancelled->value], true)) {
+                            throw ValidationException::withMessages([
+                                'order_item_id' => 'Served or cancelled items can no longer be edited.',
+                            ]);
+                        }
+
+                        /** @var \App\Modules\Catalog\Domain\Models\MenuItem $newItem */
+                        $newItem = \App\Modules\Catalog\Domain\Models\MenuItem::findOrFail($newItemId);
+                        
+                        $oldItemId = $item->item_id;
+                        $oldUnitPrice = $item->unit_price ?? 0;
+                        $oldLineTotal = $item->line_total ?? 0;
+
+                        $item->item_id = $newItem->item_id;
+                        $item->item_name_snapshot = $newItem->name;
+                        
+                        if ($unitPriceOverride !== null) {
+                            $item->unit_price = Money::formatMinor(Money::minorUnits($unitPriceOverride, true));
+                            $item->line_total = $this->lineTotalForQuantity(Money::formatMinor(Money::minorUnits($unitPriceOverride, true)), (int) $item->quantity);
+                        }
+
+                        $item->updated_by = $staffUserId;
+                        $item->save();
+
+                        $order->updated_by = $staffUserId;
+                        $order->save();
+
+                        AuditEvent::info('staff.order_item.component_swapped', [
+                            'order_id' => $orderId,
+                            'order_item_id' => $orderItemId,
+                            'old_item_id' => $oldItemId,
+                            'new_item_id' => $newItem->item_id,
+                            'old_unit_price' => $oldUnitPrice,
+                            'new_unit_price' => $item->unit_price,
+                            'old_line_total' => $oldLineTotal,
+                            'new_line_total' => $item->line_total,
+                            'actor_user_id' => $staffUserId,
+                        ]);
+
+                        return $this->freshOrder($orderId);
+                    });
+                }
+            );
+        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+            throw ValidationException::withMessages([
+                'order_id' => 'Could not acquire lock to update order items. Please try again.',
+            ]);
+        }
+    }
+
     public function updateItem(
         int $orderId,
         int $orderItemId,
@@ -115,6 +197,15 @@ class StaffOrderItemLifecycleService
                         if ($newQuantity !== $oldQuantity) {
                             $newLineTotal = $this->lineTotalForQuantity($unitPrice, $newQuantity);
                             $item->line_total = $newLineTotal;
+
+                            // Cascade quantity update to children
+                            $children = ReservationOrderItem::query()->where('parent_order_item_id', $item->order_item_id)->get();
+                            foreach ($children as $child) {
+                                $baseQty = $oldQuantity > 0 ? ($child->quantity / $oldQuantity) : 0;
+                                $child->quantity = (int) ($baseQty * $newQuantity);
+                                $child->updated_by = $staffUserId;
+                                $child->save();
+                            }
                         }
 
                         $item->quantity = $newQuantity;
@@ -265,7 +356,7 @@ class StaffOrderItemLifecycleService
                         ]);
 
                         // Side-effect ton kho chi xay ra sau khi DB status da duoc ghi trong transaction hien tai.
-                        $this->orderItemInventoryConsumptionService->consumeIfServed(
+                        $this->orderItemInventoryConsumptionService->syncInventoryForStatusChange(
                             reservation: $order->reservation,
                             order: $order,
                             item: $item,
@@ -275,6 +366,33 @@ class StaffOrderItemLifecycleService
                         );
                         // Đồng bộ KDS sau cùng để màn hình bếp phản ánh đúng trạng thái mới.
                         $this->kitchenRoutingService->syncTicketForOrderItem((int) $item->order_item_id, $staffUserId);
+
+                        // Cascade status update to children
+                        $children = ReservationOrderItem::query()->where('parent_order_item_id', $item->order_item_id)->get();
+                        foreach ($children as $child) {
+                            $childCurrent = $child->status instanceof ReservationOrderItemStatus
+                                ? $child->status
+                                : ReservationOrderItemStatus::from((string) $child->status);
+                            
+                            if ($childCurrent !== $target) {
+                                // For children, we also enforce the policy to ensure valid state transitions
+                                ReservationOrderItemStatusTransitionPolicy::assertTransitionAllowed($childCurrent, $target);
+                                
+                                $child->status = $target;
+                                $child->updated_by = $staffUserId;
+                                $child->save();
+                                
+                                $this->orderItemInventoryConsumptionService->syncInventoryForStatusChange(
+                                    reservation: $order->reservation,
+                                    order: $order,
+                                    item: $child,
+                                    previousStatus: $childCurrent,
+                                    targetStatus: $target,
+                                    actorUserId: $staffUserId,
+                                );
+                                $this->kitchenRoutingService->syncTicketForOrderItem((int) $child->order_item_id, $staffUserId);
+                            }
+                        }
 
                         return $this->freshOrder($orderId);
                     });
@@ -400,6 +518,20 @@ class StaffOrderItemLifecycleService
         if ($reservation->billed_at !== null || $reservation->final_bill_amount !== null) {
             throw ValidationException::withMessages([
                 'reservation_id' => 'Reservation bill has already been closed for payment. Reopen the bill before modifying order items.',
+            ]);
+        }
+
+        $activeBillSessionsCount = \App\Modules\Payments\Domain\Models\ReservationBillPaymentSession::query()
+            ->where('reservation_id', $reservation->reservation_id)
+            ->whereIn('session_status', [
+                \App\Enums\ReservationBillPaymentSessionStatus::Created->value,
+                \App\Enums\ReservationBillPaymentSessionStatus::Pending->value,
+            ])
+            ->count();
+
+        if ($activeBillSessionsCount > 0) {
+            throw ValidationException::withMessages([
+                'reservation_id' => 'Reservation has an active bill payment session. Please wait for the payment to complete or cancel it before modifying order items.',
             ]);
         }
     }

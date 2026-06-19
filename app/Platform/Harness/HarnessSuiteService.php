@@ -7,7 +7,6 @@ namespace App\Platform\Harness;
 use App\Platform\ApiContract\ApiArtifacts\ApiConsumerArtifactService;
 use App\Platform\ApiContract\ApiArtifacts\ApiEnumStateArtifactService;
 use App\Platform\Release\Services\LaunchReadinessService;
-use App\Platform\Uat\UatScenarioPackService;
 use Illuminate\Support\Facades\File;
 
 class HarnessSuiteService
@@ -141,7 +140,6 @@ class HarnessSuiteService
     public function __construct(
         private readonly ApiConsumerArtifactService $apiConsumerArtifacts,
         private readonly ApiEnumStateArtifactService $enumStateArtifacts,
-        private readonly UatScenarioPackService $uatScenarioPack,
         private readonly LaunchReadinessService $launchReadiness,
     ) {}
 
@@ -281,13 +279,11 @@ class HarnessSuiteService
         ?string $outputRoot = null,
         ?string $specPath = null,
         bool $refreshOpenApi = false,
-        ?string $uatManifestPath = null,
     ): array {
         $payload = $this->apiConsumerArtifacts->generate(
             outputRoot: $outputRoot,
             specPath: $specPath,
             refreshOpenApi: $refreshOpenApi,
-            uatManifestPath: $uatManifestPath,
         );
 
         return [
@@ -314,20 +310,14 @@ class HarnessSuiteService
     /**
      * @return array<string,mixed>
      */
-    public function buildGoldenFlowReport(?string $manifestPath = null, bool $bootstrapUat = false, ?string $baseUrl = null): array
+    public function buildGoldenFlowReport(?string $manifestPath = null): array
     {
         $resolvedManifestPath = $this->resolveManifestPath($manifestPath);
         $manifest = null;
         $bootstrapSummary = null;
         $notes = [];
 
-        if ($bootstrapUat) {
-            $bootstrap = $this->uatScenarioPack->bootstrap($baseUrl, $resolvedManifestPath);
-            $manifest = (array) ($bootstrap['manifest'] ?? []);
-            $resolvedManifestPath = (string) ($bootstrap['manifest_path'] ?? $resolvedManifestPath);
-            $bootstrapSummary = (array) ($bootstrap['summary'] ?? []);
-            $notes[] = 'bootstrapped canonical UAT scenario pack before resolving golden flow references';
-        } elseif ($resolvedManifestPath !== null && File::exists($resolvedManifestPath)) {
+        if ($resolvedManifestPath !== null && File::exists($resolvedManifestPath)) {
             /** @var array<string,mixed> $manifest */
             $manifest = json_decode((string) File::get($resolvedManifestPath), true, 512, JSON_THROW_ON_ERROR);
         } elseif ($resolvedManifestPath !== null) {
@@ -397,10 +387,8 @@ class HarnessSuiteService
         bool $overwritePackage = false,
         int $paymentSampleLimit = 10,
         ?string $manifestPath = null,
-        bool $bootstrapUat = false,
-        ?string $baseUrl = null,
     ): array {
-        $goldenFlows = $this->buildGoldenFlowReport($manifestPath, $bootstrapUat, $baseUrl);
+        $goldenFlows = $this->buildGoldenFlowReport($manifestPath);
         $readiness = $this->launchReadiness->evaluate(
             target: $target,
             manualEvidencePath: $manualEvidencePath,
@@ -431,7 +419,7 @@ class HarnessSuiteService
     public function buildReleaseBuildContext(?string $manifestPath = null, array $feContractPayload = []): array
     {
         $webAuth = $this->buildWebAuthReport();
-        $goldenFlows = $this->buildGoldenFlowReport($manifestPath, false, null);
+        $goldenFlows = $this->buildGoldenFlowReport($manifestPath);
         $scenarioKeys = collect((array) ($goldenFlows['scenarios'] ?? []))
             ->map(static fn (array $scenario): string => (string) ($scenario['key'] ?? ''))
             ->filter(static fn (string $key): bool => $key !== '')

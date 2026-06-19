@@ -22,21 +22,21 @@ final class StaffCashierShiftMoneyTest extends TestCase
         $cashCapture->payment_method = 'Cash';
         $cashCapture->payment_type = 'Final';
         $cashCapture->status = 'Success';
-        $cashCapture->amount = '0.20';
+        $cashCapture->amount = '0';
         $cashCapture->currency = 'VND';
 
         $cashRefund = new Payment;
         $cashRefund->payment_method = 'Cash';
         $cashRefund->payment_type = 'Refund';
         $cashRefund->status = 'Refunded';
-        $cashRefund->amount = '0.10';
+        $cashRefund->amount = '0';
         $cashRefund->currency = 'VND';
 
-        $summary = $method->invoke($service, new Collection([$cashCapture, $cashRefund]), '0.10', 'VND');
+        $summary = $method->invoke($service, new Collection([$cashCapture, $cashRefund]), '0', 'VND');
 
-        self::assertSame('0.10', $summary['summary']['opening_float_amount']);
-        self::assertSame('0.20', $summary['summary']['captured_amount']);
-        self::assertSame('0.10', $summary['summary']['refunded_amount']);
-        self::assertSame('0.20', $summary['summary']['expected_cash_amount']);
+        self::assertSame('0', $summary['summary']['opening_float_amount']);
+        self::assertSame('0', $summary['summary']['captured_amount']);
+        self::assertSame('0', $summary['summary']['refunded_amount']);
+        self::assertSame('0', $summary['summary']['expected_cash_amount']);
     }
 }

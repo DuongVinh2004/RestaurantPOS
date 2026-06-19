@@ -22,7 +22,7 @@ class CreateTableHoldRequest extends FormRequest
             'start_time' => ['required', 'date'],
             'end_time' => ['required', 'date', 'after:start_time'],
 
-            'table_ids' => ['required', 'array', 'min:1'],
+            'table_ids' => ['required', 'array', 'min:1', 'max:8'],
             'table_ids.*' => ['integer', 'distinct', 'exists:restaurant_tables,table_id'],
 
             // optional override expire_at

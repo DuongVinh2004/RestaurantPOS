@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { getRestaurantProfile } from "@/features/restaurant/api";
+import { getRestaurantBranches } from "@/features/restaurant/api";
 import { queryKeys } from "@/lib/api/query-keys";
 import {
   branchFromRestaurantProfile,
@@ -31,16 +31,16 @@ export function useBranchSelection(): BranchSelectionState {
   const [locationPermission, setLocationPermission] = useState<LocationPermissionState>("idle");
   const [locationMessage, setLocationMessage] = useState<string | null>(null);
 
-  const profileQuery = useQuery({
-    queryKey: queryKeys.restaurant.profile,
-    queryFn: getRestaurantProfile,
+  const branchesQuery = useQuery({
+    queryKey: queryKeys.restaurant.branches,
+    queryFn: getRestaurantBranches,
     staleTime: 5 * 60 * 1000,
     retry: 1,
   });
 
   const branches = useMemo(
-    () => (profileQuery.data ? [branchFromRestaurantProfile(profileQuery.data)] : []),
-    [profileQuery.data],
+    () => (branchesQuery.data ? branchesQuery.data.map(branchFromRestaurantProfile) : []),
+    [branchesQuery.data],
   );
 
   useEffect(() => {
@@ -61,6 +61,11 @@ export function useBranchSelection(): BranchSelectionState {
   const selectBranch = useCallback((branchId: number) => {
     persistSelectedBranchId(branchId);
     setSelectedBranchId(branchId);
+    
+    // Reload the page so all components (e.g. HomePage) pick up the new branch from localStorage
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
   }, []);
 
   const findNearMe = useCallback(() => {
@@ -80,6 +85,10 @@ export function useBranchSelection(): BranchSelectionState {
         if (branchId) {
           persistSelectedBranchId(branchId);
           setSelectedBranchId(branchId);
+          
+          if (typeof window !== "undefined") {
+            window.location.reload();
+          }
         }
 
         setLocationPermission("resolved");
@@ -113,14 +122,14 @@ export function useBranchSelection(): BranchSelectionState {
     branches,
     selectedBranch,
     selectedBranchId: selectedBranch?.branchId ?? selectedBranchId,
-    isLoading: profileQuery.isLoading,
-    error: profileQuery.error,
+    isLoading: branchesQuery.isLoading,
+    error: branchesQuery.error,
     locationPermission,
     locationMessage,
     selectBranch,
     findNearMe,
     refetch: () => {
-      void profileQuery.refetch();
+      void branchesQuery.refetch();
     },
   };
 }

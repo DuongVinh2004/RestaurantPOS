@@ -16,7 +16,7 @@ class BookingReleaseBuildCommandTest extends TestCase
         {
             public function __construct() {}
 
-            public function build(?string $packageId = null, bool $overwrite = false, ?string $uatManifestPath = null): array
+            public function build(?string $packageId = null, bool $overwrite = false): array
             {
                 return [
                     'ok' => true,
@@ -62,7 +62,6 @@ class BookingReleaseBuildCommandTest extends TestCase
                     'warnings' => [],
                     'meta' => [
                         'overwrite_requested' => $overwrite,
-                        'uat_manifest_path' => $uatManifestPath,
                     ],
                 ];
             }
@@ -73,7 +72,6 @@ class BookingReleaseBuildCommandTest extends TestCase
             '--json' => true,
             '--package-id' => 'manual-test',
             '--overwrite' => true,
-            '--uat-manifest' => 'storage/app/uat/scenario-pack.json',
         ]);
         $output = Artisan::output();
 
@@ -91,7 +89,7 @@ class BookingReleaseBuildCommandTest extends TestCase
         {
             public function __construct() {}
 
-            public function build(?string $packageId = null, bool $overwrite = false, ?string $uatManifestPath = null): array
+            public function build(?string $packageId = null, bool $overwrite = false): array
             {
                 return [
                     'ok' => false,

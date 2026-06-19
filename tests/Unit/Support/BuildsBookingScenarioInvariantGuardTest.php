@@ -47,7 +47,7 @@ class BuildsBookingScenarioInvariantGuardTest extends TestCase
         $this->expectExceptionMessage('payments non-negative amount contract');
 
         $this->createPayment([
-            'amount' => '-1000.00',
+            'amount' => '-1000',
         ]);
     }
 

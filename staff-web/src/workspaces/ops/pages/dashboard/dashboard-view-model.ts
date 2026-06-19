@@ -263,11 +263,6 @@ export function buildShiftHealthModel(
       : 'Phiên hiện tại còn điều kiện cần xử lý trước khi đi sâu vào bàn, đơn hàng hoặc tài chính.',
     metrics: [
       {
-        label: 'Chi nhánh',
-        value: branch ? `${branch.branch_code} • ${branch.branch_name}` : 'Chưa có chi nhánh',
-        tone: readiness.branch === 'ready' ? 'success' : 'warning',
-      },
-      {
         label: 'Ca thu ngân',
         value: currentShift?.shift_code ?? session.startup.active_cashier_shift?.shift_code ?? translateUiCode(readiness.cashier_shift),
         tone: currentShift ? cashierShiftTone(currentShift.status) : paymentTone(readiness.cashier_shift),
@@ -496,7 +491,7 @@ export function buildDashboardKpis(args: {
       label: 'Bàn trống',
       value: String(availableTables),
       subtext: 'Bàn có thể nhận khách ngay trong chi nhánh hiện tại.',
-      path: staffRoutePaths.ops.tables,
+      path: `${staffRoutePaths.ops.tables}?status=available`,
       actionLabel: 'Xem bàn trống',
       tone: availableTables > 0 ? 'success' : 'warning',
       iconKey: 'available',

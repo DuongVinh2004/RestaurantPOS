@@ -114,8 +114,8 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
         $voucherId = $this->createVoucher([
             'code' => 'FIX50',
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '100000.00',
+            'discount_value' => '50000',
+            'min_spend' => '100000',
         ]);
         $this->assignVoucher([
             'user_id' => $userId,
@@ -133,7 +133,7 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
             ->assertJsonPath('data.reservation.loyalty.available_points', 300)
             ->assertJsonPath('data.available_vouchers.0.voucher_code', 'FIX50')
             ->assertJsonPath('data.available_vouchers.0.can_apply', true)
-            ->assertJsonPath('data.available_vouchers.0.preview_discount_amount', '50000.00');
+            ->assertJsonPath('data.available_vouchers.0.preview_discount_amount', '50000');
     }
 
     public function test_customer_cannot_preview_other_users_reservation_benefits(): void
@@ -216,8 +216,8 @@ class CustomerBenefitsSelfServiceHttpFlowTest extends TestCase
         $voucherId = $this->createVoucher([
             'code' => 'TERM-50',
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '100000.00',
+            'discount_value' => '50000',
+            'min_spend' => '100000',
         ]);
         $this->assignVoucher([
             'user_id' => $userId,

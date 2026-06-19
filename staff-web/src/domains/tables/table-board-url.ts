@@ -1,5 +1,6 @@
 export type TableBoardUrlState = {
   zone: string;
+  status: string;
 };
 
 export function readTableBoardUrlState(search: string | URLSearchParams): TableBoardUrlState {
@@ -7,6 +8,7 @@ export function readTableBoardUrlState(search: string | URLSearchParams): TableB
 
   return {
     zone: params.get('zone')?.trim() ?? '',
+    status: params.get('status')?.trim() ?? '',
   };
 }
 
@@ -21,6 +23,7 @@ export function buildTableBoardSearch(
   } satisfies TableBoardUrlState;
 
   setOrDelete(params, 'zone', merged.zone !== '' ? merged.zone : null);
+  setOrDelete(params, 'status', merged.status !== '' ? merged.status : null);
 
   return params.toString();
 }

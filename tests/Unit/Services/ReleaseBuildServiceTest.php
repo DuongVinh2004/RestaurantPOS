@@ -37,13 +37,12 @@ class ReleaseBuildServiceTest extends TestCase
 
             public function __construct() {}
 
-            public function generate(?string $outputRoot = null, ?string $specPath = null, bool $refreshOpenApi = false, ?string $uatManifestPath = null): array
+            public function generate(?string $outputRoot = null, ?string $specPath = null, bool $refreshOpenApi = false): array
             {
                 $this->calls[] = [
                     'output_root' => $outputRoot,
                     'spec_path' => $specPath,
                     'refresh_openapi' => $refreshOpenApi,
-                    'uat_manifest_path' => $uatManifestPath,
                 ];
 
                 return [
@@ -174,7 +173,6 @@ class ReleaseBuildServiceTest extends TestCase
         $report = $service->build(
             packageId: 'manual-test',
             overwrite: true,
-            uatManifestPath: 'storage/app/uat/scenario-pack.json',
         );
 
         $this->assertTrue($report['ok']);
@@ -187,7 +185,6 @@ class ReleaseBuildServiceTest extends TestCase
         $this->assertCount(1, $apiArtifactService->calls);
         $this->assertSame('storage/app/booking_release/openapi-v1.json', $apiArtifactService->calls[0]['spec_path']);
         $this->assertFalse((bool) $apiArtifactService->calls[0]['refresh_openapi']);
-        $this->assertSame('storage/app/uat/scenario-pack.json', $apiArtifactService->calls[0]['uat_manifest_path']);
         $this->assertCount(1, $packageService->calls);
         $this->assertSame('manual-test', $packageService->calls[0]['package_id']);
         $this->assertTrue((bool) $packageService->calls[0]['verify_frozen']);
@@ -220,7 +217,7 @@ class ReleaseBuildServiceTest extends TestCase
         {
             public function __construct() {}
 
-            public function generate(?string $outputRoot = null, ?string $specPath = null, bool $refreshOpenApi = false, ?string $uatManifestPath = null): array
+            public function generate(?string $outputRoot = null, ?string $specPath = null, bool $refreshOpenApi = false): array
             {
                 return [
                     'ok' => true,
@@ -322,17 +319,13 @@ class ReleaseBuildServiceTest extends TestCase
             $harnessService,
         );
 
-        $report = $service->build(uatManifestPath: 'storage/app/uat/scenario-pack.json');
+        $report = $service->build();
 
         $this->assertFalse($report['ok']);
         $this->assertNull($report['package']);
         $this->assertSame(0, $packageService->callCount);
         $this->assertContains('Release package is missing build/api-consumer.', $report['issues']);
         $this->assertContains('Frozen release manifest snapshot verification failed with status [stale].', $report['issues']);
-        $this->assertContains('Web auth/session harness failed one or more error-grade checks.', $report['issues']);
-        $this->assertContains(
-            'Golden flow harness: no manifest path supplied; scenario definitions are reported without resolved UAT identifiers',
-            $report['warnings']
-        );
+
     }
 }

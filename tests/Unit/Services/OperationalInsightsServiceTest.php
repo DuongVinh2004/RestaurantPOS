@@ -252,8 +252,8 @@ class OperationalInsightsServiceTest extends TestCase
             'checked_out_at' => $now->copy()->subDay()->setTime(12, 55),
             'billed_at' => $now->copy()->subDay()->setTime(13, 0),
             'bill_currency' => 'VND',
-            'final_bill_amount' => '90000.00',
-            'discount_amount' => '10000.00',
+            'final_bill_amount' => '90000',
+            'discount_amount' => '10000',
         ]);
 
         $this->createWaitingListEntry([
@@ -308,8 +308,8 @@ class OperationalInsightsServiceTest extends TestCase
             'checked_out_at' => $now->copy()->subDay()->setTime(13, 0),
             'billed_at' => $now->copy()->subDay()->setTime(13, 5),
             'bill_currency' => 'VND',
-            'final_bill_amount' => '90000.00',
-            'discount_amount' => '10000.00',
+            'final_bill_amount' => '90000',
+            'discount_amount' => '10000',
         ]);
 
         DB::table('reporting_daily_sales_snapshots')->insert([
@@ -318,9 +318,9 @@ class OperationalInsightsServiceTest extends TestCase
             'currency' => 'VND',
             'billed_reservation_count' => 0,
             'billed_guest_count' => 0,
-            'gross_bill_amount' => '0.00',
-            'discount_amount' => '0.00',
-            'billed_total_amount' => '0.00',
+            'gross_bill_amount' => '0',
+            'discount_amount' => '0',
+            'billed_total_amount' => '0',
             'refreshed_at' => $now,
             'created_at' => $now,
             'updated_at' => $now,

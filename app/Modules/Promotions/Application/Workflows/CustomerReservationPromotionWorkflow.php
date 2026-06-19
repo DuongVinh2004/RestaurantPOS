@@ -65,17 +65,7 @@ class CustomerReservationPromotionWorkflow
         /** @var Reservation $reservation */
         $reservation = Reservation::query()
             ->where('reservation_id', $reservationId)
-            ->where(function ($query) use ($userId, $user) {
-                $query->where('user_id', $userId);
-                if ($user) {
-                    if ($user->email) {
-                        $query->orWhere('guest_email', $user->email);
-                    }
-                    if ($user->phone) {
-                        $query->orWhere('guest_phone', $user->phone);
-                    }
-                }
-            })
+            ->where('user_id', $userId)
             ->firstOrFail();
 
         return $reservation;

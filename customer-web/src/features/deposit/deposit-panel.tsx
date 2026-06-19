@@ -28,7 +28,7 @@ import {
 } from "@/lib/api/errors";
 import { trackCustomerEvent } from "@/lib/analytics/events";
 import { queryKeys } from "@/lib/api/query-keys";
-import { formatMoney } from "@/lib/contracts/format";
+import { formatDateTime, formatMoney } from "@/lib/contracts/format";
 import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
 import {
   acknowledgeDeposit,
@@ -154,12 +154,40 @@ export function DepositPanel({
     onError: handleConflict,
   });
   const createSessionMutation = useMutation({
-    mutationFn: () => createDepositPaymentSession(reservationId, currentRowVersion),
+    mutationFn: async () => {
+      let currentVersion = currentRowVersion;
+      let checkPolicy = depositPolicy;
+
+      if (checkPolicy.canAcknowledge) {
+        const ackResult = await acknowledgeDeposit(reservationId, currentVersion);
+        currentVersion = ackResult.reservation.row_version;
+        queryClient.setQueryData(queryKeys.reservations.deposit(reservationId), ackResult);
+        
+        const nextState = parseDepositContract(ackResult.deposit, ackResult.reservation);
+        checkPolicy = getDepositPolicy(ackResult.reservation, nextState);
+      }
+
+      if (checkPolicy.canSubmitIntent) {
+        const intentResult = await submitDepositIntent(reservationId, currentVersion);
+        currentVersion = intentResult.reservation.row_version;
+        queryClient.setQueryData(queryKeys.reservations.deposit(reservationId), intentResult);
+      }
+
+      return createDepositPaymentSession(reservationId, currentVersion);
+    },
     onMutate: () => {
       trackCustomerEvent("payment_attempted", { reservation_id: reservationId, surface: "deposit" });
       setPaymentSessionRestoreError(null);
     },
-    onSuccess: syncPaymentSession,
+    onSuccess: async (result) => {
+      await syncPaymentSession(result);
+      // Auto-redirect to payment page to save a click
+      const payload = result.payment_session.provider_payload as Record<string, unknown> | null;
+      const paymentUrl = typeof payload?.payment_url === 'string' ? payload.payment_url : typeof payload?.checkout_url === 'string' ? payload.checkout_url : null;
+      if (paymentUrl) {
+        window.location.href = paymentUrl;
+      }
+    },
     onError: handleConflict,
   });
   const refreshSessionMutation = useMutation({
@@ -294,23 +322,45 @@ export function DepositPanel({
         {depositQuery.data ? (
           <>
             <section className="space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold">Tóm tắt đặt cọc</h3>
-                <p className="text-sm text-muted-foreground">
-                  Đơn món đặt trước này có thể cần đặt cọc để Mộc Sen chuẩn bị nguyên liệu đúng giờ. Số tiền cọc sẽ được trừ vào hóa đơn khi thanh toán tại nhà hàng.
-                </p>
-              </div>
-              <div className="rounded-lg bg-secondary p-4">
-                <div>
-                  <p className="mt-1 text-sm text-muted-foreground">{depositSummary.description}</p>
-                  <p className="text-lg font-semibold">{depositSummaryCopy.title}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{depositSummaryCopy.description}</p>
+              <div className={`overflow-hidden rounded-xl border ${depositSummary.state === "pending" ? "border-amber-200 bg-amber-50/50" : "bg-secondary/30"}`}>
+                <div className={`border-b p-4 ${depositSummary.state === "pending" ? "border-amber-200/50 bg-amber-100/50" : "bg-secondary/50"}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <h3 className={`font-semibold ${depositSummary.state === "pending" ? "text-amber-900" : ""}`}>Nhà hàng Mộc Sen</h3>
+                      <p className={`text-sm ${depositSummary.state === "pending" ? "text-amber-700" : "text-muted-foreground"}`}>
+                        {formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-xs uppercase tracking-wider font-medium ${depositSummary.state === "pending" ? "text-amber-700" : "text-muted-foreground"}`}>
+                        Trạng thái
+                      </p>
+                      <p className={`text-sm font-semibold ${depositSummary.state === "pending" ? "text-amber-900" : ""}`}>
+                        {depositSummaryCopy.title}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm text-muted-foreground">Số tiền cần trả</p>
-                  <p className="text-2xl font-semibold">
-                    {formatMoney(depositPolicy.amount, depositPolicy.currency)}
+                <div className="p-4">
+                  <div className="flex items-end justify-between mb-2">
+                    <p className={`text-sm ${depositSummary.state === "pending" ? "text-amber-700" : "text-muted-foreground"}`}>
+                      Tổng tiền cọc cần thanh toán
+                    </p>
+                    <p className={`text-2xl font-bold tracking-tight ${depositSummary.state === "pending" ? "text-amber-900" : ""}`}>
+                      {formatMoney(depositPolicy.amount, depositPolicy.currency)}
+                    </p>
+                  </div>
+                  <p className={`text-sm ${depositSummary.state === "pending" ? "text-amber-700/80" : "text-muted-foreground"}`}>
+                    {depositSummaryCopy.description}
                   </p>
+                  {depositSummary.state === "pending" && (
+                    <div className="mt-4 flex items-start gap-2 rounded-lg bg-amber-100/50 p-3 text-sm text-amber-900">
+                      <div className="mt-0.5">⚠️</div>
+                      <p>
+                        Vui lòng hoàn tất thanh toán cọc trong vòng <strong>30 phút</strong>. Nếu không, lịch đặt bàn của bạn sẽ bị tự động huỷ.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
               <PaymentBreakdown
@@ -318,35 +368,23 @@ export function DepositPanel({
                 description="Các khoản đặt cọc hiện có trong lịch đặt của bạn."
                 lines={depositBreakdownLines}
               />
-              {depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canRevokeIntent ? (
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {depositPolicy.canAcknowledge ? (
+              {depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canRevokeIntent || depositPolicy.canCreatePaymentSession ? (
+                <div className="flex flex-col gap-2">
+                  {(depositPolicy.canAcknowledge || depositPolicy.canSubmitIntent || depositPolicy.canCreatePaymentSession) && !session ? (
                     <Button
                       type="button"
-                      variant="outline"
-                      className="rounded-lg"
+                      className="w-full rounded-lg bg-green-600 hover:bg-green-700 text-white font-semibold"
                       disabled={anyActionPending}
-                      onClick={() => acknowledgeMutation.mutate()}
+                      onClick={() => createSessionMutation.mutate()}
                     >
-                      Tôi đã hiểu yêu cầu đặt cọc
+                      {createSessionMutation.isPending ? "Đang xử lý..." : "Thanh toán cọc"}
                     </Button>
                   ) : null}
-                  {depositPolicy.canSubmitIntent ? (
+                  {depositPolicy.canRevokeIntent && !session ? (
                     <Button
                       type="button"
                       variant="outline"
-                      className="rounded-lg"
-                      disabled={anyActionPending}
-                      onClick={() => intentMutation.mutate()}
-                    >
-                      Tôi sẽ tự thanh toán
-                    </Button>
-                  ) : null}
-                  {depositPolicy.canRevokeIntent ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="rounded-lg"
+                      className="w-full rounded-lg"
                       disabled={anyActionPending}
                       onClick={() => revokeMutation.mutate()}
                     >
@@ -363,16 +401,14 @@ export function DepositPanel({
             </section>
 
             <section className="space-y-3">
-              <div>
-                <h3 className="text-lg font-semibold">Thanh toán đặt cọc</h3>
-                <p className="text-sm text-muted-foreground">
-                  Mở phiên thanh toán từ hệ thống đặt cọc hiện có khi Mộc Sen yêu cầu đặt cọc cho món đặt trước.
-                </p>
-              </div>
               {session && sessionPolicy ? (
-                <div className="space-y-3">
+                <div>
+                  <h3 className="text-lg font-semibold">Phiên thanh toán</h3>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Đang xử lý giao dịch với cổng thanh toán.
+                  </p>
                   {sessionPolicy.lifecycle === "failed" || sessionPolicy.lifecycle === "expired" ? (
-                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 mb-3">
                       Thanh toán cọc chưa thành công. Đặt bàn của bạn vẫn được giữ. Món đặt trước chưa được xác nhận chuẩn bị.
                     </div>
                   ) : null}
@@ -386,24 +422,7 @@ export function DepositPanel({
                     onConfirm={() => confirmSessionMutation.mutate()}
                   />
                 </div>
-              ) : (
-                <EmptyState
-                  title={paymentSupport.title}
-                  description={paymentSupport.description}
-                  action={
-                    depositPolicy.canCreatePaymentSession ? (
-                      <Button
-                        type="button"
-                        className="rounded-lg"
-                        disabled={anyActionPending}
-                        onClick={() => createSessionMutation.mutate()}
-                      >
-                        {createSessionMutation.isPending ? "Đang mở thanh toán" : "Thanh toán đặt cọc"}
-                      </Button>
-                    ) : undefined
-                  }
-                />
-              )}
+              ) : null}
             </section>
             {actionBoundary ? (
               actionBoundary.kind === "error" ? (

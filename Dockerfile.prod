@@ -1,0 +1,53 @@
+FROM php:8.3-fpm-alpine
+
+# Cài đặt system dependencies
+RUN apk add --no-cache \
+    curl \
+    libpng-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libzip-dev \
+    git \
+    nodejs \
+    npm \
+    mysql-client \
+    aws-cli
+
+# Cài đặt PHP extensions
+RUN docker-php-ext-install pdo_mysql exif pcntl bcmath gd zip
+
+# Cài đặt Redis extension
+RUN apk add --no-cache pcre-dev $PHPIZE_DEPS \
+    && pecl install redis \
+    && docker-php-ext-enable redis \
+    && apk del pcre-dev $PHPIZE_DEPS
+
+# Cài đặt Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Đặt thư mục làm việc
+WORKDIR /var/www/html
+
+# Copy các file liên quan đến dependencies trước (để cache layer)
+COPY composer.json composer.lock ./
+
+# Cài đặt dependencies production
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
+
+# Copy toàn bộ source code
+COPY . .
+
+# Generate autoloader và chạy scripts (nếu có)
+RUN composer dump-autoload --optimize \
+    && php artisan optimize:clear
+
+# Phân quyền cho Laravel
+RUN chown -R www-data:www-data /var/www/html \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache
+
+# Expose cổng 9000 cho PHP-FPM
+EXPOSE 9000
+
+CMD ["php-fpm"]

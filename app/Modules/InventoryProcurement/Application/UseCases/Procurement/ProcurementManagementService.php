@@ -488,6 +488,25 @@ class ProcurementManagementService
             /** @var list<array<string,mixed>> $receiptLines */
             $receiptLines = array_values((array) $payload['lines']);
             $this->assertDistinctReceiptLines($receiptLines);
+
+            // Pre-lock ingredients in ascending order to prevent deadlocks when multiple receipts are posted concurrently.
+            $ingredientIdsToLock = collect($receiptLines)
+                ->map(fn($line) => $orderLines->get((int) $line['purchase_order_line_id']))
+                ->filter()
+                ->pluck('ingredient_id')
+                ->unique()
+                ->sort()
+                ->values()
+                ->all();
+
+            if (!empty($ingredientIdsToLock)) {
+                \App\Modules\InventoryProcurement\Domain\Models\Ingredient::query()
+                    ->whereIn('ingredient_id', $ingredientIdsToLock)
+                    ->orderBy('ingredient_id')
+                    ->lockForUpdate()
+                    ->pluck('ingredient_id');
+            }
+
             $requestedReceiptCode = $this->normalizeNullableString($payload['receipt_code'] ?? null);
             $supplierDocumentNo = $this->normalizeNullableString($payload['supplier_document_no'] ?? null);
             // Chu ky receipt gom line id + qty + unit + cost de detect replay cung mot nghiep vu nhap kho.

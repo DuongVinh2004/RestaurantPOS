@@ -161,6 +161,37 @@ async function mockCustomerApi(page: Page) {
       return fulfillJson(route, { data: { ok: true } });
     }
 
+    if (path === "/api/v1/restaurant/branches" && method === "GET") {
+      return fulfillJson(route, {
+        data: [
+          {
+            branch_id: 1,
+            branch_code: "MS-HK",
+            branch_name: "Mộc Sen Bistro - Hoàn Kiếm",
+            timezone: "Asia/Ho_Chi_Minh",
+            business_hours: [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+              day_of_week: dayOfWeek,
+              periods: [{ start_time: "09:00", end_time: "22:00" }],
+            })),
+            today_hours: {
+              day_of_week: new Date().getDay(),
+              periods: [{ start_time: "09:00", end_time: "22:00" }],
+              is_closed: false,
+            },
+            current_status: {
+              is_open: true,
+              reason: "business_hours",
+              checked_at_local: "2026-04-30T10:00:00+07:00",
+              timezone: "Asia/Ho_Chi_Minh",
+            },
+          },
+        ],
+        meta: {
+          action: "restaurant_branches_list",
+        },
+      });
+    }
+
     if (path === "/api/v1/restaurant/profile" && method === "GET") {
       return fulfillJson(route, {
         data: {
@@ -522,17 +553,22 @@ test.beforeEach(async ({ page }) => {
   await mockCustomerApi(page);
 });
 
-test("menu home loads with mock-backed customer content", async ({ page }) => {
+test("home loads with hero heading and booking CTA", async ({ page }) => {
   await page.goto("/");
 
   await expect(
     page.getByRole("heading", { name: "Chọn món ngon, giữ bàn đúng giờ" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("searchbox", { name: "Tìm món trong thực đơn" }),
-  ).toBeVisible();
-  await expect(
     page.getByRole("main").getByRole("link", { name: "Tìm bàn", exact: true }),
+  ).toBeVisible();
+});
+
+test("menu page loads with search box and item list", async ({ page }) => {
+  await page.goto("/menu");
+
+  await expect(
+    page.getByRole("searchbox", { name: "Tìm trong thực đơn" }),
   ).toBeVisible();
   await expect(page.getByText("Cơm gà lá sen")).toBeVisible();
 });
@@ -573,9 +609,15 @@ test("booking can preserve preorder draft, confirm reservation, and attach preor
   page,
 }) => {
   await page.goto("/menu");
+  // Ensure the branch has loaded before interacting with the cart
+  await expect(page.getByText("Mộc Sen Bistro - Hoàn Kiếm").first()).toBeVisible();
+  
   const addPreorderItem = page.getByRole("button", { name: "Thêm món", exact: true }).first();
   await expect(addPreorderItem).toBeVisible();
+  
   await addPreorderItem.click();
+  await expect(page.getByRole("heading", { name: "1 món đã chọn" })).toBeVisible();
+  
   await addPreorderItem.click();
   await expect(page.getByRole("heading", { name: "2 món đã chọn" })).toBeVisible();
 
@@ -587,10 +629,8 @@ test("booking can preserve preorder draft, confirm reservation, and attach preor
   await page.getByRole("link", { name: "Xác nhận thông tin đặt bàn" }).click();
 
   await expect(page.getByRole("heading", { name: "Xác nhận đặt bàn" })).toBeVisible();
-  await expect(
-    page.getByText("Bạn có thể chọn món trước sau khi đặt bàn thành công.").first(),
-  ).toBeVisible();
-  await expect(page.getByText("Mộc Sen đang giữ 2 món trong giỏ")).toBeVisible();
+  await expect(page.getByText("Món đặt trước").first()).toBeVisible();
+  await expect(page.getByText("Cơm gà lá sen").first()).toBeVisible();
   await page.getByLabel("Tên khách").fill("Nguyễn Minh Anh");
   await page.getByLabel("Số điện thoại").fill("0909000001");
 

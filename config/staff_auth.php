@@ -53,5 +53,5 @@ return [
     'allowed_role_ids' => $allowedRoleIds,
     'allow_role_name_fallback' => (bool) env('STAFF_AUTH_ALLOW_ROLE_NAME_FALLBACK', false),
     // Deprecated fallback: disabled by default; enable only for controlled legacy rollout.
-    'allowed_role_names' => array_values(array_filter(array_map('trim', explode(',', (string) env('STAFF_ALLOWED_ROLE_NAMES', 'Admin,Staff,Server,Waiter,Cashier,Kitchen,Manager'))))),
+    'allowed_role_names' => array_values(array_filter(array_map('trim', explode(',', (string) env('STAFF_ALLOWED_ROLE_NAMES', 'Quản trị,Nhân viên,Phục vụ,Thu ngân,Bếp,Quản lý'))))),
 ];

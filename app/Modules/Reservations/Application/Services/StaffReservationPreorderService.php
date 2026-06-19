@@ -169,6 +169,9 @@ class StaffReservationPreorderService
                     $order->updated_at = $now;
                     $order->save();
 
+                    // Preload menu items and their combo components
+                    $preorder->load('items.item.comboComponents.componentItem');
+
                     // Convert items
                     foreach ($preorder->items as $preorderItem) {
                         $item = new ReservationOrderItem;
@@ -185,6 +188,28 @@ class StaffReservationPreorderService
                         $item->created_at = $now;
                         $item->updated_at = $now;
                         $item->save();
+
+                        $mi = $preorderItem->item;
+                        if ($mi && $mi->is_combo && $mi->relationLoaded('comboComponents')) {
+                            foreach ($mi->comboComponents as $component) {
+                                $coi = new ReservationOrderItem;
+                                $coi->order_id = $order->order_id;
+                                $coi->parent_order_item_id = $item->order_item_id;
+                                $coi->item_id = $component->component_item_id;
+                                $coi->quantity = $item->quantity * $component->quantity;
+                                $coi->unit_price = number_format(0, 0, '.', '');
+                                $coi->currency = $item->currency;
+                                $coi->line_total = number_format(0, 0, '.', '');
+                                $componentName = $component->componentItem ? (string) $component->componentItem->name : '';
+                                $coi->item_name_snapshot = $componentName !== '' ? $componentName : null;
+                                $coi->status = ReservationOrderItemStatus::Ordered;
+                                $coi->notes = null;
+                                $coi->updated_by = $staffId;
+                                $coi->created_at = $now;
+                                $coi->updated_at = $now;
+                                $coi->save();
+                            }
+                        }
                     }
 
                     // Update Preorder Status

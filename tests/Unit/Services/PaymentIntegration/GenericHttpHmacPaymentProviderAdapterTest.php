@@ -90,7 +90,7 @@ final class GenericHttpHmacPaymentProviderAdapterTest extends TestCase
         $session->provider_payment_code = null;
         $session->payment_method = 'Online';
         $session->session_status = 'Pending';
-        $session->amount = '75000.00';
+        $session->amount = '75000';
         $session->currency = 'VND';
         $session->customer_user_id = 77;
         $session->provider_payload_json = ['payment_scope' => 'deposit'];

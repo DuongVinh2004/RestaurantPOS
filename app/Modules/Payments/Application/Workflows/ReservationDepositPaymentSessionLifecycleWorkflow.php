@@ -40,6 +40,17 @@ class ReservationDepositPaymentSessionLifecycleWorkflow
             return false;
         }
 
+        $providerAmountMinor = $providerResult['provider_amount_minor'] ?? null;
+        if ($providerAmountMinor !== null && $incomingStatusValue === ReservationDepositPaymentSessionStatus::Succeeded->value) {
+            $sessionAmountMinor = Money::minorUnits($session->amount ?? 0, true);
+            if ($providerAmountMinor !== $sessionAmountMinor) {
+                // Provider amount mismatch. We must fail the session instead of applying it as succeeded.
+                $incomingStatusValue = ReservationDepositPaymentSessionStatus::Failed->value;
+                $providerResult['failure_code'] = 'amount_mismatch';
+                $providerResult['failure_message'] = "Provider amount {$providerAmountMinor} does not match session amount {$sessionAmountMinor}.";
+            }
+        }
+
         // Pha 1: map provider status vao enum noi bo va cap nhat metadata session lien quan.
         $status = ReservationDepositPaymentSessionStatus::from($incomingStatusValue);
         $now = Carbon::now('UTC');

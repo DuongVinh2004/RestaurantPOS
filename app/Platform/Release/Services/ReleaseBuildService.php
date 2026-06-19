@@ -24,16 +24,13 @@ class ReleaseBuildService
     public function build(
         ?string $packageId = null,
         bool $overwrite = false,
-        ?string $uatManifestPath = null,
     ): array {
         $openApi = $this->openApiSpecService->export();
         $apiArtifacts = $this->apiConsumerArtifactService->generate(
             specPath: (string) ($openApi['path'] ?? ''),
             refreshOpenApi: false,
-            uatManifestPath: $uatManifestPath,
         );
         $harness = $this->harnessSuiteService->buildReleaseBuildContext(
-            manifestPath: $uatManifestPath,
             feContractPayload: $apiArtifacts,
         );
 
@@ -58,13 +55,6 @@ class ReleaseBuildService
             $issues[] = 'Web auth/session harness failed one or more error-grade checks.';
         }
 
-        if ($uatManifestPath !== null && trim($uatManifestPath) !== '') {
-            foreach ((array) (($harness['golden_flows'] ?? [])['notes'] ?? []) as $note) {
-                if (trim((string) $note) !== '') {
-                    $warnings[] = 'Golden flow harness: '.trim((string) $note);
-                }
-            }
-        }
 
         if (! ($frozenManifestSnapshot['ok'] ?? false)) {
             foreach ((array) ($frozenManifestSnapshot['issues'] ?? []) as $issue) {
@@ -117,7 +107,6 @@ class ReleaseBuildService
             'meta' => [
                 'package_id_requested' => $packageId,
                 'overwrite_requested' => $overwrite,
-                'uat_manifest_path' => $uatManifestPath,
             ],
         ];
     }

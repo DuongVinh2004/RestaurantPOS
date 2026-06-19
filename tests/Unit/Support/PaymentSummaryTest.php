@@ -108,30 +108,30 @@ class PaymentSummaryTest extends TestCase
                 'payment_id' => 21,
                 'payment_type' => 'Final',
                 'status' => 'Success',
-                'amount' => '0.10',
+                'amount' => 100,
                 'currency' => 'VND',
             ],
             [
                 'payment_id' => 22,
                 'payment_type' => 'Final',
                 'status' => 'Success',
-                'amount' => '0.20',
+                'amount' => 200,
                 'currency' => 'VND',
             ],
             [
                 'payment_id' => 23,
                 'payment_type' => 'Refund',
                 'status' => 'Refunded',
-                'amount' => '0.10',
+                'amount' => 100,
                 'currency' => 'VND',
                 'refund_of_payment_id' => 21,
             ],
         ]);
 
-        $this->assertSame(0.30, $summary['final_captured_amount']);
-        $this->assertSame(0.10, $summary['final_refunded_amount']);
-        $this->assertSame(0.20, $summary['final_net_amount']);
-        $this->assertSame(0.20, $summary['net_paid_amount']);
+        $this->assertSame(300.0, $summary['final_captured_amount']);
+        $this->assertSame(100.0, $summary['final_refunded_amount']);
+        $this->assertSame(200.0, $summary['final_net_amount']);
+        $this->assertSame(200.0, $summary['net_paid_amount']);
         $this->assertFalse(PaymentSummary::hasOverRefund($summary));
     }
 }

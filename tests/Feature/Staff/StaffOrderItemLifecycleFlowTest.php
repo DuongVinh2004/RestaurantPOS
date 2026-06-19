@@ -53,11 +53,11 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('data.order_id', $orderId)
             ->assertJsonPath('data.items.0.order_item_id', $orderItemId)
             ->assertJsonPath('data.items.0.quantity', 3)
-            ->assertJsonPath('data.items.0.line_total', '150000.00')
+            ->assertJsonPath('data.items.0.line_total', '150000')
             ->assertJsonPath('data.items.0.notes', 'extra spicy');
 
         self::assertSame(3, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('quantity'));
-        self::assertSame('150000.00', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
+        self::assertSame('150000', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 0, '.', ''));
         self::assertSame('extra spicy', (string) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('notes'));
         self::assertSame($staffId, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('updated_by'));
         self::assertSame(
@@ -78,9 +78,9 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         self::assertSame($orderItemId, (int) $summary['order_item_id']);
         self::assertSame(1, (int) $summary['old_quantity']);
         self::assertSame(3, (int) $summary['new_quantity']);
-        self::assertSame('50000.00', (string) $summary['unit_price']);
-        self::assertSame('50000.00', (string) $summary['old_line_total']);
-        self::assertSame('150000.00', (string) $summary['new_line_total']);
+        self::assertSame('50000', (string) $summary['unit_price']);
+        self::assertSame('50000', (string) $summary['old_line_total']);
+        self::assertSame('150000', (string) $summary['new_line_total']);
         self::assertSame('VND', (string) $summary['currency']);
         self::assertSame($staffId, (int) $summary['actor_user_id']);
         self::assertSame(1, (int) $summary['branch_id']);
@@ -90,8 +90,8 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
     {
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario([
             'quantity' => 2,
-            'unit_price' => '50000.00',
-            'line_total' => '100000.00',
+            'unit_price' => '50000',
+            'line_total' => '100000',
         ]);
 
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-note-only'))
@@ -104,10 +104,10 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $response
             ->assertOk()
             ->assertJsonPath('data.items.0.quantity', 2)
-            ->assertJsonPath('data.items.0.line_total', '100000.00')
+            ->assertJsonPath('data.items.0.line_total', '100000')
             ->assertJsonPath('data.items.0.notes', 'hold onions');
 
-        self::assertSame('100000.00', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
+        self::assertSame('100000', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 0, '.', ''));
     }
 
     public function test_bill_snapshot_uses_updated_order_item_line_total(): void
@@ -131,11 +131,11 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
 
         $response
             ->assertOk()
-            ->assertJsonPath('data.totals.subtotal', '150000.00')
-            ->assertJsonPath('data.totals.total_due', '150000.00');
+            ->assertJsonPath('data.totals.subtotal', '150000')
+            ->assertJsonPath('data.totals.total_due', '150000');
 
         $reservationId = (int) $this->table('reservation_orders')->where('order_id', $orderId)->value('reservation_id');
-        self::assertSame('150000.00', number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 2, '.', ''));
+        self::assertSame('150000', number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 0, '.', ''));
     }
 
     public function test_payment_amount_uses_updated_bill_total(): void
@@ -176,7 +176,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('data.outstanding_amount', 100000)
             ->assertJsonPath('data.payment_status', 'Partial');
 
-        self::assertSame('50000.00', number_format((float) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->value('amount'), 2, '.', ''));
+        self::assertSame('50000', number_format((float) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->value('amount'), 0, '.', ''));
         self::assertSame('Reserved', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('status'));
     }
 
@@ -225,7 +225,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ])
             ->assertOk()
             ->assertJsonPath('data.items.0.status', 'Served')
-            ->assertJsonPath('data.items.0.line_total', '150000.00');
+            ->assertJsonPath('data.items.0.line_total', '150000');
 
         self::assertSame('-7.500', number_format((float) $this->table('ingredient_stock_movements')
             ->where('ingredient_id', $ingredientId)
@@ -241,8 +241,8 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
 
         $bill
             ->assertOk()
-            ->assertJsonPath('data.totals.subtotal', '150000.00')
-            ->assertJsonPath('data.totals.total_due', '150000.00');
+            ->assertJsonPath('data.totals.subtotal', '150000')
+            ->assertJsonPath('data.totals.total_due', '150000');
     }
 
     public function test_cancelled_item_line_total_is_excluded_from_bill(): void
@@ -251,9 +251,9 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $cancelledOrderItemId = $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '20000.00',
+            'unit_price' => '20000',
             'currency' => 'VND',
-            'line_total' => '40000.00',
+            'line_total' => '40000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);
@@ -274,8 +274,8 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
 
         $bill
             ->assertOk()
-            ->assertJsonPath('data.totals.subtotal', '50000.00')
-            ->assertJsonPath('data.totals.total_due', '50000.00');
+            ->assertJsonPath('data.totals.subtotal', '50000')
+            ->assertJsonPath('data.totals.total_due', '50000');
     }
 
     public function test_staff_can_move_item_from_ordered_to_in_progress_to_served(): void
@@ -619,7 +619,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             ->assertJsonPath('category_code', 'stale_write')
             ->assertJsonPath('details.errors.row_version.0', 'Dữ liệu đã thay đổi (row_version mismatch). Hãy reload rồi thử lại.');
         self::assertSame(1, (int) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('quantity'));
-        self::assertSame('50000.00', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
+        self::assertSame('50000', number_format((float) $this->table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 0, '.', ''));
     }
 
     public function test_stale_order_row_version_is_rejected_before_order_item_mutation(): void
@@ -701,7 +701,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         [$staffId, $orderId, $orderItemId] = $this->seedOrderItemScenario(
             itemOverrides: [],
             reservationOverrides: [
-                'final_bill_amount' => '50000.00',
+                'final_bill_amount' => '50000',
                 'billed_at' => $this->nowUtc(),
             ],
         );
@@ -743,8 +743,8 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ], $reservationOverrides));
@@ -760,9 +760,9 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $itemId,
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
             'status' => 'Ordered',
             'row_version' => 1,
         ], $itemOverrides));

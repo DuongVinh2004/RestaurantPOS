@@ -14,6 +14,8 @@ class CustomerDepositPaymentProviderRegistry
         private readonly PaymentProviderRolloutConfig $rolloutConfig,
         private readonly SimulatedCustomerDepositPaymentProvider $simulatedProvider,
         private readonly GenericHttpHmacCustomerDepositPaymentProvider $genericHttpHmacProvider,
+        private readonly VNPayCustomerDepositPaymentProvider $vnpayProvider,
+        private readonly MoMoCustomerDepositPaymentProvider $momoProvider,
     ) {}
 
     public function defaultProviderCode(): string
@@ -31,6 +33,8 @@ class CustomerDepositPaymentProviderRegistry
         $provider = match ($providerCode) {
             'simulated' => $this->simulatedProvider,
             'generic_http_hmac' => $this->genericHttpHmacProvider,
+            'vnpay' => $this->vnpayProvider,
+            'momo' => $this->momoProvider,
             default => throw ValidationException::withMessages([
                 'provider_code' => ['Unsupported customer deposit payment provider.'],
             ]),

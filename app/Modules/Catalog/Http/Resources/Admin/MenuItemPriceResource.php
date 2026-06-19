@@ -18,7 +18,7 @@ class MenuItemPriceResource extends JsonResource
         return [
             'price_id' => (int) $this->price_id,
             'item_id' => (int) $this->item_id,
-            'price' => number_format((float) $this->price, 2, '.', ''),
+            'price' => number_format((float) $this->price, 0, '.', ''),
             'currency' => (string) ($this->currency ?? 'VND'),
             'effective_from' => $this->iso($this->effective_from),
             'effective_to' => $this->iso($this->effective_to),

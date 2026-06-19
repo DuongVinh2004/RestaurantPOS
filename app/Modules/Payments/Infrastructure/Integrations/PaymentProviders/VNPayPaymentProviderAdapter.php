@@ -18,10 +18,6 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
         return 'vnpay';
     }
 
-    /**
-     * @param  array<string,mixed>  $payload
-     * @return array<string,mixed>
-     */
     public function createSession(PaymentSessionScope $scope, Reservation $reservation, int $customerUserId, array $payload): array
     {
         $config = $this->providerConfig();
@@ -31,10 +27,50 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
             ]);
         }
 
-        $sessionCode = 'vnp-'.Str::uuid()->toString();
+        $sessionCode = 'vnp-'.time().rand(1000, 9999);
         $amount = (int) ($payload['amount'] ?? 0);
+        $tmnCode = trim((string) ($config['tmn_code'] ?? ''));
+        $hashSecret = trim((string) ($config['hash_secret'] ?? ''));
+        $returnUrl = trim((string) ($config['return_url'] ?? 'http://127.0.0.1:3000'));
 
-        // Mock session creation as direct provider endpoints are sandbox/placeholders
+        $vnpUrl = $config['mode'] === 'live' 
+            ? 'https://pay.vnpayment.vn/vpcpay.html' 
+            : 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+
+        $vnpParams = [
+            'vnp_Version' => '2.1.0',
+            'vnp_TmnCode' => $tmnCode,
+            'vnp_Amount' => $amount * 100, // VNPay amount is multiplied by 100
+            'vnp_Command' => 'pay',
+            'vnp_CreateDate' => Carbon::now('UTC')->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
+            'vnp_CurrCode' => 'VND',
+            'vnp_IpAddr' => request()->ip() === '::1' ? '127.0.0.1' : (request()->ip() ?? '127.0.0.1'),
+            'vnp_Locale' => 'vn',
+            'vnp_OrderInfo' => $scope === PaymentSessionScope::Deposit ? 'DepositPayment' : 'BillPayment',
+            'vnp_OrderType' => 'other',
+            'vnp_ReturnUrl' => $returnUrl,
+            'vnp_TxnRef' => $sessionCode,
+        ];
+
+        ksort($vnpParams);
+
+        $queryParts = [];
+        $hashDataParts = [];
+        foreach ($vnpParams as $key => $value) {
+            $queryParts[] = urlencode($key) . '=' . urlencode((string) $value);
+            $hashDataParts[] = urlencode($key) . '=' . urlencode((string) $value);
+        }
+
+        $queryString = implode('&', $queryParts);
+        $hashData = implode('&', $hashDataParts);
+
+        if ($hashSecret !== '') {
+            $vnpSecureHash = hash_hmac('sha512', $hashData, $hashSecret);
+            $vnpUrl .= '?' . $queryString . '&vnp_SecureHash=' . $vnpSecureHash;
+        } else {
+            $vnpUrl .= '?' . $queryString;
+        }
+
         return [
             'provider_code' => $this->code(),
             'provider_session_code' => $sessionCode,
@@ -44,12 +80,12 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
             'provider_payload' => [
                 'mode' => $config['mode'] ?? 'sandbox',
                 'payment_scope' => $scope->value,
-                'tmn_code' => $config['tmn_code'] ?? '',
+                'tmn_code' => $tmnCode,
                 'amount' => $amount,
-                'payment_url' => ($config['ipn_url'] ?? 'http://localhost').'/checkout/'.$sessionCode,
+                'payment_url' => $vnpUrl,
             ],
             'provider_expires_at' => Carbon::now('UTC')->addMinutes(15),
-            'payment_url' => ($config['ipn_url'] ?? 'http://localhost').'/checkout/'.$sessionCode,
+            'payment_url' => $vnpUrl,
         ];
     }
 
@@ -144,6 +180,8 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
             $scope = 'bill';
         }
 
+        $providerAmountMinor = isset($params['vnp_Amount']) ? ((int) $params['vnp_Amount']) / 100 : null;
+
         return [
             'provider_code' => $this->code(),
             'provider_event_code' => $providerEventCode,
@@ -152,6 +190,7 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
             'payment_scope' => $scope,
             'event_type' => 'payment.session.updated',
             'session_status' => $status,
+            'provider_amount_minor' => $providerAmountMinor,
             'failure_code' => $status === 'Failed' ? $responseCode : null,
             'failure_message' => $status === 'Failed' ? 'VNPay transaction failed with response code '.$responseCode : null,
             'provider_payload' => [

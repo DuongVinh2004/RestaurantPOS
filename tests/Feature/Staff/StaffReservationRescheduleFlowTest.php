@@ -268,6 +268,14 @@ class StaffReservationRescheduleFlowTest extends TestCase
                 ->all(),
         ]);
 
+        DB::table('staff_branch_assignments')->insert([
+            'user_id' => $staffId,
+            'branch_id' => $branchId,
+            'is_primary' => 1,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
         $tableId = $this->createRestaurantTableWithSeats(4, ['status' => 'Available', 'branch_id' => $branchId]);
         $reservationId = $this->createReservation([
             'branch_id' => $branchId,
@@ -285,6 +293,7 @@ class StaffReservationRescheduleFlowTest extends TestCase
             'end_time' => $newEnd->toIso8601String(),
             'table_ids' => [$tableId],
         ]);
+
 
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')

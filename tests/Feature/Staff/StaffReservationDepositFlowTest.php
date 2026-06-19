@@ -46,9 +46,9 @@ class StaffReservationDepositFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'deposit_preview')
             ->assertJsonPath('data.reservation.reservation_id', $reservationId)
             ->assertJsonPath('data.deposit.status', 'Pending')
-            ->assertJsonPath('data.deposit.required_amount', '100000.00')
-            ->assertJsonPath('data.deposit.paid_amount', '0.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '100000.00')
+            ->assertJsonPath('data.deposit.required_amount', '100000')
+            ->assertJsonPath('data.deposit.paid_amount', '0')
+            ->assertJsonPath('data.deposit.outstanding_amount', '100000')
             ->assertJsonPath('data.deposit.can_accept_payment', true);
     }
 
@@ -72,9 +72,9 @@ class StaffReservationDepositFlowTest extends TestCase
             ->assertJsonPath('data.payment.payment_type', 'Deposit')
             ->assertJsonPath('data.payment.status', 'Partial')
             ->assertJsonPath('data.deposit.status', 'Pending')
-            ->assertJsonPath('data.deposit.paid_amount', '40000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '60000.00')
-            ->assertJsonPath('data.deposit.payment_summary.deposit_captured', '40000.00');
+            ->assertJsonPath('data.deposit.paid_amount', '40000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '60000')
+            ->assertJsonPath('data.deposit.payment_summary.deposit_captured', '40000');
 
         $this->assertSame(1, (int) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
         $cashierShiftId = (int) $this->table('cashier_shifts')
@@ -87,8 +87,8 @@ class StaffReservationDepositFlowTest extends TestCase
             ->value('cashier_shift_id');
         $this->assertSame($cashierShiftId, $paymentShiftId);
         $this->assertSame(
-            '40000.00',
-            number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 2, '.', '')
+            '40000',
+            number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 0, '.', '')
         );
         $this->assertSame('Pending', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_status'));
     }
@@ -111,8 +111,8 @@ class StaffReservationDepositFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.payment.status', 'Success')
             ->assertJsonPath('data.deposit.status', 'Paid')
-            ->assertJsonPath('data.deposit.paid_amount', '100000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00')
+            ->assertJsonPath('data.deposit.paid_amount', '100000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0')
             ->assertJsonPath('data.deposit.can_accept_payment', false);
 
         $this->assertSame('Paid', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_status'));
@@ -206,8 +206,8 @@ class StaffReservationDepositFlowTest extends TestCase
         $second->assertOk()->assertJsonPath('data.payment.payment_type', 'Deposit');
         $this->assertSame(1, (int) $this->table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
         $this->assertSame(
-            '50000.00',
-            number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 2, '.', '')
+            '50000',
+            number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 0, '.', '')
         );
     }
 
@@ -258,9 +258,9 @@ class StaffReservationDepositFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'refund_preview')
             ->assertJsonPath('data.refund.cancelled', true)
             ->assertJsonPath('data.refund.refund_scope', 'all')
-            ->assertJsonPath('data.refund.payment_summary.deposit_captured', '60000.00')
-            ->assertJsonPath('data.refund.payment_summary.deposit_net', '60000.00')
-            ->assertJsonPath('data.refund.refund_amount', '60000.00');
+            ->assertJsonPath('data.refund.payment_summary.deposit_captured', '60000')
+            ->assertJsonPath('data.refund.payment_summary.deposit_net', '60000')
+            ->assertJsonPath('data.refund.refund_amount', '60000');
     }
 
     public function test_refund_preview_accepts_scope_and_partial_amount_using_execute_semantics(): void
@@ -285,8 +285,8 @@ class StaffReservationDepositFlowTest extends TestCase
             ->assertJsonPath('meta.action', 'refund_preview')
             ->assertJsonPath('data.refund.refund_scope', 'deposit')
             ->assertJsonPath('data.refund.cancelled', true)
-            ->assertJsonPath('data.refund.refund_amount', '20000.00')
-            ->assertJsonPath('data.refund.payment_summary.deposit_net', '60000.00');
+            ->assertJsonPath('data.refund.refund_amount', '20000')
+            ->assertJsonPath('data.refund.payment_summary.deposit_net', '60000');
     }
 
     public function test_refund_preview_rejects_refund_only_preview_for_confirmed_reservation(): void
@@ -356,8 +356,8 @@ class StaffReservationDepositFlowTest extends TestCase
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ], $reservationOverrides));

@@ -34,6 +34,8 @@ function item(overrides: Partial<CustomerMenuItem> = {}): CustomerMenuItem {
     description: "Warm noodles",
     img_url: null,
     is_available: true,
+    is_combo: false,
+    is_best_seller: false,
     price: {
       price_id: 1,
       amount: "45000",

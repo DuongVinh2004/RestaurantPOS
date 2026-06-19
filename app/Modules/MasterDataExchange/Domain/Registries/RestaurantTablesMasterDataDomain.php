@@ -428,7 +428,7 @@ final class RestaurantTablesMasterDataDomain extends AbstractMasterDataDomain im
             'pos_y' => $table->pos_y !== null ? (int) $table->pos_y : null,
             'status' => (string) ($table->status?->value ?? $table->status),
             'description' => $table->description,
-            'price' => $table->price !== null ? number_format((float) $table->price, 2, '.', '') : null,
+            'price' => $table->price !== null ? number_format((float) $table->price, 0, '.', '') : null,
             'is_deleted' => (bool) $table->is_deleted,
         ], $this->importColumns());
     }

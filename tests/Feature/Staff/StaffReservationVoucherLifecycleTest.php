@@ -43,14 +43,14 @@ class StaffReservationVoucherLifecycleTest extends TestCase
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
             'applied_user_voucher_id' => $userVoucherId,
-            'discount_amount' => '50000.00',
+            'discount_amount' => '50000',
         ]);
 
         $this->createPayment([
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '250000.00',
+            'amount' => '250000',
             'transaction_code' => 'FINAL-VOUCHER-REMOVE-1',
         ]);
 
@@ -74,7 +74,7 @@ class StaffReservationVoucherLifecycleTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
-            'discount_amount' => '0.00',
+            'discount_amount' => '0',
         ]);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -90,8 +90,8 @@ class StaffReservationVoucherLifecycleTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '25000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '25000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -134,7 +134,7 @@ class StaffReservationVoucherLifecycleTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
-            'discount_amount' => '0.00',
+            'discount_amount' => '0',
         ]);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -150,8 +150,8 @@ class StaffReservationVoucherLifecycleTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -181,8 +181,8 @@ class StaffReservationVoucherLifecycleTest extends TestCase
 
         $afterApplyVersion = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
         $this->assertSame(
-            '100000.00',
-            number_format((float) DB::table('reservations')->where('reservation_id', $reservationId)->value('discount_amount'), 2, '.', '')
+            '100000',
+            number_format((float) DB::table('reservations')->where('reservation_id', $reservationId)->value('discount_amount'), 0, '.', '')
         );
 
         $voucherService->removeVoucher(
@@ -192,8 +192,8 @@ class StaffReservationVoucherLifecycleTest extends TestCase
         );
 
         $this->assertSame(
-            '50000.00',
-            number_format((float) DB::table('reservations')->where('reservation_id', $reservationId)->value('discount_amount'), 2, '.', '')
+            '50000',
+            number_format((float) DB::table('reservations')->where('reservation_id', $reservationId)->value('discount_amount'), 0, '.', '')
         );
     }
 
@@ -205,7 +205,7 @@ class StaffReservationVoucherLifecycleTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
-            'discount_amount' => '0.00',
+            'discount_amount' => '0',
         ]);
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
@@ -221,8 +221,8 @@ class StaffReservationVoucherLifecycleTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,

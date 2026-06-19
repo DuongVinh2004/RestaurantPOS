@@ -217,8 +217,8 @@ final class StaffOrderKdsFohActorBoundaryServiceTest extends TestCase
             'branch_id' => 1,
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
             'row_version' => 1,
@@ -227,7 +227,7 @@ final class StaffOrderKdsFohActorBoundaryServiceTest extends TestCase
         $itemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '50000.00',
+            'price' => '50000',
             'currency' => 'VND',
         ]);
 
@@ -255,9 +255,9 @@ final class StaffOrderKdsFohActorBoundaryServiceTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $scenario['item_id'],
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);

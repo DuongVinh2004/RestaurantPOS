@@ -60,6 +60,8 @@ import {
   createIdleMutationFeedback,
   mapMutationErrorToFeedback,
 } from '../../../../shared/mutations/mutation-ux';
+import { useSmartETA } from '../../../../domains/kitchen/hooks/useSmartETA';
+import { ClockCircleOutlined } from '@ant-design/icons';
 
 export function KitchenBoardPage() {
   const navigate = useNavigate();
@@ -789,12 +791,20 @@ function TicketDetailPanel({
       ? 'Đang khớp'
       : 'Chưa rõ';
 
+  const eta = useSmartETA(selectedTicket);
+
   return (
     <section className="staff-kitchen-subpanel" aria-label="Chi tiết phiếu bếp">
       <div className="staff-kitchen-section-head">
         <div>
           <span className="staff-eyebrow">Phiếu #{selectedTicket.ticket_id}</span>
           <h3>{ticketDisplayName(selectedTicket)}</h3>
+          {eta ? (
+            <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#595959' }}>
+              <ClockCircleOutlined /> 
+              <span><strong>ETA: {eta.estimatedMinutes} phút</strong> ({eta.confidence === 'high' ? 'Tin cậy cao' : eta.confidence === 'medium' ? 'Tin cậy TB' : 'Tin cậy thấp'} - {eta.reason})</span>
+            </div>
+          ) : null}
         </div>
         <StatusChip label={translateUiCode(selectedTicket.ticket_status)} tone={kitchenTone(selectedTicket.ticket_status)} />
       </div>

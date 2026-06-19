@@ -30,6 +30,9 @@ import {
   listAdminPurchaseOrderReceipts,
   listAdminSuppliers,
   showAdminPurchaseOrder,
+  updateAdminIngredient,
+  updateAdminSupplier,
+  updateAdminPurchaseOrder,
 } from '../../../../shared/api/staff-api';
 import { formatApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
@@ -128,7 +131,7 @@ export function AdminInventoryPage() {
     [ingredientRows, selectedIngredientId],
   );
   const selectedPurchaseOrder = useMemo(
-    () => purchaseOrderRows.find((purchaseOrder) => purchaseOrder.purchase_order_id === selectedPurchaseOrderId) ?? null,
+    () => purchaseOrderRows.find((purchaseOrder: any) => purchaseOrder.purchase_order_id === selectedPurchaseOrderId) ?? null,
     [purchaseOrderRows, selectedPurchaseOrderId],
   );
 
@@ -168,6 +171,39 @@ export function AdminInventoryPage() {
     },
     onError: (error) => {
       toast.error(formatApiError(error, 'Chưa ghi nhận được xuất nhập kho.'));
+    },
+  });
+
+  const updateIngredientMutation = useMutation({
+    mutationFn: (variables: { id: number, payload: any }) => updateAdminIngredient(variables.id, variables.payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-inventory-ingredients'] });
+      toast.success('Đã cập nhật trạng thái nguyên liệu.');
+    },
+    onError: (error) => {
+      toast.error(formatApiError(error, 'Chưa cập nhật được nguyên liệu.'));
+    },
+  });
+
+  const updateSupplierMutation = useMutation({
+    mutationFn: (variables: { id: number, payload: any }) => updateAdminSupplier(variables.id, variables.payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-inventory-suppliers'] });
+      toast.success('Đã cập nhật trạng thái nhà cung cấp.');
+    },
+    onError: (error) => {
+      toast.error(formatApiError(error, 'Chưa cập nhật được nhà cung cấp.'));
+    },
+  });
+
+  const updatePurchaseOrderMutation = useMutation({
+    mutationFn: (variables: { id: number, payload: any }) => updateAdminPurchaseOrder(variables.id, variables.payload),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-inventory-purchase-orders'] });
+      toast.success('Đã hủy đơn mua hàng.');
+    },
+    onError: (error) => {
+      toast.error(formatApiError(error, 'Chưa hủy được đơn mua hàng.'));
     },
   });
 
@@ -303,6 +339,21 @@ export function AdminInventoryPage() {
                   <Space wrap size={6}>
                     <StatusChip label={ingredient.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={ingredient.is_active ? 'success' : 'warning'} />
                     <StatusChip label={`${ingredient.recipe_usage_count} công thức`} tone="default" />
+                    <Button
+                      size="small"
+                      danger
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Bạn có chắc muốn ${ingredient.is_active ? 'tạm tắt' : 'mở lại'} nguyên liệu này?`)) {
+                          updateIngredientMutation.mutate({
+                            id: ingredient.ingredient_id,
+                            payload: { row_version: ingredient.row_version, is_active: !ingredient.is_active }
+                          });
+                        }
+                      }}
+                    >
+                      {ingredient.is_active ? 'Tạm tắt' : 'Mở lại'}
+                    </Button>
                   </Space>
                   <Typography.Text type="secondary">
                     Tồn kho {formatInventoryQuantity(ingredient.stock.on_hand)} {ingredient.stock.unit_code}
@@ -340,6 +391,21 @@ export function AdminInventoryPage() {
                   </div>
                   <Space wrap size={6}>
                     <StatusChip label={supplier.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={supplier.is_active ? 'success' : 'warning'} />
+                    <Button
+                      size="small"
+                      danger
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm(`Bạn có chắc muốn ${supplier.is_active ? 'tạm tắt' : 'mở lại'} nhà cung cấp này?`)) {
+                          updateSupplierMutation.mutate({
+                            id: supplier.supplier_id,
+                            payload: { row_version: supplier.row_version, is_active: !supplier.is_active }
+                          });
+                        }
+                      }}
+                    >
+                      {supplier.is_active ? 'Tạm tắt' : 'Mở lại'}
+                    </Button>
                   </Space>
                   <Typography.Text type="secondary">
                     {supplier.phone ?? 'Chưa có số điện thoại'} / {supplier.email ?? 'Chưa có email'}
@@ -366,7 +432,7 @@ export function AdminInventoryPage() {
           rows={purchaseOrderRows}
           renderRows={() => (
             <div className="staff-admin-surface-list">
-              {purchaseOrderRows.map((purchaseOrder) => (
+              {purchaseOrderRows.map((purchaseOrder: any) => (
                 <button
                   key={purchaseOrder.purchase_order_id}
                   type="button"
@@ -382,6 +448,23 @@ export function AdminInventoryPage() {
                   <Space wrap size={6}>
                     <StatusChip label={adminPurchaseOrderStatusLabel(purchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(purchaseOrder.purchase_order_status)} />
                     <StatusChip label={`${purchaseOrder.summary.receipt_count} phiếu nhận`} tone="default" />
+                    {purchaseOrder.purchase_order_status !== 'Received' && purchaseOrder.purchase_order_status !== 'Cancelled' && (
+                      <Button
+                        size="small"
+                        danger
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm('Bạn có chắc muốn hủy đơn mua hàng này?')) {
+                            updatePurchaseOrderMutation.mutate({
+                              id: purchaseOrder.purchase_order_id,
+                              payload: { row_version: purchaseOrder.row_version, purchase_order_status: 'Cancelled' }
+                            });
+                          }
+                        }}
+                      >
+                        Hủy đơn
+                      </Button>
+                    )}
                   </Space>
                   <Typography.Text type="secondary">
                     Còn lại {formatInventoryQuantity(purchaseOrder.summary.remaining_total_quantity)} / dự kiến {formatDateTime(purchaseOrder.expected_at ?? purchaseOrder.ordered_at ?? purchaseOrder.created_at)}

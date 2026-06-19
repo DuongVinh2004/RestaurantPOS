@@ -40,9 +40,9 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $open->assertCreated()
             ->assertJsonPath('data.status', 'Open')
             ->assertJsonPath('data.currency', 'VND')
-            ->assertJsonPath('data.opening_float_amount', '100000.00')
-            ->assertJsonPath('data.summary.cash.expected_cash_amount', '100000.00')
-            ->assertJsonPath('data.summary.payments.captured_total', '0.00');
+            ->assertJsonPath('data.opening_float_amount', '100000')
+            ->assertJsonPath('data.summary.cash.expected_cash_amount', '100000')
+            ->assertJsonPath('data.summary.payments.captured_total', '0');
 
         $shiftId = (int) $open->json('data.cashier_shift_id');
         $rowVersion = (int) $open->json('data.row_version');
@@ -79,9 +79,9 @@ class StaffCashierShiftHttpFlowTest extends TestCase
 
         $showOpen = $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $headers);
         $showOpen->assertOk()
-            ->assertJsonPath('data.summary.payments.captured_total', '100000.00')
-            ->assertJsonPath('data.summary.payments.final_net', '100000.00')
-            ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000.00');
+            ->assertJsonPath('data.summary.payments.captured_total', '100000')
+            ->assertJsonPath('data.summary.payments.final_net', '100000')
+            ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000');
 
         $close = $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 139500,
@@ -91,17 +91,17 @@ class StaffCashierShiftHttpFlowTest extends TestCase
 
         $close->assertOk()
             ->assertJsonPath('data.status', 'Closed')
-            ->assertJsonPath('data.expected_cash_amount', '140000.00')
-            ->assertJsonPath('data.actual_cash_amount', '139500.00')
-            ->assertJsonPath('data.cash_discrepancy_amount', '-500.00')
-            ->assertJsonPath('data.summary.payments.captured_total', '100000.00')
-            ->assertJsonPath('data.summary.payments.net_paid_total', '100000.00')
-            ->assertJsonPath('data.summary.cash.captured_amount', '40000.00')
-            ->assertJsonPath('data.summary.cash.refunded_amount', '0.00')
-            ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000.00');
+            ->assertJsonPath('data.expected_cash_amount', '140000')
+            ->assertJsonPath('data.actual_cash_amount', '139500')
+            ->assertJsonPath('data.cash_discrepancy_amount', '-500')
+            ->assertJsonPath('data.summary.payments.captured_total', '100000')
+            ->assertJsonPath('data.summary.payments.net_paid_total', '100000')
+            ->assertJsonPath('data.summary.cash.captured_amount', '40000')
+            ->assertJsonPath('data.summary.cash.refunded_amount', '0')
+            ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000');
 
         self::assertSame('Closed', (string) DB::table('cashier_shifts')->where('cashier_shift_id', $shiftId)->value('status'));
-        self::assertSame('140000.00', number_format((float) DB::table('cashier_shifts')->where('cashier_shift_id', $shiftId)->value('expected_cash_amount'), 2, '.', ''));
+        self::assertSame('140000', number_format((float) DB::table('cashier_shifts')->where('cashier_shift_id', $shiftId)->value('expected_cash_amount'), 0, '.', ''));
 
         $closedLog = $this->assertAuditLogRecorded('cashier_shift.closed', 'cashier_shift', $shiftId);
         self::assertSame($staffId, $closedLog->actor_user_id);
@@ -172,7 +172,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'cashier_shift_id' => $shiftId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '40000.00',
+            'amount' => '40000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -184,16 +184,16 @@ class StaffCashierShiftHttpFlowTest extends TestCase
 
         $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $headers)
             ->assertOk()
-            ->assertJsonPath('data.summary.payments.captured_total', '40000.00')
-            ->assertJsonPath('data.summary.cash.expected_cash_amount', '40000.00');
+            ->assertJsonPath('data.summary.payments.captured_total', '40000')
+            ->assertJsonPath('data.summary.cash.expected_cash_amount', '40000');
 
         $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 40000,
             'row_version' => $rowVersion,
         ], $this->withIdempotencyKey('idem-cashier-shift-fk-window-close', $headers))
             ->assertOk()
-            ->assertJsonPath('data.expected_cash_amount', '40000.00')
-            ->assertJsonPath('data.summary.payments.captured_total', '40000.00');
+            ->assertJsonPath('data.expected_cash_amount', '40000')
+            ->assertJsonPath('data.summary.payments.captured_total', '40000');
     }
 
     public function test_payment_after_shift_boundary_not_misattributed(): void
@@ -234,7 +234,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'cashier_shift_id' => $firstShiftId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '60000.00',
+            'amount' => '60000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -246,11 +246,11 @@ class StaffCashierShiftHttpFlowTest extends TestCase
 
         $this->getJson('/api/v1/staff/cashier/shifts/'.$firstShiftId, $headers)
             ->assertOk()
-            ->assertJsonPath('data.summary.payments.captured_total', '60000.00');
+            ->assertJsonPath('data.summary.payments.captured_total', '60000');
 
         $this->getJson('/api/v1/staff/cashier/shifts/'.$secondShiftId, $headers)
             ->assertOk()
-            ->assertJsonPath('data.summary.payments.captured_total', '0.00');
+            ->assertJsonPath('data.summary.payments.captured_total', '0');
     }
 
     public function test_staff_can_list_authenticated_cashier_shift_history_with_filters(): void
@@ -459,7 +459,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'reservation_id' => $reservationA,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '40000.00',
+            'amount' => '40000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -472,7 +472,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'reservation_id' => $reservationB,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '70000.00',
+            'amount' => '70000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -485,7 +485,7 @@ class StaffCashierShiftHttpFlowTest extends TestCase
             'reservation_id' => $reservationUsd,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '10.00',
+            'amount' => '10',
             'currency' => 'USD',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -496,9 +496,9 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $show = $this->getJson('/api/v1/staff/cashier/shifts/'.$shiftId, $headers);
         $show->assertOk()
             ->assertJsonPath('data.branch_id', $branchA)
-            ->assertJsonPath('data.summary.payments.captured_total', '40000.00')
-            ->assertJsonPath('data.summary.cash.captured_amount', '40000.00')
-            ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000.00');
+            ->assertJsonPath('data.summary.payments.captured_total', '40000')
+            ->assertJsonPath('data.summary.cash.captured_amount', '40000')
+            ->assertJsonPath('data.summary.cash.expected_cash_amount', '140000');
 
         $close = $this->postJson('/api/v1/staff/cashier/shifts/'.$shiftId.'/close', [
             'actual_cash_amount' => 140000,
@@ -506,8 +506,8 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         ], $this->withIdempotencyKey('idem-cashier-shift-close-scope', $headers));
 
         $close->assertOk()
-            ->assertJsonPath('data.expected_cash_amount', '140000.00')
-            ->assertJsonPath('data.summary.payments.captured_total', '40000.00');
+            ->assertJsonPath('data.expected_cash_amount', '140000')
+            ->assertJsonPath('data.summary.payments.captured_total', '40000');
     }
 
     public function test_staff_cannot_open_second_shift_and_cannot_close_the_same_shift_twice(): void
@@ -588,8 +588,8 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -602,9 +602,9 @@ class StaffCashierShiftHttpFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         return [$staffId, $orderId, $reservationId];

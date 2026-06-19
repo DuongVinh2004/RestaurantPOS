@@ -152,7 +152,7 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Thanh toán đặt cọc" }));
+    await user.click(await screen.findByRole("button", { name: "Thanh toán cọc" }));
 
     await waitFor(() => {
       expect(mocks.createDepositPaymentSession).toHaveBeenCalledWith(7, 4);
@@ -190,11 +190,11 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    expect(await screen.findByRole("button", { name: "Thanh toán đặt cọc" })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: "Thanh toán cọc" })).toBeDisabled();
     expect(mocks.createDepositPaymentSession).not.toHaveBeenCalled();
   });
 
-  it("prevents deposit preview actions from running at the same time", async () => {
+  it("automatically acknowledges and submits intent when Thanh toán cọc is clicked", async () => {
     const user = userEvent.setup();
 
     mocks.getDepositPreview.mockResolvedValue({
@@ -205,7 +205,7 @@ describe("DepositPanel", () => {
         currency: "USD",
         self_service: {
           can_acknowledge: true,
-          can_submit_intent: true,
+          can_submit_intent: false,
           can_revoke_intent: false,
           can_create_payment_session: false,
         },
@@ -215,9 +215,10 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Tôi đã hiểu yêu cầu đặt cọc" }));
+    await user.click(await screen.findByRole("button", { name: "Thanh toán cọc" }));
 
-    expect(screen.getByRole("button", { name: "Tôi sẽ tự thanh toán" })).toBeDisabled();
+    expect(mocks.acknowledgeDeposit).toHaveBeenCalledWith(7, 4);
+    expect(screen.getByRole("button", { name: "Đang xử lý..." })).toBeDisabled();
     expect(mocks.submitDepositIntent).not.toHaveBeenCalled();
   });
 
@@ -244,7 +245,7 @@ describe("DepositPanel", () => {
     renderPanel();
 
     await user.click(
-      await screen.findByRole("button", { name: "Thanh toán đặt cọc" }),
+      await screen.findByRole("button", { name: "Thanh toán cọc" }),
     );
 
     await waitFor(() => {
@@ -269,7 +270,7 @@ describe("DepositPanel", () => {
 
     renderPanel();
 
-    await user.click(await screen.findByRole("button", { name: "Thanh toán đặt cọc" }));
+    await user.click(await screen.findByRole("button", { name: "Thanh toán cọc" }));
 
     expect(screen.getByText("Thông tin đặt bàn vừa được cập nhật. Vui lòng tải lại trạng thái mới nhất trước khi tiếp tục.")).toBeInTheDocument();
     expect(screen.getByText("Thanh toán cọc chưa thành công. Đặt bàn của bạn vẫn được giữ. Món đặt trước chưa được xác nhận chuẩn bị.")).toBeInTheDocument();

@@ -274,7 +274,7 @@ describe('WaitingListPage', () => {
     renderWithProviders('/ops/waiting-list');
 
     await screen.findByText('Queue Guest');
-    fireEvent.click(screen.getByRole('button', { name: 'M\u1edf s\u01a1 \u0111\u1ed3 b\u00e0n' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Quay l\u1ea1i s\u01a1 \u0111\u1ed3 b\u00e0n' }));
 
     await waitFor(() => expect(screen.getByTestId('tables-destination')).toBeInTheDocument());
     expect(screen.getByTestId('location-search')).toHaveTextContent('');

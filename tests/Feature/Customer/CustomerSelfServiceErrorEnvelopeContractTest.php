@@ -69,8 +69,8 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         $voucherId = $this->createVoucher([
             'code' => 'ERR-404-BENEFITS',
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '100000.00',
+            'discount_value' => '50000',
+            'min_spend' => '100000',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => (int) $user->user_id,
@@ -129,7 +129,7 @@ class CustomerSelfServiceErrorEnvelopeContractTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '150000.00',
+            'price' => '150000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);

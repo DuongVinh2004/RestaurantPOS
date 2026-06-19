@@ -51,7 +51,7 @@ class ReservationDepositPaymentSession extends Model
         'reservation_id' => 'int',
         'customer_user_id' => 'int',
         'linked_payment_id' => 'int',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:0',
         'provider_code' => 'string',
         'provider_session_code' => 'string',
         'provider_payment_code' => 'string',

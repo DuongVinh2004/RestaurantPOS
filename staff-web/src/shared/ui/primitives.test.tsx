@@ -6,9 +6,7 @@ import {
   FiltersBar,
   FormField,
   FormSection,
-  KPIGrid,
   SearchInput,
-  SummaryCard,
 } from './primitives';
 
 describe('staff shared UI primitives', () => {
@@ -17,9 +15,7 @@ describe('staff shared UI primitives', () => {
       <>
         <ActionBar left={<span>Bộ lọc</span>} right={<button type="button">Làm mới</button>} />
         <FiltersBar fields={<SearchInput aria-label="Tìm bàn" />} actions={<button type="button">Đặt lại</button>} />
-        <KPIGrid>
-          <SummaryCard label="Đơn đang mở" value="12" hint="Đang cập nhật" tone="processing" />
-        </KPIGrid>
+
         <BulkActionBar selectedCount={2}>Gán</BulkActionBar>
         <FormSection title="Thông tin khách" description="Luôn giữ nhãn hiển thị rõ ràng.">
           <FormField label="Số điện thoại khách" htmlFor="guest-phone" help="Dùng số khách cung cấp.">
@@ -31,7 +27,7 @@ describe('staff shared UI primitives', () => {
 
     expect(screen.getByText('Bộ lọc')).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: 'Tìm bàn' })).toBeInTheDocument();
-    expect(screen.getByText('Đơn đang mở')).toBeInTheDocument();
+
     expect(screen.getByText('2 dòng đã chọn')).toBeInTheDocument();
     expect(screen.getByLabelText('Số điện thoại khách')).toBeInTheDocument();
   });

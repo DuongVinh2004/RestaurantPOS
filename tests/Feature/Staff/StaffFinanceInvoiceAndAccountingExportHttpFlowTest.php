@@ -56,12 +56,12 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'checked_in_at' => $this->nowUtc()->copy()->subHours(2),
             'checked_out_at' => $this->nowUtc(),
             'reservation_code' => 'RSV-000001',
-            'discount_amount' => '20000.00',
-            'final_bill_amount' => '180000.00',
+            'discount_amount' => '20000',
+            'final_bill_amount' => '180000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
         ]);
         $reservationBranchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
@@ -75,7 +75,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -87,7 +87,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '130000.00',
+            'amount' => '130000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -110,7 +110,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             ->assertJsonPath('data.invoice.bill_amounts.discount_amount', 20000.0)
             ->assertJsonPath('data.invoice.bill_amounts.total_amount', 180000.0)
             ->assertJsonPath('data.invoice.tax.tax_rate_percentage', 10.0)
-            ->assertJsonPath('data.invoice.tax.tax_amount', 16363.64)
+            ->assertJsonPath('data.invoice.tax.tax_amount', 16364.0)
             ->assertJsonPath('data.reservation.row_version', $reservationRowVersion)
             ->assertJsonPath('data.reconciliation.reservation.row_version', $reservationRowVersion)
             ->assertJsonPath('data.reconciliation.payment_summary.net_paid_amount', 180000.0);
@@ -135,8 +135,8 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
         $this->assertStringContainsString('has_bill_outstanding', $csv);
         $this->assertStringContainsString('discrepancy_reasons', $csv);
         $this->assertStringContainsString('INV-RSV-000001', $csv);
-        $this->assertStringContainsString('180000.00', $csv);
-        $this->assertStringContainsString('16363.64', $csv);
+        $this->assertStringContainsString('180000', $csv);
+        $this->assertStringContainsString('16363', $csv);
     }
 
     public function test_staff_cannot_issue_invoice_for_unbilled_reservation(): void
@@ -185,12 +185,12 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Completed',
             'reservation_code' => 'RSV-UNSETTLED-INV',
-            'discount_amount' => '20000.00',
-            'final_bill_amount' => '180000.00',
+            'discount_amount' => '20000',
+            'final_bill_amount' => '180000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
         ]);
         $reservationBranchId = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
@@ -204,7 +204,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -216,7 +216,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '130000.00',
+            'amount' => '130000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -228,7 +228,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Refund',
             'status' => 'Refunded',
-            'amount' => '5000.00',
+            'amount' => '5000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -278,7 +278,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Completed',
             'reservation_code' => 'RSV-NO-SHIFT-INV',
-            'final_bill_amount' => '100000.00',
+            'final_bill_amount' => '100000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -288,7 +288,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -340,7 +340,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Completed',
             'reservation_code' => 'RSV-BRANCH-INV',
-            'final_bill_amount' => '100000.00',
+            'final_bill_amount' => '100000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -349,7 +349,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -411,7 +411,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Completed',
             'reservation_code' => 'RSV-OPS-A',
-            'final_bill_amount' => '100000.00',
+            'final_bill_amount' => '100000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -420,7 +420,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Completed',
             'reservation_code' => 'RSV-OPS-B',
-            'final_bill_amount' => '120000.00',
+            'final_bill_amount' => '120000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -430,7 +430,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationA,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -442,7 +442,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationB,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '120000.00',
+            'amount' => '120000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -466,16 +466,16 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'reservation_id' => $reservationB,
             'invoice_number' => 'INV-RSV-OPS-B',
             'invoice_status' => 'Issued',
-            'subtotal_amount' => '120000.00',
-            'discount_amount' => '0.00',
-            'total_amount' => '120000.00',
+            'subtotal_amount' => '120000',
+            'discount_amount' => '0',
+            'total_amount' => '120000',
             'currency' => 'VND',
             'tax_code' => 'VAT10',
             'tax_name' => 'VAT 10%',
             'tax_rate_percentage' => '10.000',
             'prices_include_tax' => 1,
-            'taxable_amount' => '109090.91',
-            'tax_amount' => '10909.09',
+            'taxable_amount' => '109090',
+            'tax_amount' => '10909',
             'seller_name' => 'Restaurant POS Test',
             'seller_tax_id' => '0301234567',
             'seller_address' => '123 Nguyen Hue',

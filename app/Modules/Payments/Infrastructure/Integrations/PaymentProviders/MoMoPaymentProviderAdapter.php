@@ -152,6 +152,8 @@ class MoMoPaymentProviderAdapter implements PaymentProviderAdapter
             $scope = 'bill';
         }
 
+        $providerAmountMinor = isset($params['amount']) ? (int) $params['amount'] : null;
+
         return [
             'provider_code' => $this->code(),
             'provider_event_code' => $providerEventCode,
@@ -160,6 +162,7 @@ class MoMoPaymentProviderAdapter implements PaymentProviderAdapter
             'payment_scope' => $scope,
             'event_type' => 'payment.session.updated',
             'session_status' => $status,
+            'provider_amount_minor' => $providerAmountMinor,
             'failure_code' => $status === 'Failed' ? (string) $resultCode : null,
             'failure_message' => $status === 'Failed' ? trim((string) ($params['message'] ?? 'MoMo transaction failed')) : null,
             'provider_payload' => [

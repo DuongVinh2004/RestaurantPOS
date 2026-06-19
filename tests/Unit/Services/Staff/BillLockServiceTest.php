@@ -50,9 +50,9 @@ class BillLockServiceTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $order = $this->makeBillLockService()->lockBill(
@@ -120,9 +120,9 @@ class BillLockServiceTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
         ]);
 
         $this->makeBillLockService()->lockBill(

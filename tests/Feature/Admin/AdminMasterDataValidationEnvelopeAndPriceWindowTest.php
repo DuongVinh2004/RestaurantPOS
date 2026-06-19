@@ -46,7 +46,7 @@ class AdminMasterDataValidationEnvelopeAndPriceWindowTest extends TestCase
 
         $activePriceId = $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '165000.00',
+            'price' => '165000',
             'currency' => 'VND',
             'effective_from' => $activeFrom,
             'effective_to' => null,
@@ -54,7 +54,7 @@ class AdminMasterDataValidationEnvelopeAndPriceWindowTest extends TestCase
 
         $this->withHeaders($this->staffHeaders('admin-price-window-key'))
             ->postJson(sprintf('/api/v1/admin/menu/items/%d/prices', $itemId), [
-                'price' => '175000.00',
+                'price' => '175000',
                 'currency' => 'VND',
                 'effective_from' => $futureFrom->toIso8601String(),
             ])
@@ -85,7 +85,7 @@ class AdminMasterDataValidationEnvelopeAndPriceWindowTest extends TestCase
         $start = Carbon::now('UTC')->subDay()->startOfMinute();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '99000.00',
+            'price' => '99000',
             'currency' => 'VND',
             'effective_from' => $start,
             'effective_to' => null,
@@ -93,7 +93,7 @@ class AdminMasterDataValidationEnvelopeAndPriceWindowTest extends TestCase
 
         $response = $this->withHeaders($this->staffHeaders('admin-validation-envelope-key'))
             ->postJson(sprintf('/api/v1/admin/menu/items/%d/prices', $itemId), [
-                'price' => '109000.00',
+                'price' => '109000',
                 'currency' => 'VND',
                 'effective_from' => $start->copy()->addHour()->toIso8601String(),
             ]);

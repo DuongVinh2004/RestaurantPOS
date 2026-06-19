@@ -39,8 +39,8 @@ final class ReservationFinancialSyncServiceRefundTouchFeatureTest extends TestCa
             $reservationId = $this->createReservation([
                 'user_id' => $customerId,
                 'status' => 'Completed',
-                'deposit_required_amount' => '100000.00',
-                'deposit_paid_amount' => '100000.00',
+                'deposit_required_amount' => '100000',
+                'deposit_paid_amount' => '100000',
                 'deposit_status' => 'Paid',
                 'bill_currency' => 'VND',
                 'updated_at' => $frozenNow,
@@ -51,7 +51,7 @@ final class ReservationFinancialSyncServiceRefundTouchFeatureTest extends TestCa
                 'reservation_id' => $reservationId,
                 'payment_type' => 'Deposit',
                 'status' => 'Success',
-                'amount' => '100000.00',
+                'amount' => '100000',
                 'currency' => 'VND',
                 'transaction_code' => 'DEP-REFUND-TOUCH-1',
             ]);

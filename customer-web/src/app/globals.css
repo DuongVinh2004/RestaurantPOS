@@ -87,6 +87,7 @@
   --restaurant-ink: #1f2933;
   --restaurant-line: #e5e7eb;
   --restaurant-shadow: 0 18px 50px rgb(31 41 51 / 8%);
+  --restaurant-shadow-hover: 0 25px 60px rgb(31 41 51 / 15%);
 }
 
 .dark {

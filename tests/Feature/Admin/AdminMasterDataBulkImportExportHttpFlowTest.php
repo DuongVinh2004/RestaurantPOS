@@ -162,7 +162,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '125000.00',
+            'price' => '125000',
             'currency' => 'VND',
             'effective_from' => Carbon::parse('2026-04-01 00:00:00', 'UTC'),
             'effective_to' => null,
@@ -242,7 +242,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
 
         $priceSeedId = $this->createMenuItemPrice([
             'item_id' => $burgerId,
-            'price' => '100000.00',
+            'price' => '100000',
             'currency' => 'VND',
             'effective_from' => Carbon::parse('2026-04-01 00:00:00', 'UTC'),
             'effective_to' => null,
@@ -255,13 +255,13 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
                 'rows' => [
                     [
                         'item_code' => 'BULK-BURGER',
-                        'price' => '120000.00',
+                        'price' => '120000',
                         'currency' => 'VND',
                         'effective_from' => '2026-04-01T00:00:00Z',
                     ],
                     [
                         'item_code' => 'BULK-PASTA',
-                        'price' => '98000.00',
+                        'price' => '98000',
                         'currency' => 'VND',
                         'effective_from' => '2026-04-01T00:00:00Z',
                     ],
@@ -273,7 +273,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
             ->assertJsonPath('data.commit.created', 1)
             ->assertJsonPath('data.commit.updated', 1);
 
-        self::assertSame('120000.00', number_format((float) DB::table('menu_item_prices')->where('price_id', $priceSeedId)->value('price'), 2, '.', ''));
+        self::assertSame('120000', number_format((float) DB::table('menu_item_prices')->where('price_id', $priceSeedId)->value('price'), 0, '.', ''));
 
         $pastaPriceId = (int) DB::table('menu_item_prices')
             ->join('menu_items', 'menu_items.item_id', '=', 'menu_item_prices.item_id')
@@ -419,7 +419,7 @@ final class AdminMasterDataBulkImportExportHttpFlowTest extends TestCase
                         'zone' => 'Garden',
                         'status' => 'Available',
                         'description' => 'Bulk created table',
-                        'price' => '0.00',
+                        'price' => '0',
                     ],
                 ],
             ]);

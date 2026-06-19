@@ -17,8 +17,8 @@ class ReservationDepositReadServiceTest extends TestCase
         $reservation = new Reservation([
             'reservation_id' => 10,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'deposit_intent_status' => 'Submitted',
@@ -28,7 +28,7 @@ class ReservationDepositReadServiceTest extends TestCase
 
         $depositPayment = new Payment([
             'payment_id' => 1,
-            'amount' => '40000.00',
+            'amount' => '40000',
             'currency' => 'VND',
             'payment_type' => 'Deposit',
             'status' => 'Success',
@@ -40,7 +40,7 @@ class ReservationDepositReadServiceTest extends TestCase
             'customer_user_id' => 9,
             'provider_code' => 'simulated',
             'payment_method' => 'Online',
-            'amount' => '60000.00',
+            'amount' => '60000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -58,17 +58,17 @@ class ReservationDepositReadServiceTest extends TestCase
         );
 
         self::assertSame('Pending', $snapshot['status']);
-        self::assertSame('100000.00', $snapshot['required_amount']);
-        self::assertSame('40000.00', $snapshot['paid_amount']);
-        self::assertSame('60000.00', $snapshot['remaining_amount']);
-        self::assertSame('60000.00', $snapshot['outstanding_amount']);
+        self::assertSame('100000', $snapshot['required_amount']);
+        self::assertSame('40000', $snapshot['paid_amount']);
+        self::assertSame('60000', $snapshot['remaining_amount']);
+        self::assertSame('60000', $snapshot['outstanding_amount']);
         self::assertTrue($snapshot['status_flags']['deposit_required']);
         self::assertTrue($snapshot['status_flags']['requires_collection']);
         self::assertTrue($snapshot['status_flags']['has_open_payment_session']);
-        self::assertSame('40000.00', $snapshot['payment_summary']['deposit_net']);
+        self::assertSame('40000', $snapshot['payment_summary']['deposit_net']);
         self::assertSame('Submitted', data_get($snapshot, 'self_service.intent_status'));
         self::assertSame(1, data_get($snapshot, 'payment_session_summary.total_sessions'));
         self::assertSame('Pending', data_get($snapshot, 'payment_session_summary.latest_session.session_status'));
-        self::assertSame('60000.00', data_get($snapshot, 'payment_session_summary.latest_session.amount'));
+        self::assertSame('60000', data_get($snapshot, 'payment_session_summary.latest_session.amount'));
     }
 }

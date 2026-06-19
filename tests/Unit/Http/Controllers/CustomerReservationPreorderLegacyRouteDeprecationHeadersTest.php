@@ -47,7 +47,7 @@ class CustomerReservationPreorderLegacyRouteDeprecationHeadersTest extends TestC
                     'totals' => [
                         'item_count' => 0,
                         'quantity' => 0,
-                        'subtotal' => '0.00',
+                        'subtotal' => '0',
                     ],
                     'normalized_pre_order_items' => [],
                 ],

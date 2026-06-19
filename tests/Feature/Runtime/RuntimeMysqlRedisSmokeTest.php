@@ -429,7 +429,7 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
         $menuItemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $menuItemId,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
         ]);
 
@@ -449,9 +449,9 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $menuItemId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);
@@ -469,8 +469,8 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
             'row_version' => 1,
@@ -481,7 +481,7 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
             'branch_id' => $branchId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'RT-DEP-REFUND-CAP',
             'payment_provider' => 'Cash',

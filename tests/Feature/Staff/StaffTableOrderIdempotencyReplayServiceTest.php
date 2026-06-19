@@ -216,7 +216,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
         $itemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
         ]);
 
@@ -280,7 +280,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
         $itemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
         ]);
 
@@ -336,7 +336,7 @@ class StaffTableOrderIdempotencyReplayServiceTest extends TestCase
         $itemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
         ]);
 

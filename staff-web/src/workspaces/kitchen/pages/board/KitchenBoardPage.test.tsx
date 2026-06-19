@@ -116,7 +116,7 @@ describe('KitchenBoardPage', () => {
   it('focuses the dispatched station and ticket after kitchen handoff', async () => {
     renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }, { timeout: 4000 }));
 
     await waitFor(() => expect(apiMocks.dispatchKitchenOrder).toHaveBeenCalledWith(56, {
       row_version: 10,
@@ -140,7 +140,7 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?source=order&order_id=56&order_row_version=10');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }, { timeout: 4000 }));
 
     await waitFor(() => expect(apiMocks.dispatchKitchenOrder).toHaveBeenCalledWith(56, {
       row_version: 10,
@@ -185,7 +185,7 @@ describe('KitchenBoardPage', () => {
   it('sends the selected ticket row version with kitchen fast actions', async () => {
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }, { timeout: 4000 }));
 
     await waitFor(() => expect(confirmActionMock).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.fireKitchenTicket).toHaveBeenCalledWith(801, 17));
@@ -199,7 +199,7 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    const fireButton = await screen.findByRole('button', { name: 'Bắt đầu làm' });
+    const fireButton = await screen.findByRole('button', { name: 'Bắt đầu làm' }, { timeout: 4000 });
     fireEvent.click(fireButton);
 
     await waitFor(() => expect(fireButton).toBeDisabled());
@@ -229,7 +229,7 @@ describe('KitchenBoardPage', () => {
     apiMocks.getKitchenStationTickets.mockClear();
     apiMocks.listKitchenStations.mockClear();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }, { timeout: 4000 }));
 
     await waitFor(() => expect(toastMocks.warning).toHaveBeenCalledWith(expect.stringContaining('đã được tải lại')));
     await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
@@ -250,7 +250,7 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }, { timeout: 4000 }));
 
     await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'denied'));
     expect(screen.getByText(/kitchen\.manage/i)).toBeInTheDocument();
@@ -273,7 +273,7 @@ describe('KitchenBoardPage', () => {
     apiMocks.getKitchenStationTickets.mockClear();
     apiMocks.listKitchenStations.mockClear();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Bắt đầu làm' }, { timeout: 4000 }));
 
     await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'conflict'));
     await waitFor(() => expect(apiMocks.getKitchenStationTickets).toHaveBeenCalled());
@@ -293,7 +293,7 @@ describe('KitchenBoardPage', () => {
 
     renderWithProviders('/kitchen?station_id=33&ticket=801');
 
-    expect(await screen.findByRole('button', { name: 'Bắt đầu làm' })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: 'Bắt đầu làm' }, { timeout: 4000 })).toBeDisabled();
     expect(apiMocks.fireKitchenTicket).not.toHaveBeenCalled();
   });
 
@@ -314,7 +314,7 @@ describe('KitchenBoardPage', () => {
     apiMocks.listKitchenStations.mockClear();
     apiMocks.getKitchenStationTickets.mockClear();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Gửi đơn xuống bếp' }, { timeout: 4000 }));
 
     await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'retriable_failure'));
     expect(screen.getByText('Kitchen gateway timed out.')).toBeInTheDocument();

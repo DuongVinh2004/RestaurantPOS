@@ -8,9 +8,9 @@ use BackedEnum;
 
 final class Money
 {
-    public const SCALE = 2;
+    public const SCALE = 0;
 
-    public const MINOR_FACTOR = 100;
+    public const MINOR_FACTOR = 1;
 
     public static function minorUnits(mixed $amount, bool $clampNegative = false): int
     {
@@ -54,6 +54,10 @@ final class Money
 
         $whole = intdiv($absolute, self::MINOR_FACTOR);
         $fraction = $absolute % self::MINOR_FACTOR;
+
+        if (self::SCALE === 0) {
+            return ($negative ? '-' : '') . $whole;
+        }
 
         return ($negative ? '-' : '').$whole.'.'.str_pad((string) $fraction, self::SCALE, '0', STR_PAD_LEFT);
     }

@@ -187,8 +187,8 @@ class OrderItemInventoryConsumptionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -204,9 +204,9 @@ class OrderItemInventoryConsumptionFlowTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $itemId,
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);

@@ -18,14 +18,14 @@ class ReservationOrderResourceContractTest extends TestCase
         $order->reservation_id = 456;
         $order->order_type = 'OnSpot';
         $order->status = 'Active';
-        $order->subtotal_amount = '100.00';
-        $order->discount_amount = '5.00';
-        $order->total_due_amount = '95.00';
-        $order->paid_amount = '20.00';
-        $order->deposit_applied_amount = '0.00';
-        $order->deposit_net_amount = '0.00';
-        $order->final_paid_amount = '20.00';
-        $order->outstanding_amount = '75.00';
+        $order->subtotal_amount = '100';
+        $order->discount_amount = '5';
+        $order->total_due_amount = '95';
+        $order->paid_amount = '20';
+        $order->deposit_applied_amount = '0';
+        $order->deposit_net_amount = '0';
+        $order->final_paid_amount = '20';
+        $order->outstanding_amount = '75';
         $order->currency = 'VND';
 
         $payload = (new ReservationOrderResource($order))->toArray(Request::create('/'));

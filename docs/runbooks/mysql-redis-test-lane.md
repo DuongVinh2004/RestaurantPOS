@@ -26,7 +26,7 @@ To protect production stability and prevent concurrency bugs (such as double-boo
 In alignment with our engineering guidelines, **`php artisan migrate` is not the canonical database schema manager**. The database must be provisioned under our **SQL-first** paradigm:
 - Rebuilds the schema using `database/schema/mysql-schema.sql`.
 - Applies pending incremental patches from `database/patches/*.sql`.
-- Seeds reference data (`ReferenceDataSeeder`) and primes necessary local runtime states.
+- Seeds reference data (`SystemReferenceDataSeeder`) and primes necessary local runtime states.
 
 This bootstrap is fully handled by `tools/bootstrap_booking.php` mapped to custom testing configurations.
 

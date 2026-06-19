@@ -146,40 +146,7 @@ export function DataTable<T extends object>({
   );
 }
 
-export function SummaryCard({
-  label,
-  value,
-  hint,
-  delta,
-  tone = 'default',
-  className,
-}: {
-  label: string;
-  value: ReactNode;
-  hint?: ReactNode;
-  delta?: ReactNode;
-  tone?: 'default' | 'processing' | 'success' | 'warning' | 'error';
-  className?: string;
-}) {
-  return (
-    <div className={joinClasses('staff-summary-card', `staff-summary-card-${tone}`, className)}>
-      <span className="staff-summary-card-label">{label}</span>
-      <strong className="staff-summary-card-value">{value}</strong>
-      {delta ? <span className="staff-summary-card-delta">{delta}</span> : null}
-      {hint ? <span className="staff-summary-card-hint">{hint}</span> : null}
-    </div>
-  );
-}
 
-export function KPIGrid({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return <div className={joinClasses('staff-kpi-grid', className)}>{children}</div>;
-}
 
 export function BulkActionBar({
   selectedCount,

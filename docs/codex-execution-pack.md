@@ -40,7 +40,6 @@ Snapshot nay duoc xac nhan trong workspace ngay `2026-04-20`:
 
 Hotspot can tranh broad refactor trong launch lane:
 
-- `app/Platform/Uat/UatScenarioPackService.php`
 - `app/Modules/Cashiering/Application/Workflows/OrderSettlementWorkflow.php`
 - `app/Platform/Release/Services/LaunchReadinessService.php`
 - `app/Modules/Conversations/Application/Services/StaffConversationWorkflowService.php`
@@ -189,14 +188,11 @@ Intent:
 - Bien `staging` tu `ready_with_warnings` thanh readiness that
 
 Current missing evidence:
-- `uat_scenario_pack_replay`
 - `performance_verification_report`
 - `notification_provider_external_e2e`
 
 Primary writes:
 - `app/Platform/Release/**`
-- `app/Platform/Uat/**`
-- `scripts/uat/**`
 - `scripts/release/**`
 - `docs/runbooks/**`
 - manual evidence templates
@@ -475,9 +471,8 @@ Muc tieu:
 - chuan hoa support pack de operator thu du 5 evidence block limited-production
 
 Current gaps:
-- uat_scenario_pack_replay
-- performance_verification_report
-- payment_provider_external_e2e
+- `performance_verification_report`
+- `payment_provider_external_e2e`
 - notification_provider_external_e2e
 - concurrency_rehearsal
 
@@ -651,8 +646,6 @@ Dung bang nay de giam merge collision:
   - `app/Modules/Cashiering/**`
 - evidence/release lane:
   - `app/Platform/Release/**`
-  - `app/Platform/Uat/**`
-  - `scripts/uat/**`
   - `scripts/release/**`
   - `docs/runbooks/**`
 

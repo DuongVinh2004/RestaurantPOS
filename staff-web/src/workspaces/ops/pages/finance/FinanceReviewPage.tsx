@@ -445,12 +445,9 @@ function financeColumns(onSelect: (reservationId: number) => void): ColumnsType<
       title: 'Đặt bàn',
       dataIndex: ['reservation', 'reservation_code'],
       render: (_value, row) => (
-        <Button type="link" onClick={(event) => {
-          event.stopPropagation();
-          onSelect(row.reservation.reservation_id);
-        }}>
+        <Typography.Text strong>
           {row.reservation.reservation_code}
-        </Button>
+        </Typography.Text>
       ),
     },
     {

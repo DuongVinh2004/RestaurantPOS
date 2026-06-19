@@ -21,6 +21,7 @@ class InventoryStockMovementService
     private const REPLAY_SAFE_REFERENCE_TYPES = [
         'PurchaseReceipt',
         'ReservationOrderItemConsumption',
+        'ReservationOrderItemReturn',
     ];
 
     public function __construct(
@@ -156,7 +157,8 @@ class InventoryStockMovementService
                     continue;
                 }
 
-                $key = $branchId.':'.$ingredientId;
+                // Key format ensures ksort() orders by ingredient_id first, preventing row-lock deadlocks.
+                $key = sprintf('%010d:%010d', $ingredientId, $branchId);
                 $requirements[$key] ??= [
                     'branch_id' => $branchId,
                     'ingredient_id' => $ingredientId,

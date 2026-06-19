@@ -37,7 +37,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $saladId,
-            'price' => '85000.00',
+            'price' => '85000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -50,7 +50,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $steakId,
-            'price' => '250000.00',
+            'price' => '250000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -63,7 +63,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $hiddenId,
-            'price' => '10000.00',
+            'price' => '10000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -76,7 +76,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         $categories = collect($response->json('data'))->keyBy('name');
         $starterItems = collect((array) data_get($categories['Starter'] ?? [], 'items', []))->keyBy('name');
         $mainItems = collect((array) data_get($categories['Main'] ?? [], 'items', []))->keyBy('name');
-        self::assertSame('85000.00', (string) data_get($starterItems['Garden Salad'] ?? [], 'price.amount'));
+        self::assertSame('85000', (string) data_get($starterItems['Garden Salad'] ?? [], 'price.amount'));
         self::assertTrue($mainItems->has('Pepper Steak'));
 
         $this->assertStringNotContainsString('Hidden Item', $response->getContent());
@@ -95,7 +95,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $phoId,
-            'price' => '95000.00',
+            'price' => '95000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -108,7 +108,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $teaId,
-            'price' => '25000.00',
+            'price' => '25000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -137,7 +137,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '135000.00',
+            'price' => '135000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -147,7 +147,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('data.item_id', $itemId)
             ->assertJsonPath('data.name', 'Seafood Fried Rice')
-            ->assertJsonPath('data.price.amount', '135000.00')
+            ->assertJsonPath('data.price.amount', '135000')
             ->assertJsonPath('data.preorder.enabled', true);
     }
 
@@ -165,7 +165,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '150000.00',
+            'price' => '150000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -190,7 +190,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $rollId,
-            'price' => '45000.00',
+            'price' => '45000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -204,7 +204,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $riceId,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -221,7 +221,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
             ->assertJsonPath('data.currency', 'VND')
             ->assertJsonPath('data.totals.item_count', 2)
             ->assertJsonPath('data.totals.quantity', 3)
-            ->assertJsonPath('data.totals.subtotal', '210000.00')
+            ->assertJsonPath('data.totals.subtotal', '210000')
             ->assertJsonPath('data.lines.0.name', 'Spring Roll')
             ->assertJsonPath('data.lines.1.name', 'Fried Rice');
     }
@@ -239,7 +239,7 @@ class CustomerMenuCatalogHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $teaId,
-            'price' => '55000.00',
+            'price' => '55000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);

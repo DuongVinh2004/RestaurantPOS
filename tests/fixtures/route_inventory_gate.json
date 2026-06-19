@@ -3,10 +3,22 @@
     "description": "Canonical route inventory gate for RestaurantPOS runtime surface after PATCH 1-6 reconciliation.",
     "expected_routes": [
         {
+            "key": "delete_v1adminmenumodifier_groupsmodifiergroup",
+            "method": "DELETE",
+            "uri": "api/v1/admin/menu/modifier-groups/{modifierGroup}",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@destroy"
+        },
+        {
             "key": "delete_v1_admin_restaurant_tables_id",
             "method": "DELETE",
             "uri": "api/v1/admin/restaurant/tables/{id}",
             "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Admin\\RestaurantTableController@destroy"
+        },
+        {
+            "key": "delete_v1mefavoritesmenu_item_id",
+            "method": "DELETE",
+            "uri": "api/v1/me/favorites/{menu_item_id}",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@destroy"
         },
         {
             "key": "delete_v1_reservations_id_pre_order",
@@ -189,6 +201,18 @@
             "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@index"
         },
         {
+            "key": "get_v1adminmenumodifier_groups",
+            "method": "GET",
+            "uri": "api/v1/admin/menu/modifier-groups",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@index"
+        },
+        {
+            "key": "get_v1adminmenumodifier_groupsmodifiergroup",
+            "method": "GET",
+            "uri": "api/v1/admin/menu/modifier-groups/{modifierGroup}",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@show"
+        },
+        {
             "key": "get_v1_admin_menu_prices_export",
             "method": "GET",
             "uri": "api/v1/admin/menu/prices/export",
@@ -317,6 +341,12 @@
             "action": "App\\Modules\\PrivacyCompliance\\Http\\Controllers\\Customer\\PrivacyRequestController@export"
         },
         {
+            "key": "get_v1mefavorites",
+            "method": "GET",
+            "uri": "api/v1/me/favorites",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@index"
+        },
+        {
             "key": "get_v1_me_loyalty",
             "method": "GET",
             "uri": "api/v1/me/loyalty",
@@ -434,6 +464,12 @@
             "action": "App\\Modules\\Payments\\Http\\Controllers\\Customer\\ReservationDepositPaymentController@show"
         },
         {
+            "key": "get_v1restaurantbranches",
+            "method": "GET",
+            "uri": "api/v1/restaurant/branches",
+            "action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\RestaurantBranchController@index"
+        },
+        {
             "key": "get_v1_restaurant_profile",
             "method": "GET",
             "uri": "api/v1/restaurant/profile",
@@ -528,6 +564,12 @@
             "method": "GET",
             "uri": "api/v1/staff/kitchen/changes",
             "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@changes"
+        },
+        {
+            "key": "get_v1staffkitcheneta",
+            "method": "GET",
+            "uri": "api/v1/staff/kitchen/eta",
+            "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@eta"
         },
         {
             "key": "get_v1_staff_kitchen_stations",
@@ -894,6 +936,12 @@
             "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuItemPriceController@store"
         },
         {
+            "key": "post_v1adminmenumodifier_groups",
+            "method": "POST",
+            "uri": "api/v1/admin/menu/modifier-groups",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@store"
+        },
+        {
             "key": "post_v1_admin_menu_prices_import",
             "method": "POST",
             "uri": "api/v1/admin/menu/prices/import",
@@ -954,6 +1002,12 @@
             "action": "App\\Modules\\Reporting\\Http\\Controllers\\Admin\\ReportingSnapshotController@rebuild"
         },
         {
+            "key": "post_v1adminupload",
+            "method": "POST",
+            "uri": "api/v1/admin/upload",
+            "action": "App\\Http\\Controllers\\Admin\\UploadController@uploadImage"
+        },
+        {
             "key": "post_v1_auth_customer_login",
             "method": "POST",
             "uri": "api/v1/auth/customer/login",
@@ -994,6 +1048,18 @@
             "method": "POST",
             "uri": "api/v1/auth/staff/refresh",
             "action": "App\\Modules\\IdentityAccess\\Http\\Controllers\\Staff\\AuthController@refresh"
+        },
+        {
+            "key": "post_v1mefavorites",
+            "method": "POST",
+            "uri": "api/v1/me/favorites",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@store"
+        },
+        {
+            "key": "post_v1mefavoritessync",
+            "method": "POST",
+            "uri": "api/v1/me/favorites/sync",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@sync"
         },
         {
             "key": "post_v1_me_privacy_requests",
@@ -1234,6 +1300,12 @@
             "method": "POST",
             "uri": "api/v1/staff/orders/{order_id}/items",
             "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\ReservationOrderController@addItems"
+        },
+        {
+            "key": "post_v1staffordersorder_iditemsorder_item_idcomponent_swap",
+            "method": "POST",
+            "uri": "api/v1/staff/orders/{order_id}/items/{order_item_id}/component-swap",
+            "action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderItemLifecycleController@swapComponent"
         },
         {
             "key": "post_v1_staff_orders_order_id_items_order_item_id_status",
@@ -1480,6 +1552,12 @@
             "method": "PUT",
             "uri": "api/v1/admin/kitchen/stations/{station_id}/category-routes",
             "action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Admin\\KitchenCategoryRouteController@update"
+        },
+        {
+            "key": "put_v1adminmenumodifier_groupsmodifiergroup",
+            "method": "PUT",
+            "uri": "api/v1/admin/menu/modifier-groups/{modifierGroup}",
+            "action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@update"
         },
         {
             "key": "put_v1_admin_menu_prices_price_id",

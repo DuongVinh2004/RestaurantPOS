@@ -36,7 +36,7 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'start_time' => $this->nowUtc()->copy()->addHours(4),
             'end_time' => $this->nowUtc()->copy()->addHours(6),
         ]);
-        $itemId = $this->createPreorderMenuItem(price: '85000.00');
+        $itemId = $this->createPreorderMenuItem(price: '85000');
         $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
             'customer_user_id' => $customerId,
@@ -49,9 +49,9 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'preorder_id' => $orderId,
             'menu_item_id' => $itemId,
             'item_name_snapshot' => 'Preorder Item',
-            'unit_price_snapshot' => '85000.00',
+            'unit_price_snapshot' => '85000',
             'quantity' => 2,
-            'line_total_snapshot' => '170000.00',
+            'line_total_snapshot' => '170000',
             'currency' => 'VND',
             'created_at' => $this->nowUtc(),
             'updated_at' => $this->nowUtc(),
@@ -67,7 +67,7 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             ->assertJsonPath('data.pre_order.order_id', $orderId)
             ->assertJsonPath('data.pre_order.lines.0.item_id', $itemId)
             ->assertJsonPath('data.pre_order.lines.0.quantity', 2)
-            ->assertJsonPath('data.pre_order.totals.subtotal', '170000.00');
+            ->assertJsonPath('data.pre_order.totals.subtotal', '170000');
     }
 
     public function test_owner_can_replace_preorder_when_within_valid_window(): void
@@ -81,8 +81,8 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'start_time' => $this->nowUtc()->copy()->addHours(4),
             'end_time' => $this->nowUtc()->copy()->addHours(6),
         ]);
-        $oldItemId = $this->createPreorderMenuItem(price: '50000.00');
-        $replacementItemId = $this->createPreorderMenuItem(price: '85000.00');
+        $oldItemId = $this->createPreorderMenuItem(price: '50000');
+        $replacementItemId = $this->createPreorderMenuItem(price: '85000');
         $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
             'customer_user_id' => $customerId,
@@ -95,9 +95,9 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'preorder_id' => $orderId,
             'menu_item_id' => $oldItemId,
             'item_name_snapshot' => 'Preorder Item Old',
-            'unit_price_snapshot' => '50000.00',
+            'unit_price_snapshot' => '50000',
             'quantity' => 1,
-            'line_total_snapshot' => '50000.00',
+            'line_total_snapshot' => '50000',
             'currency' => 'VND',
             'created_at' => $this->nowUtc(),
             'updated_at' => $this->nowUtc(),
@@ -128,8 +128,8 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             ->assertJsonPath('data.pre_order.order_id', $orderId)
             ->assertJsonPath('data.pre_order.lines.0.item_id', $replacementItemId)
             ->assertJsonPath('data.pre_order.lines.0.quantity', 3)
-            ->assertJsonPath('data.pre_order.lines.0.unit_price', '85000.00')
-            ->assertJsonPath('data.pre_order.totals.subtotal', '255000.00');
+            ->assertJsonPath('data.pre_order.lines.0.unit_price', '85000')
+            ->assertJsonPath('data.pre_order.totals.subtotal', '255000');
 
         $second = $this->actingAsUserId($customerId)
             ->withHeaders($headers)
@@ -150,7 +150,7 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
         $this->requirePreorderContract();
 
         $customerId = $this->createUser(['role_name' => 'Customer']);
-        $itemId = $this->createPreorderMenuItem(price: '85000.00');
+        $itemId = $this->createPreorderMenuItem(price: '85000');
 
         $cases = [
             [
@@ -209,7 +209,7 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'start_time' => $this->nowUtc()->copy()->addHours(4),
             'end_time' => $this->nowUtc()->copy()->addHours(6),
         ]);
-        $itemId = $this->createPreorderMenuItem(price: '85000.00');
+        $itemId = $this->createPreorderMenuItem(price: '85000');
         $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
             'customer_user_id' => $ownerId,
@@ -222,9 +222,9 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'preorder_id' => $orderId,
             'menu_item_id' => $itemId,
             'item_name_snapshot' => 'Preorder Item',
-            'unit_price_snapshot' => '85000.00',
+            'unit_price_snapshot' => '85000',
             'quantity' => 1,
-            'line_total_snapshot' => '85000.00',
+            'line_total_snapshot' => '85000',
             'currency' => 'VND',
             'created_at' => $this->nowUtc(),
             'updated_at' => $this->nowUtc(),
@@ -270,19 +270,19 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             'created_at' => $this->nowUtc(),
             'updated_at' => $this->nowUtc(),
         ]);
-        $existingItemId = $this->createPreorderMenuItem(price: '60000.00');
+        $existingItemId = $this->createPreorderMenuItem(price: '60000');
         DB::table('preorder_items')->insert([
             'preorder_id' => $orderId,
             'menu_item_id' => $existingItemId,
             'item_name_snapshot' => 'Existing Preorder Item',
-            'unit_price_snapshot' => '60000.00',
+            'unit_price_snapshot' => '60000',
             'quantity' => 1,
-            'line_total_snapshot' => '60000.00',
+            'line_total_snapshot' => '60000',
             'currency' => 'VND',
             'created_at' => $this->nowUtc(),
             'updated_at' => $this->nowUtc(),
         ]);
-        $unavailableItemId = $this->createPreorderMenuItem(price: '70000.00', overrides: ['is_available' => 0]);
+        $unavailableItemId = $this->createPreorderMenuItem(price: '70000', overrides: ['is_available' => 0]);
 
         $this->actingAsUserId($customerId)
             ->withHeaders([
@@ -305,7 +305,7 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
 
         $customerId = $this->createUser(['role_name' => 'Customer']);
         $tableId = $this->createRestaurantTable();
-        $preorderItemId = $this->createPreorderMenuItem(price: '85000.00');
+        $preorderItemId = $this->createPreorderMenuItem(price: '85000');
         $start = $this->nowUtc()->copy()->addHours(4);
         $end = $start->copy()->addHours(2);
 
@@ -334,7 +334,7 @@ class CustomerReservationPreorderManagementFlowTest extends TestCase
             ->assertJsonPath('data.pre_order.present', true)
             ->assertJsonPath('data.pre_order.lines.0.item_id', $preorderItemId)
             ->assertJsonPath('data.pre_order.lines.0.quantity', 2)
-            ->assertJsonPath('data.pre_order.totals.subtotal', '170000.00');
+            ->assertJsonPath('data.pre_order.totals.subtotal', '170000');
     }
 
     public function test_create_reservation_with_preorder_rejects_item_without_effective_price_in_live_path(): void

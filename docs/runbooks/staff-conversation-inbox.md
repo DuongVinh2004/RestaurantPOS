@@ -184,21 +184,6 @@ Expected operator action:
 - if the queue is only degraded, review `overdue_examples[]`, rebalance staffing or triage, and record whether the backlog is expected
 - use the existing inbox views (`unassigned`, `overdue`, `waiting_on_customer`, `resolved_today`) to resolve the flagged rows, then re-run the ops snapshot
 
-## Demo seed
-
-Use the dev seed to get usable sample data:
-
-```bash
-php artisan db:seed --class=Database\\Seeders\\DevConversationSeeder
-```
-
-The seed creates:
-
-- one reservation-linked open conversation
-- one waiting-list-linked pending conversation
-- one closed conversation
-- messages, an internal note, files, entities, analyses, events, and an active assignment
-
 ## Contract artifact
 
 The OpenAPI artifact is exported to:

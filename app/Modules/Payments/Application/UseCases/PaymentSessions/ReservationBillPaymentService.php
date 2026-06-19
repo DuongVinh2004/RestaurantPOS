@@ -73,8 +73,11 @@ class ReservationBillPaymentService
         }
 
         if ($amountMinor > $outstandingMinor) {
-            throw ValidationExceptionFactory::make([
-                'amount' => ['Bill payment amount exceeds the outstanding bill balance.'],
+            \Illuminate\Support\Facades\Log::channel('audit')->warning('bill_overpaid_by_customer_session', [
+                'reservation_id' => $reservation->reservation_id,
+                'session_id' => $session->bill_payment_session_id,
+                'amount' => $amount,
+                'outstanding_before' => $outstanding,
             ]);
         }
 
@@ -323,12 +326,12 @@ class ReservationBillPaymentService
         return [
             'snapshot_mode' => 'locked',
             'billed_at' => $reservation->billed_at?->utc()->toIso8601String(),
-            'total_due_amount' => number_format($totalDue, 2, '.', ''),
-            'deposit_applied_amount' => number_format((float) ($settlement['deposit_applied_amount'] ?? 0.0), 2, '.', ''),
-            'deposit_net_amount' => number_format((float) ($settlement['deposit_net_amount'] ?? 0.0), 2, '.', ''),
-            'final_paid_amount' => number_format((float) ($settlement['final_paid_amount'] ?? 0.0), 2, '.', ''),
-            'settled_amount' => number_format($settledAmount, 2, '.', ''),
-            'outstanding_amount' => number_format($outstanding, 2, '.', ''),
+            'total_due_amount' => number_format($totalDue, 0, '.', ''),
+            'deposit_applied_amount' => number_format((float) ($settlement['deposit_applied_amount'] ?? 0.0), 0, '.', ''),
+            'deposit_net_amount' => number_format((float) ($settlement['deposit_net_amount'] ?? 0.0), 0, '.', ''),
+            'final_paid_amount' => number_format((float) ($settlement['final_paid_amount'] ?? 0.0), 0, '.', ''),
+            'settled_amount' => number_format($settledAmount, 0, '.', ''),
+            'outstanding_amount' => number_format($outstanding, 0, '.', ''),
             'currency' => $currency,
             'payment_status' => $paymentStatus,
         ];

@@ -15,28 +15,32 @@ class OpsHeartbeatService
 
     public function touch(string $name, int $ttlSeconds = 300): void
     {
-        /** @var Repository $redis */
-        $redis = Cache::store('redis');
+        try {
+            /** @var Repository $redis */
+            $redis = Cache::store(config('booking.ops_heartbeat_store', 'redis'));
 
-        $ttlSeconds = max(30, $ttlSeconds);
+            $ttlSeconds = max(30, $ttlSeconds);
 
-        $redis->put($this->key($name), Carbon::now('UTC')->toIso8601String(), $ttlSeconds);
+            $redis->put($this->key($name), Carbon::now('UTC')->toIso8601String(), $ttlSeconds);
+        } catch (\Throwable) {
+            // Ignore cache connection errors. The health check will report the heartbeat as missing.
+        }
     }
 
     public function getLastRun(string $name): ?Carbon
     {
-        /** @var Repository $redis */
-        $redis = Cache::store('redis');
-
-        $val = $redis->get($this->key($name));
-        if (! is_string($val) || $val === '') {
-            return null;
-        }
-
         try {
+            /** @var Repository $redis */
+            $redis = Cache::store(config('booking.ops_heartbeat_store', 'redis'));
+
+            $val = $redis->get($this->key($name));
+            if (! is_string($val) || $val === '') {
+                return null;
+            }
+
             return Carbon::parse($val)->utc();
         } catch (\Throwable) {
-            return null;
+            return null; // Doctor will report as missing
         }
     }
 }

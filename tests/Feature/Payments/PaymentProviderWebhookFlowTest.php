@@ -58,8 +58,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -72,7 +72,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-webhook-1',
             'payment_method' => 'Online',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -155,8 +155,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '90000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '90000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -167,7 +167,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-received-retry-1',
             'payment_method' => 'Online',
-            'amount' => '90000.00',
+            'amount' => '90000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -246,8 +246,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '92000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '92000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -258,7 +258,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-late-session-1',
             'payment_method' => 'Online',
-            'amount' => '92000.00',
+            'amount' => '92000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -294,8 +294,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '91000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '91000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -306,7 +306,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-redacted-receipt-1',
             'payment_method' => 'Online',
-            'amount' => '91000.00',
+            'amount' => '91000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -356,8 +356,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '85000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '85000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -368,7 +368,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-confirm-then-webhook-1',
             'payment_method' => 'Online',
-            'amount' => '85000.00',
+            'amount' => '85000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -418,8 +418,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '95000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '95000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -430,7 +430,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-duplicate-mismatch-1',
             'payment_method' => 'Online',
-            'amount' => '95000.00',
+            'amount' => '95000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -512,8 +512,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '120000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '120000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -524,7 +524,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'generic_http_hmac',
             'provider_session_code' => 'gen-dep-webhook-1',
             'payment_method' => 'Online',
-            'amount' => '120000.00',
+            'amount' => '120000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -569,8 +569,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '60000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '60000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -581,7 +581,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'generic_http_hmac',
             'provider_session_code' => 'gen-dep-stale-1',
             'payment_method' => 'Online',
-            'amount' => '60000.00',
+            'amount' => '60000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -640,8 +640,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '40000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '40000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -652,7 +652,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-dep-unknown-event-1',
             'payment_method' => 'Online',
-            'amount' => '40000.00',
+            'amount' => '40000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -767,7 +767,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
-            'final_bill_amount' => '90000.00',
+            'final_bill_amount' => '90000',
             'billed_at' => now('UTC'),
         ]);
 
@@ -777,7 +777,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-scope-mismatch-1',
             'payment_method' => 'Online',
-            'amount' => '90000.00',
+            'amount' => '90000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -814,8 +814,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $depositReservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -823,7 +823,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
-            'final_bill_amount' => '120000.00',
+            'final_bill_amount' => '120000',
             'billed_at' => now('UTC'),
         ]);
 
@@ -833,7 +833,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-ambiguous-scope-1',
             'payment_method' => 'Online',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -847,7 +847,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-ambiguous-scope-1',
             'payment_method' => 'Online',
-            'amount' => '120000.00',
+            'amount' => '120000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -877,8 +877,8 @@ class PaymentProviderWebhookFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -887,7 +887,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'payment_provider' => 'simulated',
             'transaction_code' => 'dep-terminal-1',
@@ -901,7 +901,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_session_code' => 'sim-dep-terminal-1',
             'provider_payment_code' => 'sim-pay-terminal-1',
             'payment_method' => 'Online',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'Applied',
@@ -942,7 +942,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Confirmed',
             'bill_currency' => 'VND',
-            'final_bill_amount' => '220000.00',
+            'final_bill_amount' => '220000',
             'billed_at' => now('UTC'),
         ]);
 
@@ -952,7 +952,7 @@ class PaymentProviderWebhookFlowTest extends TestCase
             'provider_code' => 'simulated',
             'provider_session_code' => 'sim-bill-webhook-1',
             'payment_method' => 'Online',
-            'amount' => '220000.00',
+            'amount' => '220000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',

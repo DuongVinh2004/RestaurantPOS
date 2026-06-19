@@ -55,20 +55,20 @@ class RefundPlannerServiceTest extends TestCase
         $older->setAttribute('payment_id', 10);
         $older->payment_type = 'Final';
         $older->status = 'Success';
-        $older->amount = '0.10';
+        $older->amount = 10000;
 
         $newer = new Payment;
         $newer->setAttribute('payment_id', 20);
         $newer->payment_type = 'Final';
         $newer->status = 'Success';
-        $newer->amount = '0.20';
+        $newer->amount = 20000;
 
-        $allocations = $planner->allocateRefundPaymentsBySource(collect([$older, $newer]), 'Final', '0.30');
+        $allocations = $planner->allocateRefundPaymentsBySource(collect([$older, $newer]), 'Final', 30000);
 
         self::assertCount(2, $allocations);
         self::assertSame(20, (int) $allocations[0]['payment']->getAttribute('payment_id'));
-        self::assertSame(0.20, $allocations[0]['amount']);
+        self::assertSame(20000.0, $allocations[0]['amount']);
         self::assertSame(10, (int) $allocations[1]['payment']->getAttribute('payment_id'));
-        self::assertSame(0.10, $allocations[1]['amount']);
+        self::assertSame(10000.0, $allocations[1]['amount']);
     }
 }

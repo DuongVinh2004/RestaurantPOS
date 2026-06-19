@@ -43,7 +43,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
         ]);
         $paymentId = $this->createPayment([
             'reservation_id' => $reservationId,
-            'amount' => '450000.00',
+            'amount' => '450000',
             'status' => 'Success',
             'payment_type' => 'Final',
             'transaction_code' => 'PAY-PRIV-001',
@@ -144,7 +144,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'provider_session_code' => 'dep-export-session-001',
             'provider_payment_code' => 'dep-export-payment-001',
             'payment_method' => 'Card',
-            'amount' => '200000.00',
+            'amount' => '200000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'Applied',
@@ -165,7 +165,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'provider_session_code' => 'bill-export-session-001',
             'provider_payment_code' => 'bill-export-payment-001',
             'payment_method' => 'Card',
-            'amount' => '250000.00',
+            'amount' => '250000',
             'currency' => 'VND',
             'session_status' => 'Created',
             'settlement_status' => 'NotApplied',
@@ -231,7 +231,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
         $paymentId = $this->createPayment([
             'reservation_id' => $reservationId,
             'branch_id' => 1,
-            'amount' => '320000.00',
+            'amount' => '320000',
             'status' => 'Success',
             'payment_type' => 'Final',
             'transaction_code' => 'PAY-PRIV-ADMIN-001',
@@ -295,7 +295,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'provider_session_code' => 'dep-admin-export-session-001',
             'provider_payment_code' => 'dep-admin-export-payment-001',
             'payment_method' => 'Card',
-            'amount' => '320000.00',
+            'amount' => '320000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'Applied',
@@ -373,12 +373,12 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
             'status' => 'Completed',
             'checked_out_at' => $this->nowUtc(),
             'notes' => 'Contains private note',
-            'final_bill_amount' => '650000.00',
+            'final_bill_amount' => '650000',
             'billed_at' => $this->nowUtc(),
         ]);
         $this->createPayment([
             'reservation_id' => $reservationId,
-            'amount' => '650000.00',
+            'amount' => '650000',
             'status' => 'Success',
             'payment_type' => 'Final',
             'transaction_code' => 'PAY-PRIV-002',
@@ -499,7 +499,7 @@ final class CustomerDataLifecycleHttpFlowTest extends TestCase
 
         self::assertSame($customerId, (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('user_id'));
         self::assertNull(DB::table('reservations')->where('reservation_id', $reservationId)->value('notes'));
-        self::assertSame('650000.00', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->value('amount'), 2, '.', ''));
+        self::assertSame('650000', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->value('amount'), 0, '.', ''));
 
         self::assertStringStartsWith('Deleted Customer #', (string) DB::table('waiting_list')->where('waiting_id', $waitingId)->value('guest_name'));
         self::assertNull(DB::table('waiting_list')->where('waiting_id', $waitingId)->value('phone'));

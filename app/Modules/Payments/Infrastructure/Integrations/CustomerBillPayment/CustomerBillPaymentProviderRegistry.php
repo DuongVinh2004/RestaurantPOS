@@ -14,6 +14,8 @@ class CustomerBillPaymentProviderRegistry
         private readonly PaymentProviderRolloutConfig $rolloutConfig,
         private readonly SimulatedCustomerBillPaymentProvider $simulatedProvider,
         private readonly GenericHttpHmacCustomerBillPaymentProvider $genericHttpHmacProvider,
+        private readonly VNPayCustomerBillPaymentProvider $vnpayProvider,
+        private readonly MoMoCustomerBillPaymentProvider $momoProvider,
     ) {}
 
     public function defaultProviderCode(): string
@@ -31,6 +33,8 @@ class CustomerBillPaymentProviderRegistry
         $provider = match ($providerCode) {
             'simulated' => $this->simulatedProvider,
             'generic_http_hmac' => $this->genericHttpHmacProvider,
+            'vnpay' => $this->vnpayProvider,
+            'momo' => $this->momoProvider,
             default => throw ValidationException::withMessages([
                 'provider_code' => ['Unsupported customer bill payment provider.'],
             ]),

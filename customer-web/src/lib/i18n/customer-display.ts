@@ -193,25 +193,30 @@ export function formatCustomerTableName(
 ): string {
   const raw = repairVietnameseText(tableCode);
   const zoneLabel = formatCustomerZone(zone);
+  const hasZone = zoneLabel !== "Chưa có khu";
 
-  if (raw && /^(bàn|ban)\s+/i.test(raw)) {
-    return raw.replace(/^(bàn|ban)\s+/i, "Bàn ");
-  }
+  if (raw) {
+    const number = trailingTableNumber(raw);
 
-  if (raw && /^vip\s+/i.test(raw)) {
-    return raw.replace(/^vip\s+/i, "VIP ");
-  }
+    if (number !== null) {
+      if (zoneLabel.toUpperCase().startsWith("VIP")) {
+        return `VIP ${number}`;
+      }
 
-  const number = raw ? trailingTableNumber(raw) : null;
-  if (number !== null) {
-    return zoneLabel.toUpperCase().startsWith("VIP") ? `VIP ${number}` : `Bàn ${number}`;
+      return hasZone ? `${zoneLabel} - Bàn ${number}` : `Bàn ${number}`;
+    }
+
+    return raw;
   }
 
   if (typeof tableId === "number" && tableId > 0) {
-    return zoneLabel.toUpperCase().startsWith("VIP") ? `VIP ${tableId}` : `Bàn ${tableId}`;
+    if (zoneLabel.toUpperCase().startsWith("VIP")) {
+      return `VIP ${tableId}`;
+    }
+    return hasZone ? `${zoneLabel} - Bàn ${tableId}` : `Bàn ${tableId}`;
   }
 
-  return raw || "Bàn chưa đặt tên";
+  return "Bàn chưa đặt tên";
 }
 
 export function displayMenuText(value: string | null | undefined, fallback: string): string {

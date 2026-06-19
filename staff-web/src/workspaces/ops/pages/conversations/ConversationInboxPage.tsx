@@ -850,6 +850,7 @@ export function ConversationInboxPage() {
               onChange: (keys) => setSelectedConversationIds(keys.map((key) => String(key))),
             }}
             rowClassName={(entry) => (entry.conversation_id === selectedConversationId ? 'staff-row-selected staff-conversation-row-selected' : '')}
+            onRow={(entry) => ({ onClick: () => updateUrlState({ conversationId: entry.conversation_id }) })}
             pagination={{
               current: inboxQuery.data?.meta?.current_page ?? page,
               pageSize: inboxQuery.data?.meta?.per_page ?? pageSize,
@@ -862,14 +863,9 @@ export function ConversationInboxPage() {
                 title: 'Hội thoại',
                 render: (_, entry) => (
                   <Space orientation="vertical" size={2} className="staff-conversation-table-title">
-                    <Button
-                      type="link"
-                      className="staff-link-button"
-                      aria-pressed={entry.conversation_id === selectedConversationId}
-                      onClick={() => updateUrlState({ conversationId: entry.conversation_id })}
-                    >
+                    <Typography.Text strong>
                       {conversationTitle(entry)}
-                    </Button>
+                    </Typography.Text>
                     <Typography.Text type="secondary">{conversationCustomerLabel(entry)}</Typography.Text>
                   </Space>
                 ),
@@ -900,17 +896,6 @@ export function ConversationInboxPage() {
                       {entry.latest_message?.message_text ?? 'Chưa có tin nhắn nào.'}
                     </Typography.Paragraph>
                   </Space>
-                ),
-              },
-              {
-                title: 'Tác vụ',
-                render: (_, entry) => (
-                  <Button
-                    type={entry.conversation_id === selectedConversationId ? 'primary' : 'default'}
-                    onClick={() => updateUrlState({ conversationId: entry.conversation_id })}
-                  >
-                    Mở thread
-                  </Button>
                 ),
               },
             ]}

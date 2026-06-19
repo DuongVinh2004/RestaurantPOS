@@ -50,7 +50,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
     public function test_wrong_session_cannot_replace_preorder_through_session_bound_flow(): void
     {
         [$reservationId, $orderId] = $this->seedSessionLinkedPreorderReservation();
-        $replacementItemId = $this->seedPreorderMenuItem('Session Replace Dish', 20, '65000.00');
+        $replacementItemId = $this->seedPreorderMenuItem('Session Replace Dish', 20, '65000');
 
         $response = $this->withHeaders([
             'Accept' => 'application/json',
@@ -96,7 +96,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
             'expire_at' => $this->nowUtc()->copy()->addMinutes(30),
         ], [$tableId]);
 
-        $itemId = $this->seedPreorderMenuItem('Session Seeded Pho', 30, '80000.00');
+        $itemId = $this->seedPreorderMenuItem('Session Seeded Pho', 30, '80000');
         $orderId = DB::table('preorders')->insertGetId([
             'reservation_id' => $reservationId,
             'customer_user_id' => $customerId,
@@ -109,9 +109,9 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
             'preorder_id' => $orderId,
             'menu_item_id' => $itemId,
             'item_name_snapshot' => 'Session Seeded Pho',
-            'unit_price_snapshot' => '80000.00',
+            'unit_price_snapshot' => '80000',
             'quantity' => 2,
-            'line_total_snapshot' => '160000.00',
+            'line_total_snapshot' => '160000',
             'currency' => 'VND',
             'created_at' => $this->nowUtc(),
             'updated_at' => $this->nowUtc(),
@@ -120,7 +120,7 @@ class CustomerReservationPreorderSessionAccessTest extends TestCase
         return [$reservationId, $orderId, $itemId, $sessionId];
     }
 
-    private function seedPreorderMenuItem(string $name, int $cutoffMinutes, string $price = '100000.00'): int
+    private function seedPreorderMenuItem(string $name, int $cutoffMinutes, string $price = '100000'): int
     {
         $itemId = $this->createMenuItem([
             'name' => $name,

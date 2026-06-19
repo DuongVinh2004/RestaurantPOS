@@ -141,7 +141,7 @@ class StaffAuditTrailHttpFlowTest extends TestCase
             'action' => 'payment.refunded',
             'request_id' => 'req-branch-two',
             'summary_json' => [
-                'refund_amount' => '100000.00',
+                'refund_amount' => '100000',
                 'currency' => 'VND',
             ],
             'meta_json' => [

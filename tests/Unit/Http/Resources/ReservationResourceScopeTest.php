@@ -48,7 +48,7 @@ class ReservationResourceScopeTest extends TestCase
 
         $this->assertSame('owner', $payload['access_scope']);
         $this->assertSame(55, $payload['user_id']);
-        $this->assertSame('100.00', $payload['deposit_required_amount']);
+        $this->assertSame('100', $payload['deposit_required_amount']);
         $this->assertIsArray($payload['user']);
         $this->assertSame(120, $payload['user']['current_points']);
         $this->assertIsIterable($payload['payments']);
@@ -62,10 +62,10 @@ class ReservationResourceScopeTest extends TestCase
             'reservation_code' => 'R-0001',
             'guest_count' => 4,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100.00',
-            'deposit_paid_amount' => '50.00',
-            'discount_amount' => '0.00',
-            'final_bill_amount' => '500.00',
+            'deposit_required_amount' => '100',
+            'deposit_paid_amount' => '50',
+            'discount_amount' => '0',
+            'final_bill_amount' => '500',
             'bill_currency' => 'VND',
             'row_version' => 3,
         ]);
@@ -84,7 +84,7 @@ class ReservationResourceScopeTest extends TestCase
 
         $payment = new Payment([
             'payment_id' => 10,
-            'amount' => '50.00',
+            'amount' => '50',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'POS',

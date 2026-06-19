@@ -11,6 +11,7 @@ use App\Modules\BranchScheduling\Http\Controllers\Admin\TableTemplateController;
 use App\Modules\Catalog\Http\Controllers\Admin\MenuCategoryController;
 use App\Modules\Catalog\Http\Controllers\Admin\MenuItemController;
 use App\Modules\Catalog\Http\Controllers\Admin\MenuItemPriceController;
+use App\Modules\Catalog\Http\Controllers\Admin\MenuModifierGroupController;
 use App\Modules\InventoryProcurement\Http\Controllers\Admin\InventoryAdjustmentController;
 use App\Modules\InventoryProcurement\Http\Controllers\Admin\ProcurementController;
 use App\Modules\KitchenDispatch\Http\Controllers\Admin\KitchenCategoryRouteController;
@@ -38,6 +39,9 @@ Route::middleware([
                     config('booking.throttle_staff_window', 60).',either',
             ])
             ->group(function () {
+                Route::post('upload', [\App\Http\Controllers\Admin\UploadController::class, 'uploadImage'])
+                    ->middleware('staff.capability:menu.manage');
+
                 Route::middleware('staff.capability:privacy.manage')->prefix('privacy')->group(function () {
                     Route::get('requests', [PrivacyController::class, 'index']);
                     Route::get('customers/{user_id}/data-export', [PrivacyController::class, 'exportCustomerData'])
@@ -59,6 +63,16 @@ Route::middleware([
                     Route::patch('menu/categories/{category_id}', [MenuCategoryController::class, 'update'])
                         ->whereNumber('category_id')
                         ->middleware('idempotency:admin.menu-categories.update');
+
+                    Route::get('menu/modifier-groups', [MenuModifierGroupController::class, 'index']);
+                    Route::get('menu/modifier-groups/{modifierGroup}', [MenuModifierGroupController::class, 'show']);
+                    Route::post('menu/modifier-groups', [MenuModifierGroupController::class, 'store'])
+                        ->middleware('capability:menu.write');
+                    Route::put('menu/modifier-groups/{modifierGroup}', [MenuModifierGroupController::class, 'update'])
+                        ->middleware('capability:menu.write');
+                    Route::delete('menu/modifier-groups/{modifierGroup}', [MenuModifierGroupController::class, 'destroy'])
+                        ->middleware('capability:menu.write');
+
                     Route::get('menu/items', [MenuItemController::class, 'index']);
                     Route::get('menu/items/export', [MasterDataExportController::class, 'export'])
                         ->defaults('domain', 'menu-items');

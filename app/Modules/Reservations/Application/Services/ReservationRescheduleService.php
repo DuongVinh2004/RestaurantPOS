@@ -15,6 +15,7 @@ use App\Modules\BranchScheduling\Application\Services\RestaurantTableStateServic
 use App\Modules\BranchScheduling\Application\Services\TableTimeConflictService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Payments\Domain\Models\Payment;
 use App\Modules\Reservations\Domain\Models\Reservation;
@@ -42,6 +43,7 @@ class ReservationRescheduleService
         private readonly ReservationBranchScopeService $reservationBranchScopeService,
         private readonly BranchSchedulingPolicyService $branchSchedulingPolicyService,
         private readonly RestaurantTableStateService $tableStateService,
+        private readonly ?StaffBranchContextService $staffBranchContextService = null,
     ) {}
 
     /**
@@ -97,6 +99,11 @@ class ReservationRescheduleService
 
                     if (! $reservation) {
                         throw new ModelNotFoundException('Reservation not found');
+                    }
+
+                    if ($actorType === 'staff' && $actorUserId > 0) {
+                        $branchId = $this->reservationBranchScopeService->resolveEffectiveReservationBranchId($reservation->branch_id);
+                        ($this->staffBranchContextService ?? app(StaffBranchContextService::class))->assertAccessibleBranch($actorUserId, $branchId);
                     }
 
                     // --- BƯỚC 3: THẨM ĐỊNH MÁY TRẠNG THÁI (STATE MACHINE) ---

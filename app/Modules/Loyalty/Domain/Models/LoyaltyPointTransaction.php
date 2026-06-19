@@ -35,7 +35,7 @@ class LoyaltyPointTransaction extends Model
         'user_id' => 'int',
         'reservation_id' => 'int',
         'points' => 'int',
-        'amount_basis' => 'decimal:2',
+        'amount_basis' => 'decimal:0',
         'currency' => 'string',
         'reason' => 'string',
         'created_at' => 'datetime',

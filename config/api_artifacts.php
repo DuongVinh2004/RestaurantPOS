@@ -33,6 +33,7 @@ return [
                 'name' => 'Availability + Reservation',
                 'signatures' => [
                     'GET api/v1/restaurant/profile',
+                    'GET api/v1/restaurant/branches',
                     'GET api/v1/tables/available',
                     'POST api/v1/table-holds',
                     'GET api/v1/table-holds/{hold_id}',

@@ -112,7 +112,7 @@ class ReservationDepositPaymentController extends Controller
         return [
             'payment_id' => (int) $payment->payment_id,
             'refund_of_payment_id' => $payment->refund_of_payment_id !== null ? (int) $payment->refund_of_payment_id : null,
-            'amount' => number_format((float) ($payment->amount ?? 0.0), 2, '.', ''),
+            'amount' => number_format((float) ($payment->amount ?? 0.0), 0, '.', ''),
             'currency' => (string) ($payment->currency ?? 'VND'),
             'payment_method' => $payment->payment_method,
             'payment_provider' => $payment->payment_provider,

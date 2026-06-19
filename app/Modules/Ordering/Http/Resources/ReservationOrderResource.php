@@ -25,6 +25,7 @@ class ReservationOrderResource extends JsonResource
                     'item_id' => (int) $it->item_id,
                     'quantity' => (int) $it->quantity,
                     'status' => $it->status?->value ?? (string) $it->status,
+                    'parent_order_item_id' => $it->parent_order_item_id !== null ? (int) $it->parent_order_item_id : null,
                     'row_version' => isset($it->row_version) ? (int) $it->row_version : null,
                     'item_name_snapshot' => $it->item_name_snapshot,
                     'unit_price' => (string) ($it->unit_price ?? '0.00'),

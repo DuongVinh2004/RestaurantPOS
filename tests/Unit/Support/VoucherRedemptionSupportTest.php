@@ -76,8 +76,8 @@ class VoucherRedemptionSupportTest extends TestCase
         $item = new ReservationOrderItem([
             'item_id' => 7,
             'quantity' => 3,
-            'unit_price' => '0.10',
-            'line_total' => '0.30',
+            'unit_price' => 10000,
+            'line_total' => 30000,
             'currency' => 'VND',
             'status' => 'Ordered',
         ]);
@@ -87,13 +87,13 @@ class VoucherRedemptionSupportTest extends TestCase
 
         $voucher = new Voucher([
             'discount_type' => 'Percent',
-            'discount_value' => '10.00',
+            'discount_value' => '10',
             'is_active' => true,
         ]);
 
         $result = VoucherRedemptionSupport::calculateDiscount($voucher, [$order]);
 
-        $this->assertSame(0.03, $result['discount_amount']);
-        $this->assertSame(0.30, $result['subtotal']);
+        $this->assertSame(3000.0, $result['discount_amount']);
+        $this->assertSame(30000.0, $result['subtotal']);
     }
 }

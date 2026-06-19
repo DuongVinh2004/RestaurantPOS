@@ -60,6 +60,8 @@ export type AdminCreateBranchPayload = {
   timezone?: string | null;
   currency?: string | null;
   is_active?: boolean;
+  business_hours?: Array<{ day_of_week: number; periods: Array<{ start_time: string; end_time: string }> }>;
+  closure_windows?: Array<{ start_local: string | null; end_local: string | null; reason: string | null }>;
 };
 
 export type AdminUpdateBranchPayload = Partial<AdminCreateBranchPayload> & {

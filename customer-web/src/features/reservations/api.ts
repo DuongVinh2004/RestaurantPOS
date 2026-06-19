@@ -33,7 +33,11 @@ export async function getReservation(id: number): Promise<ReservationEnvelope["d
 }
 
 export async function createReservation(
-  values: ReservationFormValues & { hold_id?: string | null; table_ids?: number[] },
+  values: ReservationFormValues & {
+    hold_id?: string | null;
+    table_ids?: number[];
+    pre_order_items?: Array<{ item_id: number; quantity: number }>;
+  },
 ): Promise<ReservationEnvelope["data"]> {
   const times = reservationTimes(values);
   const usesCustomerAuth = Boolean(getCustomerToken());
@@ -55,6 +59,7 @@ export async function createReservation(
     session_id: sessionId,
     table_ids: normalizedTableIds,
     notes: values.notes || undefined,
+    pre_order_items: values.pre_order_items,
   };
   const idempotencyKey = createStableIdempotencyKey("reservation-create", {
     session_id: sessionId,

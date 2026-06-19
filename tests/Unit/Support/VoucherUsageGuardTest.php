@@ -39,7 +39,7 @@ class VoucherUsageGuardTest extends TestCase
             'is_used' => 1,
             'used_date' => $this->nowUtc(),
             'used_reservation_id' => $usedReservationId,
-            'used_amount' => '10000.00',
+            'used_amount' => '10000',
         ]);
 
         $voucher = VoucherUsageGuard::lockVoucherForUpdate($voucherId);
@@ -67,7 +67,7 @@ class VoucherUsageGuardTest extends TestCase
             'is_used' => 1,
             'used_date' => $this->nowUtc(),
             'used_reservation_id' => $usedReservationId,
-            'used_amount' => '15000.00',
+            'used_amount' => '15000',
         ]);
 
         $voucher = VoucherUsageGuard::lockVoucherForUpdate($voucherId);

@@ -15,6 +15,8 @@ class RowVersionSourceOfTruthInventoryTest extends TestCase
         'kitchen_order_item_tickets',
         'loyalty_tiers',
         'menu_item_recipes',
+        'menu_modifier_groups',
+        'menu_modifiers',
         'payments',
         'purchase_orders',
         'reservation_order_items',

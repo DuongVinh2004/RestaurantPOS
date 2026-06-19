@@ -175,7 +175,7 @@ describe("ReservationCreatePage", () => {
     expect(screen.getByDisplayValue(holdStartTime)).toBeDisabled();
     expect(screen.getByDisplayValue("90")).toBeDisabled();
     expect(screen.getByDisplayValue("4")).toBeDisabled();
-    expect(screen.getByText("Bạn có thể chọn món trước sau khi đặt bàn thành công.")).toBeInTheDocument();
+    expect(screen.getByText("Chọn món ngay bây giờ để được phục vụ nhanh nhất khi đến.")).toBeInTheDocument();
   });
 
   it("uses authenticated profile without requiring contact re-entry", async () => {
@@ -332,7 +332,7 @@ describe("ReservationCreatePage", () => {
 
     renderPage();
 
-    await screen.findByText(/Mộc Sen đang giữ 2 món trong giỏ/i);
+    await screen.findByText("Gỏi cuốn");
     await fillGuestContact(user);
     await user.click(screen.getAllByRole("button", { name: "Xác nhận đặt bàn" })[0]);
 

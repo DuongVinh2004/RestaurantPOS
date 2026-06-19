@@ -49,7 +49,7 @@ class Payment extends Model
         'cashier_shift_id' => 'int',
         'reservation_id' => 'int',
         'refund_of_payment_id' => 'int',
-        'amount' => 'decimal:2',
+        'amount' => 'decimal:0',
         'currency' => 'string',
         'payment_method' => 'string',
         'payment_provider' => 'string',

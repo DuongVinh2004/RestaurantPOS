@@ -44,8 +44,8 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
         $this->openCashierShiftForReservationBranch($staffId, $reservationId);
@@ -59,9 +59,9 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
@@ -96,9 +96,9 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
         ]);
 
         $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/pay', [
@@ -131,9 +131,9 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '80000.00',
+            'unit_price' => '80000',
             'currency' => 'VND',
-            'line_total' => '80000.00',
+            'line_total' => '80000',
         ]);
 
         $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/bill-snapshot', [
@@ -163,9 +163,9 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [
@@ -198,9 +198,9 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $payload = [
@@ -246,9 +246,9 @@ class StaffCheckoutHttpGuardFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         $response = $this->postJson('/api/v1/staff/orders/'.$orderId.'/settlement/finalize', [

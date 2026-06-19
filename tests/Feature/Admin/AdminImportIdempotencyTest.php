@@ -307,14 +307,14 @@ final class AdminImportIdempotencyTest extends TestCase
         return $this->makeCase('/api/v1/admin/menu/prices/import', [
             [
                 'item_code' => $itemCode,
-                'price' => '123000.00',
+                'price' => '123000',
                 'currency' => 'VND',
                 'effective_from' => '2026-04-06T00:00:00Z',
             ],
         ], [
             [
                 'item_code' => $itemCode,
-                'price' => '124000.00',
+                'price' => '124000',
                 'currency' => 'VND',
                 'effective_from' => '2026-04-06T00:00:00Z',
             ],
@@ -330,14 +330,14 @@ final class AdminImportIdempotencyTest extends TestCase
             [
                 'code' => 'IDEM-VOUCH-'.$suffix,
                 'discount_type' => 'Percent',
-                'discount_value' => '10.00',
+                'discount_value' => '10',
                 'is_active' => true,
             ],
         ], [
             [
                 'code' => 'IDEM-VOUCH-'.$suffix,
                 'discount_type' => 'Percent',
-                'discount_value' => '15.00',
+                'discount_value' => '15',
                 'is_active' => true,
             ],
         ]);

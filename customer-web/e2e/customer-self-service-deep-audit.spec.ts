@@ -402,7 +402,7 @@ async function mockCustomerApi(page: Page) {
       };
       preorderState = createReservationPreorderPayload([], {}, {
         reservation_row_version: reservationState.row_version,
-      }) as any;
+      }) as unknown as typeof preorderState;
       return fulfillJson(route, { data: reservationState }, 201);
     }
 
@@ -461,7 +461,7 @@ async function mockCustomerApi(page: Page) {
       preorderState = createReservationPreorderPayload(items, {}, {
         reservation_row_version: nextReservationRowVersion,
         order_row_version: nextOrderRowVersion,
-      }) as any;
+      }) as unknown as typeof preorderState;
 
       return fulfillJson(route, { data: preorderState });
     }
@@ -494,7 +494,7 @@ async function mockCustomerApi(page: Page) {
           order_row_version: nextOrderRowVersion,
           order_status: "submitted",
         },
-      ) as any;
+      ) as unknown as typeof preorderState;
 
       return fulfillJson(route, { data: preorderState });
     }
@@ -508,7 +508,7 @@ async function mockCustomerApi(page: Page) {
       preorderState = createReservationPreorderPayload([], {}, {
         reservation_row_version: nextReservationRowVersion,
         order_row_version: null,
-      }) as any;
+      }) as unknown as typeof preorderState;
 
       return fulfillJson(route, { data: preorderState });
     }

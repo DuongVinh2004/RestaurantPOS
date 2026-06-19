@@ -46,12 +46,12 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'end_time' => $businessDay->copy()->setTime(13, 30),
             'checked_in_at' => $businessDay->copy()->setTime(12, 10),
             'checked_out_at' => $businessDay->copy()->setTime(13, 20),
-            'discount_amount' => '10000.00',
-            'final_bill_amount' => '90000.00',
+            'discount_amount' => '10000',
+            'final_bill_amount' => '90000',
             'bill_currency' => 'VND',
             'billed_at' => $businessDay->copy()->setTime(13, 25),
-            'deposit_required_amount' => '30000.00',
-            'deposit_paid_amount' => '30000.00',
+            'deposit_required_amount' => '30000',
+            'deposit_paid_amount' => '30000',
             'deposit_status' => 'Paid',
         ]);
 
@@ -60,7 +60,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '30000.00',
+            'amount' => '30000',
             'currency' => 'VND',
             'created_by' => $staffId,
             'paid_at' => $businessDay->copy()->setTime(11, 45),
@@ -73,7 +73,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '60000.00',
+            'amount' => '60000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -88,7 +88,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Refund',
             'status' => 'Refunded',
-            'amount' => '5000.00',
+            'amount' => '5000',
             'currency' => 'VND',
             'refund_of_payment_id' => $depositPaymentId,
             'created_by' => $staffId,
@@ -104,16 +104,16 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'invoice_number' => 'INV-RPT-0002',
             'invoice_status' => 'Issued',
-            'subtotal_amount' => '100000.00',
-            'discount_amount' => '10000.00',
-            'total_amount' => '90000.00',
+            'subtotal_amount' => '100000',
+            'discount_amount' => '10000',
+            'total_amount' => '90000',
             'currency' => 'VND',
             'tax_code' => 'VAT10',
             'tax_name' => 'VAT 10%',
             'tax_rate_percentage' => '10.000',
             'prices_include_tax' => 1,
-            'taxable_amount' => '81818.18',
-            'tax_amount' => '8181.82',
+            'taxable_amount' => '81818',
+            'tax_amount' => '8181',
             'seller_name' => 'Restaurant POS',
             'seller_tax_id' => '0301234567',
             'seller_address' => '123 Nguyen Hue',
@@ -181,7 +181,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.billed.reservation_count', 1)
             ->assertJsonPath('data.0.billed.gross_bill_amount', 100000.0)
             ->assertJsonPath('data.0.payments.net_paid_amount', 85000.0)
-            ->assertJsonPath('data.0.invoices.tax_amount', 8181.82);
+            ->assertJsonPath('data.0.invoices.tax_amount', 8181.0);
 
         $operations = $this->withHeaders($headers)
             ->getJson('/api/v1/staff/reporting/daily-operations?start_date='.$businessDay->toDateString().'&end_date='.$businessDay->toDateString());

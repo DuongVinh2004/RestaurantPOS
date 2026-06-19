@@ -39,6 +39,17 @@ class ReservationBillPaymentSessionLifecycleWorkflow
             return false;
         }
 
+        $providerAmountMinor = $providerResult['provider_amount_minor'] ?? null;
+        if ($providerAmountMinor !== null && $incomingStatusValue === ReservationBillPaymentSessionStatus::Succeeded->value) {
+            $sessionAmountMinor = Money::minorUnits($session->amount ?? 0, true);
+            if ($providerAmountMinor !== $sessionAmountMinor) {
+                // Provider amount mismatch. We must fail the session instead of applying it as succeeded.
+                $incomingStatusValue = ReservationBillPaymentSessionStatus::Failed->value;
+                $providerResult['failure_code'] = 'amount_mismatch';
+                $providerResult['failure_message'] = "Provider amount {$providerAmountMinor} does not match session amount {$sessionAmountMinor}.";
+            }
+        }
+
         // Pha 1: map provider status vao enum noi bo va cap nhat metadata session lien quan.
         $status = ReservationBillPaymentSessionStatus::from($incomingStatusValue);
         $now = Carbon::now('UTC');
@@ -109,18 +120,8 @@ class ReservationBillPaymentSessionLifecycleWorkflow
             return;
         }
 
-        $bill = $this->billPaymentService->summarizeLockedBill($reservation, $lockedPayments, (string) ($session->currency ?? ''));
-        // Neu bill da duoc thanh toan boi luong khac thi skip, khong tao them payment.
-        if (Money::minorUnits($bill['outstanding_amount'] ?? 0, true) <= 0) {
-            $payload = (array) ($session->provider_payload_json ?? []);
-            $payload['settlement_skip_reason'] = 'bill_already_satisfied';
-            $session->settlement_status = ReservationBillPaymentSettlementStatus::Skipped;
-            $session->provider_payload_json = PaymentProviderPayloadSanitizer::sanitizeSessionPayloadForStorage($payload);
-            $session->updated_by = $actorUserId;
-            $session->save();
-
-            return;
-        }
+        // Pha 3: capture final payment tu session succeeded nay.
+        // Dù bill có outstanding <= 0, ta vẫn phải capture để ghi nhận tiền thừa, tránh thất thoát dòng tiền (reconciliation mismatch).
 
         // Pha 3: chi khi bill van con outstanding moi capture final payment tu session succeeded nay.
         $payment = $this->billPaymentService->captureSucceededCustomerSession(

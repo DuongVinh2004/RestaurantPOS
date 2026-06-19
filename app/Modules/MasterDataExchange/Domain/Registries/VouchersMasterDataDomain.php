@@ -308,14 +308,14 @@ final class VouchersMasterDataDomain extends AbstractMasterDataDomain implements
             'code' => (string) $voucher->code,
             'description' => $voucher->description,
             'discount_type' => $voucher->discount_type?->value ?? (string) $voucher->discount_type,
-            'discount_value' => $voucher->discount_value !== null ? number_format((float) $voucher->discount_value, 2, '.', '') : null,
+            'discount_value' => $voucher->discount_value !== null ? number_format((float) $voucher->discount_value, 0, '.', '') : null,
             'free_item_code' => $voucher->relationLoaded('freeItem')
                 ? ($voucher->freeItem?->code !== null ? (string) $voucher->freeItem->code : null)
                 : ($voucher->freeItem()->value('code') !== null ? (string) $voucher->freeItem()->value('code') : null),
             'free_item_qty' => $voucher->free_item_qty !== null ? (int) $voucher->free_item_qty : null,
             'max_usage' => $voucher->max_usage !== null ? (int) $voucher->max_usage : null,
             'max_usage_per_user' => $voucher->max_usage_per_user !== null ? (int) $voucher->max_usage_per_user : null,
-            'min_spend' => $voucher->min_spend !== null ? number_format((float) $voucher->min_spend, 2, '.', '') : '0.00',
+            'min_spend' => $voucher->min_spend !== null ? number_format((float) $voucher->min_spend, 0, '.', '') : '0.00',
             'start_date' => $this->isoDateTime($voucher->start_date),
             'expiry_date' => $this->isoDateTime($voucher->expiry_date),
             'is_active' => (bool) $voucher->is_active,

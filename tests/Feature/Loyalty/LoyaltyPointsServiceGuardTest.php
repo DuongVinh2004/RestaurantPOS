@@ -47,7 +47,7 @@ class LoyaltyPointsServiceGuardTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '150000.00',
+            'amount' => '150000',
             'transaction_code' => 'FINAL-LOYALTY-1',
         ]);
 

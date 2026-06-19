@@ -361,6 +361,22 @@
                     "response": []
                 },
                 {
+                    "name": "List active restaurant branches",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json",
+                                "type": "text"
+                            }
+                        ],
+                        "url": "{{baseUrl}}/api/v1/restaurant/branches",
+                        "description": "Return customer-web active restaurant branches and their operating context.\n\nSignature: `GET api/v1/restaurant/branches`\nAuth mode: `public`\nContract grade: `full`"
+                    },
+                    "response": []
+                },
+                {
                     "name": "List available tables",
                     "request": {
                         "method": "GET",
@@ -5397,7 +5413,7 @@
                         "description": "Runtime route mirrored from Laravel route inventory.\n\nSignature: `POST api/v1/admin/menu/items`\nAuth mode: `staff_api_key`\nContract grade: `fallback`",
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n    \"category_id\": \"{{menuCategoryId}}\",\n    \"code\": \"POSTMAN-ITEM-{{$timestamp}}\",\n    \"name\": \"Postman Item {{$timestamp}}\",\n    \"description\": \"Postman-created item\",\n    \"img_url\": \"example\",\n    \"is_available\": true,\n    \"is_preorder_enabled\": false,\n    \"preorder_quota_per_day\": null,\n    \"preorder_cutoff_minutes\": 0\n}",
+                            "raw": "{\n    \"category_id\": \"{{menuCategoryId}}\",\n    \"code\": \"POSTMAN-ITEM-{{$timestamp}}\",\n    \"name\": \"Postman Item {{$timestamp}}\",\n    \"description\": \"Postman-created item\",\n    \"img_url\": \"example\",\n    \"is_combo\": true,\n    \"serving_size\": 101,\n    \"combo_components\": [],\n    \"is_available\": true,\n    \"is_preorder_enabled\": false,\n    \"preorder_quota_per_day\": null,\n    \"preorder_cutoff_minutes\": 0,\n    \"modifier_group_ids\": []\n}",
                             "options": {
                                 "raw": {
                                     "language": "json"

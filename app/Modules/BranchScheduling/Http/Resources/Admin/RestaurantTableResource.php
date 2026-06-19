@@ -66,7 +66,7 @@ class RestaurantTableResource extends JsonResource
                 'can_change_branch' => (bool) data_get($guards, 'can_change_branch', false),
             ],
             'description' => $this->description,
-            'price' => $this->price !== null ? number_format((float) $this->price, 2, '.', '') : null,
+            'price' => $this->price !== null ? number_format((float) $this->price, 0, '.', '') : null,
             'row_version' => isset($this->row_version) ? (int) $this->row_version : null,
             'created_at' => optional($this->created_at)?->utc()?->toIso8601String(),
             'updated_at' => optional($this->updated_at)?->utc()?->toIso8601String(),

@@ -34,8 +34,8 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $userId = $this->createUser(['role_name' => 'Customer']);
         $reservationId = $this->createReservation([
             'user_id' => $userId,
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
         $this->attachReservationTable($reservationId);
@@ -50,11 +50,11 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
             ->assertJsonPath('meta.intent_supported', true)
             ->assertJsonPath('data.reservation.reservation_id', $reservationId)
             ->assertJsonPath('data.deposit.status', 'Pending')
-            ->assertJsonPath('data.deposit.required_amount', '100000.00')
-            ->assertJsonPath('data.deposit.paid_amount', '0.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '100000.00')
+            ->assertJsonPath('data.deposit.required_amount', '100000')
+            ->assertJsonPath('data.deposit.paid_amount', '0')
+            ->assertJsonPath('data.deposit.outstanding_amount', '100000')
             ->assertJsonPath('data.deposit.deposit_required', true)
-            ->assertJsonPath('data.deposit.payment_summary.deposit_net', '0.00')
+            ->assertJsonPath('data.deposit.payment_summary.deposit_net', '0')
             ->assertJsonPath('data.deposit.self_service.supported', true)
             ->assertJsonPath('data.deposit.self_service.requirement_acknowledged', false)
             ->assertJsonPath('data.deposit.self_service.intent_status', 'None')
@@ -68,8 +68,8 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $tableId = $this->createRestaurantTableWithSeats(4);
         $reservationId = $this->createReservation([
             'user_id' => $userId,
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -88,7 +88,7 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
             ->assertJsonPath('data.reservation.access_scope', 'session')
             ->assertJsonPath('data.reservation.user_id', null)
             ->assertJsonPath('data.deposit.status', 'Pending')
-            ->assertJsonPath('data.deposit.outstanding_amount', '100000.00');
+            ->assertJsonPath('data.deposit.outstanding_amount', '100000');
     }
 
     public function test_customer_session_cannot_preview_deposit_snapshot_for_unlinked_reservation(): void
@@ -97,8 +97,8 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $tableId = $this->createRestaurantTableWithSeats(4);
         $reservationId = $this->createReservation([
             'user_id' => $userId,
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -114,7 +114,7 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $otherId = $this->createUser(['role_name' => 'Customer']);
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
-            'deposit_required_amount' => '80000.00',
+            'deposit_required_amount' => '80000',
             'deposit_status' => 'Pending',
         ]);
 
@@ -131,8 +131,8 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $userId = $this->createUser(['role_name' => 'Customer']);
         $reservationId = $this->createReservation([
             'user_id' => $userId,
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
 
@@ -143,8 +143,8 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.deposit.status', 'NotRequired')
-            ->assertJsonPath('data.deposit.required_amount', '0.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00')
+            ->assertJsonPath('data.deposit.required_amount', '0')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0')
             ->assertJsonPath('data.deposit.deposit_required', false);
     }
 
@@ -153,8 +153,8 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $userId = $this->createUser(['role_name' => 'Customer']);
         $reservationId = $this->createReservation([
             'user_id' => $userId,
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
 
@@ -162,7 +162,7 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '60000.00',
+            'amount' => '60000',
             'payment_provider' => 'POS',
             'payment_method' => 'Card',
         ]);
@@ -175,11 +175,11 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
 
         $response->assertOk()
             ->assertJsonPath('data.deposit.status', 'Pending')
-            ->assertJsonPath('data.deposit.required_amount', '100000.00')
-            ->assertJsonPath('data.deposit.paid_amount', '60000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '40000.00')
-            ->assertJsonPath('data.deposit.payment_summary.deposit_captured', '60000.00')
-            ->assertJsonPath('data.deposit.payment_summary.deposit_net', '60000.00')
+            ->assertJsonPath('data.deposit.required_amount', '100000')
+            ->assertJsonPath('data.deposit.paid_amount', '60000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '40000')
+            ->assertJsonPath('data.deposit.payment_summary.deposit_captured', '60000')
+            ->assertJsonPath('data.deposit.payment_summary.deposit_net', '60000')
             ->assertJsonCount(1, 'data.deposit.payments')
             ->assertJsonPath('data.deposit.payments.0.payment_type', 'Deposit');
     }
@@ -187,7 +187,7 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
     public function test_unauthenticated_customer_deposit_preview_is_rejected(): void
     {
         $reservationId = $this->createReservation([
-            'deposit_required_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
             'deposit_status' => 'Pending',
         ]);
 
@@ -203,7 +203,7 @@ class CustomerReservationDepositVisibilityFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
-            'deposit_required_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
             'deposit_status' => 'Pending',
         ]);
         config()->set('staff_auth.api_keys', ['customer-deposit-staff-key' => $staffId]);

@@ -93,6 +93,11 @@ class DispatchKitchenOrderAction
                     continue;
                 }
 
+                // Combo parent items do not go to the kitchen; their components will be dispatched instead.
+                if ($orderItem->item && $orderItem->item->is_combo) {
+                    continue;
+                }
+
                 /** @var KitchenOrderItemTicket|null $ticket */
                 $ticket = KitchenOrderItemTicket::query()
                     ->where('order_item_id', $orderItem->order_item_id)

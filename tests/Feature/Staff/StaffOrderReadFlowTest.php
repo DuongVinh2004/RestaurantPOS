@@ -48,13 +48,13 @@ class StaffOrderReadFlowTest extends TestCase
             ->assertJsonPath('data.item_summary.status_counts.Ordered', 1)
             ->assertJsonPath('data.item_summary.status_counts.Cancelled', 1)
             ->assertJsonPath('data.item_summary.active_quantity', 2)
-            ->assertJsonPath('data.financial_summary.subtotal', '100000.00')
-            ->assertJsonPath('data.financial_summary.discount', '10000.00')
-            ->assertJsonPath('data.financial_summary.total_due', '90000.00')
-            ->assertJsonPath('data.financial_summary.deposit_applied', '20000.00')
-            ->assertJsonPath('data.financial_summary.outstanding', '70000.00')
+            ->assertJsonPath('data.financial_summary.subtotal', '100000')
+            ->assertJsonPath('data.financial_summary.discount', '10000')
+            ->assertJsonPath('data.financial_summary.total_due', '90000')
+            ->assertJsonPath('data.financial_summary.deposit_applied', '20000')
+            ->assertJsonPath('data.financial_summary.outstanding', '70000')
             ->assertJsonPath('data.financial_summary.payment_status', 'Partial')
-            ->assertJsonPath('data.reservation.payment_summary.deposit_captured', '20000.00');
+            ->assertJsonPath('data.reservation.payment_summary.deposit_captured', '20000');
     }
 
     public function test_staff_can_view_completed_order_detail(): void
@@ -232,9 +232,9 @@ class StaffOrderReadFlowTest extends TestCase
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'discount_amount' => '10000.00',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '20000.00',
+            'discount_amount' => '10000',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '20000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ], $overrides['reservation'] ?? []));
@@ -254,9 +254,9 @@ class StaffOrderReadFlowTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $orderedItemId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);
@@ -265,9 +265,9 @@ class StaffOrderReadFlowTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $cancelledItemId,
             'quantity' => 1,
-            'unit_price' => '30000.00',
+            'unit_price' => '30000',
             'currency' => 'VND',
-            'line_total' => '30000.00',
+            'line_total' => '30000',
             'status' => 'Cancelled',
             'row_version' => 1,
         ]);
@@ -276,7 +276,7 @@ class StaffOrderReadFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '20000.00',
+            'amount' => '20000',
             'currency' => 'VND',
         ]);
 

@@ -831,12 +831,12 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $response->assertOk()
             ->assertJsonPath('meta.action', 'deposit_pay')
             ->assertJsonPath('data.deposit.status', 'Paid')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0')
             ->assertJsonPath('data.payment.payment_type', 'Deposit')
             ->assertJsonPath('data.payment.status', 'Success');
 
         self::assertSame('Paid', (string) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_status'));
-        self::assertSame('60000.00', number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 2, '.', ''));
+        self::assertSame('60000', number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('deposit_paid_amount'), 0, '.', ''));
 
         $changes = $this->withHeaders($staffHeaders)
             ->getJson('/api/v1/staff/tables/board/changes?after_version='.$beforeVersion);
@@ -927,8 +927,8 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => Carbon::now('UTC')->copy()->subMinutes(10),
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
             'row_version' => 1,
@@ -944,9 +944,9 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);
@@ -979,8 +979,8 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => Carbon::now('UTC')->copy()->subMinutes(10),
-            'deposit_required_amount' => '60000.00',
-            'deposit_paid_amount' => '60000.00',
+            'deposit_required_amount' => '60000',
+            'deposit_paid_amount' => '60000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
             'row_version' => 1,
@@ -996,9 +996,9 @@ class StaffOperationalRealtimeFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '120000.00',
+            'unit_price' => '120000',
             'currency' => 'VND',
-            'line_total' => '120000.00',
+            'line_total' => '120000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);
@@ -1006,7 +1006,7 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '60000.00',
+            'amount' => '60000',
             'currency' => 'VND',
             'transaction_code' => $reservationCode.'-DEP-1',
         ]);
@@ -1038,8 +1038,8 @@ class StaffOperationalRealtimeFlowTest extends TestCase
             'reservation_code' => $reservationCode,
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '60000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '60000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'row_version' => 1,

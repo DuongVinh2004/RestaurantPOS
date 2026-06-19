@@ -60,4 +60,24 @@ class OrderItemLifecycleController extends Controller
             ],
         ]);
     }
+
+    public function swapComponent(int $order_id, int $order_item_id, \App\Modules\Ordering\Http\Requests\Staff\UpdateOrderItemComponentSwapRequest $request): JsonResponse
+    {
+        $order = $this->itemLifecycleService->swapComponent(
+            orderId: $order_id,
+            orderItemId: $order_item_id,
+            newItemId: (int) $request->input('new_item_id'),
+            unitPriceOverride: $request->has('unit_price') ? (float) $request->input('unit_price') : null,
+            staffUserId: $this->resolveStaffActorUserId($request),
+            expectedOrderRowVersion: $request->has('order_row_version') ? (int) $request->input('order_row_version') : null,
+            expectedItemRowVersion: $request->has('row_version') ? (int) $request->input('row_version') : null,
+        )->loadMissing(['items.item']);
+
+        return response()->json([
+            'data' => new ReservationOrderResource($order),
+            'meta' => [
+                'action' => 'order_item_component_swapped',
+            ],
+        ]);
+    }
 }

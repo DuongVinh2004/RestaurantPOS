@@ -22,8 +22,8 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
             'status' => 'Confirmed',
             'start_time' => now('UTC')->addHour(),
             'end_time' => now('UTC')->addHours(2),
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'row_version' => 2,
@@ -31,7 +31,7 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
         $reservation->setRelation('payments', collect([
             new Payment([
                 'payment_id' => 1,
-                'amount' => '50000.00',
+                'amount' => '50000',
                 'currency' => 'VND',
                 'payment_type' => 'Deposit',
                 'status' => 'Success',
@@ -43,7 +43,7 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
                 'reservation_id' => 1,
                 'customer_user_id' => 5,
                 'provider_code' => 'simulated',
-                'amount' => '50000.00',
+                'amount' => '50000',
                 'currency' => 'VND',
                 'session_status' => 'Pending',
                 'settlement_status' => 'NotApplied',
@@ -58,7 +58,7 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
         $payload = (new ReservationResource($reservation))->toArray($request);
 
         self::assertSame('Required', data_get($payload, 'deposit_summary.status'));
-        self::assertSame('50000.00', data_get($payload, 'deposit_summary.remaining_amount'));
+        self::assertSame('50000', data_get($payload, 'deposit_summary.remaining_amount'));
         self::assertTrue((bool) data_get($payload, 'deposit_summary.status_flags.has_open_payment_session'));
         self::assertSame('Pending', data_get($payload, 'deposit_summary.payment_session_summary.latest_session.session_status'));
     }
@@ -72,8 +72,8 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
             'status' => 'Confirmed',
             'start_time' => now('UTC')->addHour(),
             'end_time' => now('UTC')->addHours(2),
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'row_version' => 2,
@@ -81,7 +81,7 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
         $reservation->setRelation('payments', collect([
             new Payment([
                 'payment_id' => 2,
-                'amount' => '50000.00',
+                'amount' => '50000',
                 'currency' => 'VND',
                 'payment_type' => 'Deposit',
                 'status' => 'Success',
@@ -107,8 +107,8 @@ class ReservationResourceDepositSummaryScopeTest extends TestCase
             'status' => 'Confirmed',
             'start_time' => now('UTC')->addHour(),
             'end_time' => now('UTC')->addHours(2),
-            'deposit_required_amount' => '80000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '80000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'row_version' => 1,
         ]);

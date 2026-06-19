@@ -1,0 +1,48 @@
+# Source control
+.git
+.gitignore
+.gitattributes
+
+# Environment
+.env
+.env.testing
+.env.local
+
+# Docker & Infrastructure Configs (not needed inside container)
+docker-compose.*
+Dockerfile.*
+.github/
+
+# Agent / AI Tooling
+.agents/
+.codex/
+AGENTS.md
+
+# Logs & Caches
+storage/logs/*
+bootstrap/cache/*
+!storage/logs/.gitignore
+!bootstrap/cache/.gitignore
+.phpunit.result.cache
+
+# Development tools & scratch scripts
+tests/
+tools/
+scripts/
+phpunit.xml
+phpstan.neon.dist
+k6/
+smoke_logs/
+
+# Node
+node_modules/
+npm-debug.log
+
+# IDEs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

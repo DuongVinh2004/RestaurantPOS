@@ -67,8 +67,8 @@ class StaffReservationBoardAdvancedFlowTest extends TestCase
             'guest_count' => 6,
             'status' => 'Reserved',
             'checked_in_at' => $now->copy()->subMinutes(5),
-            'deposit_required_amount' => '200000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '200000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Pending',
         ]);
         $this->attachReservationTable($assignedReservationId, $mainOccupiedTableId);

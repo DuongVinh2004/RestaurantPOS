@@ -51,8 +51,8 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(10),
@@ -67,9 +67,9 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '200000.00',
+            'unit_price' => '200000',
             'currency' => 'VND',
-            'line_total' => '200000.00',
+            'line_total' => '200000',
         ]);
 
         app(OrderSettlementWorkflow::class)->lockBill(
@@ -108,8 +108,8 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             'simulation_outcome' => 'succeeded',
         ])->assertOk()
             ->assertJsonPath('data.deposit.status', 'Paid')
-            ->assertJsonPath('data.deposit.paid_amount', '50000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00');
+            ->assertJsonPath('data.deposit.paid_amount', '50000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0');
 
         $billCreate = $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'bill-int-create-1',
@@ -131,10 +131,10 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             'row_version' => (int) $billCreate->json('data.payment_session.row_version'),
             'simulation_outcome' => 'succeeded',
         ])->assertOk()
-            ->assertJsonPath('data.bill.total_due_amount', '200000.00')
-            ->assertJsonPath('data.bill.deposit_applied_amount', '50000.00')
-            ->assertJsonPath('data.bill.final_paid_amount', '150000.00')
-            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+            ->assertJsonPath('data.bill.total_due_amount', '200000')
+            ->assertJsonPath('data.bill.deposit_applied_amount', '50000')
+            ->assertJsonPath('data.bill.final_paid_amount', '150000')
+            ->assertJsonPath('data.bill.outstanding_amount', '0');
 
         $refundCancel = $this->withHeaders($this->withIdempotencyKey('staff-refund-cancel-session-payments-1', $this->staffAuthHeaders($staffId, 'staff-refund-cancel-session-payments')))
             ->postJson('/api/v1/staff/reservations/'.$reservationId.'/refund-cancel', [
@@ -149,10 +149,10 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             ]);
 
         $refundCancel->assertOk()
-            ->assertJsonPath('data.refund.payment_summary.deposit_refunded', '50000.00')
-            ->assertJsonPath('data.refund.payment_summary.deposit_net', '0.00')
-            ->assertJsonPath('data.refund.payment_summary.final_refunded', '150000.00')
-            ->assertJsonPath('data.refund.payment_summary.final_net', '0.00');
+            ->assertJsonPath('data.refund.payment_summary.deposit_refunded', '50000')
+            ->assertJsonPath('data.refund.payment_summary.deposit_net', '0')
+            ->assertJsonPath('data.refund.payment_summary.final_refunded', '150000')
+            ->assertJsonPath('data.refund.payment_summary.final_net', '0');
 
         self::assertSame('Cancelled', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('status'));
         self::assertSame('Refunded', (string) DB::table('reservations')->where('reservation_id', $reservationId)->value('deposit_status'));
@@ -182,15 +182,15 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
         ]);
         $this->createPayment([
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'FINAL-MISSING-SNAPSHOT-1',
         ]);
@@ -222,8 +222,8 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(5),
@@ -237,15 +237,15 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '200000.00',
+            'unit_price' => '200000',
             'currency' => 'VND',
-            'line_total' => '200000.00',
+            'line_total' => '200000',
         ]);
         $this->createPayment([
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-PARTIAL-ROW-VERSION-1',
         ]);
@@ -277,7 +277,7 @@ class ReservationPaymentIntegrityFlowTest extends TestCase
             $reservationRowVersionBefore,
             (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version')
         );
-        self::assertSame('200000.00', number_format((float) DB::table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 2, '.', ''));
+        self::assertSame('200000', number_format((float) DB::table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 0, '.', ''));
         self::assertNotNull(DB::table('reservations')->where('reservation_id', $reservationId)->value('billed_at'));
         self::assertSame(150000.0, round((float) ($order->getAttribute('paid_amount') ?? 0.0), 2));
         self::assertSame(50000.0, round((float) ($order->getAttribute('deposit_applied_amount') ?? 0.0), 2));

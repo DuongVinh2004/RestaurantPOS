@@ -188,6 +188,21 @@ class KitchenDispatchController extends Controller
         ]);
     }
 
+    public function eta(Request $request): JsonResponse
+    {
+        $itemIdsStr = $request->query('item_ids', '');
+        $itemIds = array_filter(array_map('intval', explode(',', (string) $itemIdsStr)));
+        if (empty($itemIds)) {
+            return response()->json(['data' => []]);
+        }
+
+        $etaMap = $this->kitchenRoutingService->calculateEtaForItems($itemIds);
+
+        return response()->json([
+            'data' => $etaMap,
+        ]);
+    }
+
     private function ticketActionResponse(Request $request, string $action, callable $callback): JsonResponse
     {
         try {

@@ -77,8 +77,8 @@ class StaffCommandCenterHttpFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'status' => 'Confirmed',
             'deposit_status' => 'Pending',
-            'deposit_required_amount' => '200000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '200000',
+            'deposit_paid_amount' => '0',
             'start_time' => now()->addHours(2),
             'end_time' => now()->addHours(3),
         ]);

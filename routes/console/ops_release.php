@@ -452,7 +452,7 @@ Artisan::command('booking:api-contract {--json : Output machine-readable JSON} {
     return $exitCode;
 })->purpose('Generate the runtime-backed OpenAPI contract and optionally persist the release artifact');
 
-Artisan::command('booking:api-artifacts:generate {--json : Output machine-readable JSON} {--refresh-openapi : Refresh the frozen OpenAPI artifact before generating consumer artifacts} {--output-root= : Override the consumer artifact output root} {--spec-path= : Override the OpenAPI artifact path} {--uat-manifest= : Generate a UAT-ready Postman environment from the provided manifest path}', function () {
+Artisan::command('booking:api-artifacts:generate {--json : Output machine-readable JSON} {--refresh-openapi : Refresh the frozen OpenAPI artifact before generating consumer artifacts} {--output-root= : Override the consumer artifact output root} {--spec-path= : Override the OpenAPI artifact path}', function () {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
@@ -464,7 +464,6 @@ Artisan::command('booking:api-artifacts:generate {--json : Output machine-readab
         outputRoot: ($value = trim((string) ($command->option('output-root') ?? ''))) !== '' ? $value : null,
         specPath: ($value = trim((string) ($command->option('spec-path') ?? ''))) !== '' ? $value : null,
         refreshOpenApi: (bool) $command->option('refresh-openapi'),
-        uatManifestPath: ($value = trim((string) ($command->option('uat-manifest') ?? ''))) !== '' ? $value : null,
     );
 
     if ((bool) $command->option('json')) {
@@ -496,7 +495,7 @@ Artisan::command('booking:api-artifacts:generate {--json : Output machine-readab
     return 0;
 })->purpose('Generate Postman environments/collection and the TypeScript consumer SDK foundation from the frozen API contract');
 
-Artisan::command('booking:release-build {--json : Output machine-readable JSON} {--overwrite : Overwrite an existing package with the same package id} {--package-id= : Explicit package id to use} {--uat-manifest= : Generate a UAT-ready Postman environment from the provided manifest path before packaging}', function () {
+Artisan::command('booking:release-build {--json : Output machine-readable JSON} {--overwrite : Overwrite an existing package with the same package id} {--package-id= : Explicit package id to use}', function () {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
     $command = $this;
@@ -506,7 +505,6 @@ Artisan::command('booking:release-build {--json : Output machine-readable JSON} 
     $report = $service->build(
         packageId: ($value = trim((string) ($command->option('package-id') ?? ''))) !== '' ? $value : null,
         overwrite: (bool) $command->option('overwrite'),
-        uatManifestPath: ($value = trim((string) ($command->option('uat-manifest') ?? ''))) !== '' ? $value : null,
     );
     $exitCode = ($report['ok'] ?? false) ? 0 : 1;
 

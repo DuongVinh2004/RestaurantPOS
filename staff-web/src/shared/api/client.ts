@@ -483,6 +483,10 @@ export function isMissingResource(error: unknown): boolean {
   return isApiStatus(error, 404);
 }
 
+export function isConflictError(error: unknown): boolean {
+  return isApiStatus(error, 409);
+}
+
 export { formatApiError, isRestaurantPosApiError, normalizeApiError };
 
 function persist(session: StaffSession): void {

@@ -47,6 +47,9 @@ function BranchControl({
   );
 }
 
+import { PresenceAvatars } from '../../shared/presence';
+import { OfflineStatusIndicator } from '../../shared/ui/offline/OfflineStatusIndicator';
+
 function ActionRow({
   compactNavigation,
   showCommandPalette = true,
@@ -64,6 +67,8 @@ function ActionRow({
 }) {
   return (
     <div className="staff-shell-action-row">
+      <OfflineStatusIndicator />
+      <PresenceAvatars channel="global" />
       {compactNavigation ? (
         <button
           type="button"

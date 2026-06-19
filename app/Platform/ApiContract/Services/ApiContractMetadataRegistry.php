@@ -153,6 +153,17 @@ class ApiContractMetadataRegistry
                 'security' => [],
                 'contract_grade' => 'full',
             ],
+            'GET api/v1/restaurant/branches' => [
+                'summary' => 'List active restaurant branches',
+                'description' => 'Return customer-web active restaurant branches and their operating context.',
+                'tags' => ['Restaurant Profile'],
+                'responses' => [
+                    200 => ['schema' => 'RestaurantProfileCollectionEnvelope'],
+                ],
+                'auth_mode' => 'public',
+                'security' => [],
+                'contract_grade' => 'full',
+            ],
             'GET api/v1/tables/available' => [
                 'summary' => 'List available tables',
                 'description' => 'Return customer-visible table availability for a requested time window, branch, guest count, and optional suggestion filters.',
@@ -3285,6 +3296,26 @@ class ApiContractMetadataRegistry
             ],
         ];
 
+        $customerMenuItemComboComponentSchema = [
+            'type' => 'object',
+            'required' => ['component_item_id', 'name', 'quantity', 'is_optional', 'additional_price'],
+            'properties' => [
+                'component_item_id' => ['type' => 'integer'],
+                'name' => ['type' => 'string', 'nullable' => true],
+                'quantity' => ['type' => 'integer'],
+                'is_optional' => ['type' => 'boolean'],
+                'additional_price' => ['type' => 'string', 'nullable' => true],
+            ],
+            'additionalProperties' => false,
+            'example' => [
+                'component_item_id' => 101,
+                'name' => 'Coca Cola',
+                'quantity' => 1,
+                'is_optional' => false,
+                'additional_price' => null,
+            ],
+        ];
+
         $customerMenuItemSchema = [
             'type' => 'object',
             'required' => [
@@ -3296,6 +3327,8 @@ class ApiContractMetadataRegistry
                 'description',
                 'img_url',
                 'is_available',
+                'is_combo',
+                'is_best_seller',
                 'price',
                 'preorder',
                 'created_at',
@@ -3310,6 +3343,12 @@ class ApiContractMetadataRegistry
                 'description' => ['type' => 'string', 'nullable' => true],
                 'img_url' => ['type' => 'string', 'nullable' => true],
                 'is_available' => ['type' => 'boolean'],
+                'is_combo' => ['type' => 'boolean'],
+                'is_best_seller' => ['type' => 'boolean'],
+                'compare_at_price_amount' => ['type' => 'string', 'nullable' => true],
+                'serving_size' => ['type' => 'integer', 'nullable' => true],
+                'combo_items_json' => ['type' => 'array', 'nullable' => true, 'items' => ['type' => 'object', 'additionalProperties' => true]],
+                'combo_components' => ['type' => 'array', 'nullable' => true, 'items' => ['$ref' => '#/components/schemas/CustomerMenuItemComboComponent']],
                 'price' => ['$ref' => '#/components/schemas/CustomerMenuItemPrice'],
                 'preorder' => ['$ref' => '#/components/schemas/CustomerMenuItemPreorderPolicy'],
                 'created_at' => ['type' => 'string', 'format' => 'date-time', 'nullable' => true],
@@ -6531,6 +6570,7 @@ class ApiContractMetadataRegistry
             ]]),
             'CustomerMenuItemPrice' => $customerMenuItemPriceSchema,
             'CustomerMenuItemPreorderPolicy' => $customerMenuItemPreorderSchema,
+            'CustomerMenuItemComboComponent' => $customerMenuItemComboComponentSchema,
             'CustomerMenuItem' => $customerMenuItemSchema,
             'CustomerMenuItemsMeta' => $customerMenuItemsMetaSchema,
             'CustomerLoyaltyTier' => $customerLoyaltyTierSchema,
@@ -7229,6 +7269,16 @@ class ApiContractMetadataRegistry
                 'additionalProperties' => false,
             ]),
             'RestaurantProfileEnvelope' => $this->dataEnvelope([
+                '$ref' => '#/components/schemas/RestaurantProfile',
+            ], [
+                'type' => 'object',
+                'properties' => [
+                    'action' => ['type' => 'string'],
+                ],
+                'required' => ['action'],
+                'additionalProperties' => false,
+            ]),
+            'RestaurantProfileCollectionEnvelope' => $this->collectionEnvelope([
                 '$ref' => '#/components/schemas/RestaurantProfile',
             ], [
                 'type' => 'object',

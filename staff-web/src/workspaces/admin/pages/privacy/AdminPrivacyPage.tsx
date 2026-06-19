@@ -1,4 +1,4 @@
-import { Button, Card, Col, Input, Row, Select, Space, Statistic, Typography } from 'antd';
+import { Button, Card, Col, Input, Row, Select, Space, Statistic, Typography, Pagination } from 'antd';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -28,7 +28,7 @@ const requestStatusOptions = [
 
 export function AdminPrivacyPage() {
   const queryClient = useQueryClient();
-  const [filters, setFilters] = useState({ status: '', userId: '' });
+  const [filters, setFilters] = useState({ status: '', userId: '', page: 1, perPage: 25 });
   const [reviewForm, setReviewForm] = useState({
     requestId: '',
     decision: 'approve' as PrivacyDecision,
@@ -40,11 +40,12 @@ export function AdminPrivacyPage() {
   const [lastExport, setLastExport] = useState<RecordRow | Array<RecordRow> | null>(null);
 
   const requestsQuery = useQuery({
-    queryKey: ['admin-privacy-requests', filters.status, filters.userId],
+    queryKey: ['admin-privacy-requests', filters.status, filters.userId, filters.page, filters.perPage],
     queryFn: () => listAdminPrivacyRequests({
       status: (filters.status || undefined) as 'requested' | 'rejected' | 'completed' | 'failed' | undefined,
       user_id: positiveInteger(filters.userId) ?? undefined,
-      per_page: 25,
+      page: filters.page,
+      per_page: filters.perPage,
     }),
   });
 
@@ -156,6 +157,17 @@ export function AdminPrivacyPage() {
               );
             })}
           </div>
+          {requests.length > 0 && (
+            <Pagination
+              current={filters.page}
+              pageSize={filters.perPage}
+              total={(requestsQuery.data as any)?.meta?.total ?? requests.length}
+              onChange={(page, pageSize) => setFilters((current) => ({ ...current, page, perPage: pageSize }))}
+              showSizeChanger
+              pageSizeOptions={['10', '25', '50', '100']}
+              style={{ marginTop: 16, textAlign: 'right' }}
+            />
+          )}
         </Space>
       </Card>
     </Space>

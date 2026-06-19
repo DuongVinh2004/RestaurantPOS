@@ -46,11 +46,6 @@ import { DashboardTopBar } from './components/DashboardTopBar';
 import { KpiCard } from './components/KpiCard';
 import { ShiftHealthCard } from './components/ShiftHealthCard';
 import { UrgentAlertCard } from './components/UrgentAlertCard';
-import { MiniTableBoardCard } from './components/MiniTableBoardCard';
-import { QueueSnapshotCard } from './components/QueueSnapshotCard';
-import { CashierSnapshotCard } from './components/CashierSnapshotCard';
-import { ConversationSnapshotCard } from './components/ConversationSnapshotCard';
-import { AnalyticsOverviewSection } from './components/AnalyticsOverviewSection';
 import { buildInventoryQuery, buildOperationsQuery, buildSalesQuery } from '../../../../domains/reporting/reporting-hub';
 
 export function DashboardPage() {
@@ -239,118 +234,12 @@ export function DashboardPage() {
     financeRows: financeQuery.data?.data ?? [],
     currentShift,
   });
-  const tableBoardSnapshot = buildTableBoardSnapshot(tableBoardQuery.data ?? null);
-  const reservationWaitingSnapshot = buildReservationWaitingSnapshot(
-    reservationsQuery.data ?? null,
-    waitingListQuery.data ?? null,
-    branchTimeZone,
-  );
-  const kitchenSnapshot = buildKitchenSnapshot(kitchenStationsQuery.data ?? null);
-  const checkoutSnapshot = buildCheckoutSnapshot(financeQuery.data?.data ?? []);
-  const cashierSnapshot = buildCashierSnapshot(session, currentShift);
-  const conversationSnapshot = buildConversationSnapshot(conversationsQuery.data ?? null, branchTimeZone);
-  const reportingSnapshot = buildReportingSnapshot({
-    salesRows: salesQuery.data?.data ?? [],
-    operationsRows: operationsQuery.data?.data ?? [],
-    inventoryRows: inventoryQuery.data?.data ?? [],
-    salesMeta: salesQuery.data?.meta,
-    operationsMeta: operationsQuery.data?.meta,
-    inventoryMeta: inventoryQuery.data?.meta,
-  });
   const focus = buildDashboardFocus(session);
   const primaryAlert = alerts[0] ?? null;
   const activityItems = alerts.slice(0, 3).map((alert) => (
     alert.ageLabel ? `${alert.title} • ${alert.ageLabel}` : alert.title
   ));
 
-  const workspaceCards = [
-    canViewTables ? {
-      priorityKey: staffRoutePaths.ops.tables,
-      element: (
-        <MiniTableBoardCard
-          key="table-board"
-          snapshot={tableBoardSnapshot}
-          onOpen={navigate}
-          loading={tableBoardQuery.isLoading}
-          error={tableBoardQuery.error ? dashboardErrorMessage(tableBoardQuery.error, 'tables') : null}
-        />
-      ),
-    } : null,
-    (canManageReservations || canManageWaitingList) ? {
-      priorityKey: staffRoutePaths.ops.reservations,
-      element: (
-        <QueueSnapshotCard
-          key="guest-flow"
-          snapshot={reservationWaitingSnapshot}
-          onOpen={navigate}
-          loading={reservationsQuery.isLoading || waitingListQuery.isLoading}
-          error={reservationsQuery.error || waitingListQuery.error
-            ? dashboardErrorMessage(reservationsQuery.error ?? waitingListQuery.error, 'guest-flow')
-            : null}
-        />
-      ),
-    } : null,
-    canManageKitchen ? {
-      priorityKey: staffRoutePaths.kitchen.landing,
-      element: (
-        <QueueSnapshotCard
-          key="kitchen"
-          snapshot={kitchenSnapshot}
-          onOpen={navigate}
-          loading={kitchenStationsQuery.isLoading}
-          error={kitchenStationsQuery.error ? dashboardErrorMessage(kitchenStationsQuery.error, 'kitchen') : null}
-        />
-      ),
-    } : null,
-    canManageSettlement ? {
-      priorityKey: staffRoutePaths.ops.financeReview,
-      element: (
-        <QueueSnapshotCard
-          key="finance"
-          snapshot={checkoutSnapshot}
-          onOpen={navigate}
-          loading={financeQuery.isLoading}
-          error={financeQuery.error ? dashboardErrorMessage(financeQuery.error, 'finance') : null}
-        />
-      ),
-    } : null,
-    canManageConversations ? {
-      priorityKey: staffRoutePaths.ops.conversations,
-      element: (
-        <ConversationSnapshotCard
-          key="conversations"
-          snapshot={conversationSnapshot}
-          onOpen={navigate}
-          loading={conversationsQuery.isLoading}
-          error={conversationsQuery.error ? dashboardErrorMessage(conversationsQuery.error, 'conversations') : null}
-        />
-      ),
-    } : null,
-    canManageCashier ? {
-      priorityKey: staffRoutePaths.ops.cashierShift,
-      element: (
-        <CashierSnapshotCard
-          key="cashier"
-          snapshot={cashierSnapshot}
-          onOpen={navigate}
-          loading={currentShiftQuery.isLoading}
-          error={currentShiftQuery.error && !isApiStatus(currentShiftQuery.error, 404)
-            ? dashboardErrorMessage(currentShiftQuery.error, 'cashier')
-            : null}
-        />
-      ),
-    } : null,
-  ].filter(Boolean) as Array<{ priorityKey: string; element: JSX.Element }>;
-
-  const sortedWorkspaceCards = workspaceCards
-    .slice()
-    .sort((left, right) => rankPriority(left.priorityKey, focus.priorityPaths) - rankPriority(right.priorityKey, focus.priorityPaths));
-  const leftColumnCards = sortedWorkspaceCards
-    .filter((_, index) => index % 2 === 0)
-    .map((card) => card.element);
-  const rightColumnCards = sortedWorkspaceCards
-    .filter((_, index) => index % 2 === 1)
-    .map((card) => card.element);
 
   async function handleRefreshAll() {
     await Promise.all([
@@ -385,16 +274,16 @@ export function DashboardPage() {
 
   return (
     <div className="staff-dashboard-page">
+      <section className="staff-dashboard-secondary-grid" style={{ marginBottom: '24px' }}>
+        <ShiftHealthCard
+          health={shiftHealth}
+          lastUpdatedLabel={lastUpdatedLabel}
+          onOpen={navigate}
+        />
+      </section>
+
       <DashboardTopBar
         focus={focus}
-        shiftLabel={shiftLabel}
-        readinessLabel={readinessLabel}
-        readinessTone={shiftHealth.statusTone}
-        updatedLabel={freshnessLabel}
-        freshnessTone={freshnessTone}
-        primaryAlert={primaryAlert}
-        activityItems={activityItems}
-        onOpen={navigate}
         onRefresh={handleRefreshAll}
         refreshing={isRefreshing}
       />
@@ -410,6 +299,7 @@ export function DashboardPage() {
         </div>
       ) : null}
 
+
       <section className="staff-dashboard-alert-section">
         <div className="staff-dashboard-alert-strip">
           {alerts.map((alert) => (
@@ -424,46 +314,6 @@ export function DashboardPage() {
             <KpiCard key={kpi.key} kpi={kpi} onOpen={navigate} />
           ))}
         </div>
-      </section>
-
-      <section className="staff-dashboard-main-zone">
-        <div className="staff-dashboard-main-zone-head">
-          <div>
-            <h2>{focus.title}</h2>
-            <p>{focus.description}</p>
-          </div>
-        </div>
-
-        <div className="staff-dashboard-main-grid">
-          <div className="staff-dashboard-main-column">
-            {leftColumnCards}
-          </div>
-          <div className="staff-dashboard-main-column">
-            {rightColumnCards}
-          </div>
-        </div>
-      </section>
-
-      <section className="staff-dashboard-secondary-grid">
-        <ShiftHealthCard
-          health={shiftHealth}
-          lastUpdatedLabel={lastUpdatedLabel}
-          onOpen={navigate}
-        />
-
-        {canViewReporting ? (
-          <>
-            <QueueSnapshotCard
-              snapshot={reportingSnapshot}
-              onOpen={navigate}
-              loading={salesQuery.isLoading || operationsQuery.isLoading || inventoryQuery.isLoading}
-              error={salesQuery.error || operationsQuery.error || inventoryQuery.error
-                ? dashboardErrorMessage(salesQuery.error ?? operationsQuery.error ?? inventoryQuery.error, 'reporting')
-                : null}
-            />
-            <AnalyticsOverviewSection />
-          </>
-        ) : null}
       </section>
     </div>
   );

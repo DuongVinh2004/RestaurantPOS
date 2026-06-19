@@ -95,7 +95,7 @@ class AdminBenefitsAdminFoundationHttpFlowTest extends TestCase
         $guardedResponse = $this->withHeaders($this->withIdempotency($headers, 'admin-benefits-voucher-guarded-update'))
             ->patchJson('/api/v1/admin/benefits/vouchers/'.$voucherId, [
                 'row_version' => (int) $freshVoucher->row_version,
-                'discount_value' => '99999.00',
+                'discount_value' => '99999',
             ]);
 
         $guardedResponse

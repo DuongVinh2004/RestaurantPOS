@@ -39,17 +39,9 @@ class SensitiveAggregateDirectWriteContractTest extends TestCase
         'app/Modules/BranchScheduling/Application/Services/TableHoldService.php' => [
             'db:table_holds:update' => 1,
         ],
-        'app/Platform/Uat/UatScenarioPackService.php' => [
-            'db:payments:delete' => 1,
-            'db:payments:update' => 1,
-            'db:reservation_order_items:delete' => 2,
-            'db:reservation_order_items:insert' => 1,
-            'db:reservation_orders:delete' => 1,
-            'db:reservation_orders:update' => 1,
+        'app/Platform/QualityAssurance/UatPackService.php' => [
             'db:reservations:delete' => 1,
-            'db:reservations:update' => 1,
             'db:restaurant_tables:delete' => 1,
-            'db:table_holds:delete' => 1,
             'db:waiting_list:delete' => 1,
         ],
     ];

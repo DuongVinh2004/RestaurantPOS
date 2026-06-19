@@ -73,10 +73,10 @@ describe("PreorderCartPanel", () => {
     expect(screen.getByText("2/3 khả dụng")).toBeInTheDocument();
     expect(screen.getByText("Phở bò")).toBeInTheDocument();
     expect(screen.getByText("Bánh flan")).toBeInTheDocument();
-    expect(screen.getByText("Có ghi chú")).toBeInTheDocument();
+    expect(screen.getByText("Sửa ghi chú")).toBeInTheDocument();
     expect(screen.getByText("1 món có thể gửi")).toBeInTheDocument();
-    expect(screen.getAllByText("2 phần")).toHaveLength(2);
+    expect(screen.getAllByText("2 phần")).toHaveLength(1);
     expect(screen.getByLabelText("Danh sách món trong giỏ đặt trước")).toHaveClass("overflow-y-auto");
-    expect(screen.getByRole("link", { name: "Đính kèm khi giữ bàn" })).toHaveAttribute("href", "/reservations/new");
+    expect(screen.getByRole("link", { name: "Tiếp tục đặt bàn" })).toHaveAttribute("href", "/reservations/new");
   });
 });

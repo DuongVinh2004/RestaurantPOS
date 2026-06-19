@@ -300,6 +300,8 @@ return [
         '2026_04_29_000062_payment_cashier_shift_link.sql',
         '2026_04_29_000063_completed_paid_bill_snapshot_gate.sql',
         '2026_05_14_000064_moc_sen_story_data_pack.sql',
+        '2026_06_02_000065_canonical_roles_data.sql',
+        '2026_06_14_000066_menu_combo_and_favorites.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

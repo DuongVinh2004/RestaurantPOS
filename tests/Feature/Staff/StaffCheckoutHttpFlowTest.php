@@ -55,9 +55,9 @@ class StaffCheckoutHttpFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $secondOrderId,
             'quantity' => 1,
-            'unit_price' => '25000.00',
+            'unit_price' => '25000',
             'currency' => 'VND',
-            'line_total' => '25000.00',
+            'line_total' => '25000',
         ]);
 
         $response = $this->withHeaders($this->staffAuthHeaders($staffId))
@@ -122,13 +122,13 @@ class StaffCheckoutHttpFlowTest extends TestCase
             ->assertJsonPath('meta.legacy_route_alias', null)
             ->assertJsonPath('meta.legacy_route_deprecated', false)
             ->assertJsonPath('data.order_id', $orderId)
-            ->assertJsonPath('data.totals.total_due', '100000.00')
+            ->assertJsonPath('data.totals.total_due', '100000')
             ->assertJsonPath('data.payment_status', 'Failed');
 
         $this->assertNotNull($this->table('reservations')->where('reservation_id', $reservationId)->value('billed_at'));
         $this->assertSame(
-            '100000.00',
-            number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 2, '.', '')
+            '100000',
+            number_format((float) $this->table('reservations')->where('reservation_id', $reservationId)->value('final_bill_amount'), 0, '.', '')
         );
     }
 
@@ -227,7 +227,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
         $completedReservationId = $this->createReservation([
             'user_id' => $this->createUser(['role_name' => 'Customer']),
             'status' => 'Completed',
-            'final_bill_amount' => '100000.00',
+            'final_bill_amount' => '100000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -235,7 +235,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
             'reservation_id' => $completedReservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -286,7 +286,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
             'user_id' => $this->createUser(['role_name' => 'Customer']),
             'status' => 'Completed',
             'branch_id' => $branchId,
-            'final_bill_amount' => '100000.00',
+            'final_bill_amount' => '100000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
@@ -295,7 +295,7 @@ class StaffCheckoutHttpFlowTest extends TestCase
             'branch_id' => $branchId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -330,8 +330,8 @@ class StaffCheckoutHttpFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -344,9 +344,9 @@ class StaffCheckoutHttpFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         return [$staffId, $orderId, $reservationId];

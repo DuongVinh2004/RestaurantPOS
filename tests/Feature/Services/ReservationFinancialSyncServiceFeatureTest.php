@@ -53,7 +53,7 @@ class ReservationFinancialSyncServiceFeatureTest extends TestCase
     {
         $reservationId = $this->createReservation([
             'billed_at' => $this->nowUtc(),
-            'final_bill_amount' => '0.00',
+            'final_bill_amount' => '0',
             'bill_currency' => null,
         ]);
         $orderId = $this->createOrder(['reservation_id' => $reservationId, 'status' => 'Completed']);

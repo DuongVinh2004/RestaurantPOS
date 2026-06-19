@@ -97,8 +97,8 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -111,9 +111,9 @@ final class CustomerReservationOrderBillPaymentIdempotencyEnforcementTest extend
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         app(OrderSettlementWorkflow::class)->lockBill(

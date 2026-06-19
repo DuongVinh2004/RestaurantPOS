@@ -25,6 +25,11 @@ class MenuItemResource extends JsonResource
             'description' => $this->description,
             'img_url' => $this->img_url,
             'is_available' => (bool) ($this->is_available ?? false),
+            'is_combo' => (bool) ($this->is_combo ?? false),
+            'is_best_seller' => (bool) ($this->is_best_seller ?? false),
+            'compare_at_price_amount' => $this->compare_at_price_amount !== null ? (float) $this->compare_at_price_amount : null,
+            'serving_size' => $this->serving_size !== null ? (int) $this->serving_size : null,
+            'combo_items_json' => $this->combo_items_json ?? null,
             'is_preorder_enabled' => $this->is_preorder_enabled !== null ? (bool) $this->is_preorder_enabled : null,
             'preorder_quota_per_day' => $this->preorder_quota_per_day !== null ? (int) $this->preorder_quota_per_day : null,
             'preorder_cutoff_minutes' => $this->preorder_cutoff_minutes !== null ? (int) $this->preorder_cutoff_minutes : null,
@@ -35,6 +40,7 @@ class MenuItemResource extends JsonResource
 
                 return new MenuCategoryResource($this->category);
             }),
+            'modifier_groups' => $this->whenLoaded('modifierGroups', fn () => MenuModifierGroupResource::collection($this->modifierGroups)),
             'current_price' => $currentPrice ? new MenuItemPriceResource($currentPrice) : null,
             'prices' => $this->whenLoaded('prices', fn () => MenuItemPriceResource::collection($this->prices)),
         ];

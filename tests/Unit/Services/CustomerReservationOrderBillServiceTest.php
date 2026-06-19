@@ -110,8 +110,8 @@ class CustomerReservationOrderBillServiceTest extends TestCase
         $reservation->reservation_id = 101;
         $reservation->status = 'Reserved';
         $reservation->billed_at = now('UTC');
-        $reservation->final_bill_amount = '100000.00';
-        $reservation->discount_amount = '0.00';
+        $reservation->final_bill_amount = '100000';
+        $reservation->discount_amount = '0';
         $reservation->bill_currency = 'VND';
         $reservation->setRelation('user', $user);
         $reservation->setRelation('tables', collect());

@@ -388,6 +388,20 @@ class StaffTableOrderService
                 'reservation_id' => 'Reservation bill has already been closed for payment. Reopen the bill before modifying order items.',
             ]);
         }
+
+        $activeBillSessionsCount = \App\Modules\Payments\Domain\Models\ReservationBillPaymentSession::query()
+            ->where('reservation_id', $reservation->reservation_id)
+            ->whereIn('session_status', [
+                \App\Enums\ReservationBillPaymentSessionStatus::Created->value,
+                \App\Enums\ReservationBillPaymentSessionStatus::Pending->value,
+            ])
+            ->count();
+
+        if ($activeBillSessionsCount > 0) {
+            throw ValidationException::withMessages([
+                'reservation_id' => 'Reservation has an active bill payment session. Please wait for the payment to complete or cancel it before modifying order items.',
+            ]);
+        }
     }
 
     private function assertOperationalBranchAccessible(int $branchId, ?int $staffUserId): void
@@ -681,9 +695,10 @@ class StaffTableOrderService
 
         $itemIds = array_values(array_unique(array_map(fn ($x) => (int) $x['item_id'], $normalized)));
         $menuItems = MenuItem::query()
+            ->with('comboComponents.componentItem')
             ->whereIn('item_id', $itemIds)
             ->where('is_available', 1)
-            ->get(['item_id', 'name'])
+            ->get(['item_id', 'name', 'is_combo'])
             ->keyBy('item_id');
 
         if ($menuItems->count() !== count($itemIds)) {
@@ -765,9 +780,9 @@ class StaffTableOrderService
             $oi->order_id = $orderId;
             $oi->item_id = $itemId;
             $oi->quantity = $qty;
-            $oi->unit_price = number_format($unitPrice, 2, '.', '');
+            $oi->unit_price = number_format($unitPrice, 0, '.', '');
             $oi->currency = $currency;
-            $oi->line_total = number_format($unitPrice * $qty, 2, '.', '');
+            $oi->line_total = number_format($unitPrice * $qty, 0, '.', '');
             $oi->item_name_snapshot = $itemName !== '' ? $itemName : null;
             $oi->notes = $note !== '' ? $note : null;
             $oi->status = ReservationOrderItemStatus::Ordered;
@@ -782,6 +797,34 @@ class StaffTableOrderService
                 'line_total' => (string) $oi->line_total,
                 'currency' => $currency,
             ];
+
+            if ($mi && $mi->is_combo && $mi->relationLoaded('comboComponents')) {
+                foreach ($mi->comboComponents as $component) {
+                    $coi = new ReservationOrderItem;
+                    $coi->order_id = $orderId;
+                    $coi->parent_order_item_id = $oi->order_item_id;
+                    $coi->item_id = $component->component_item_id;
+                    $coi->quantity = $qty * $component->quantity;
+                    $coi->unit_price = number_format(0, 0, '.', '');
+                    $coi->currency = $currency;
+                    $coi->line_total = number_format(0, 0, '.', '');
+                    $componentName = $component->componentItem ? (string) $component->componentItem->name : '';
+                    $coi->item_name_snapshot = $componentName !== '' ? $componentName : null;
+                    $coi->notes = null;
+                    $coi->status = ReservationOrderItemStatus::Ordered;
+                    $coi->updated_by = $staffUserId;
+                    $coi->save();
+
+                    $createdItems[] = [
+                        'order_item_id' => (int) $coi->order_item_id,
+                        'menu_item_id' => $component->component_item_id,
+                        'quantity' => $coi->quantity,
+                        'unit_price' => (string) $coi->unit_price,
+                        'line_total' => (string) $coi->line_total,
+                        'currency' => $currency,
+                    ];
+                }
+            }
         }
 
         return $createdItems;

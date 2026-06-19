@@ -110,8 +110,8 @@ class SharedReservationDetailBranchIsolationTest extends TestCase
             'branch_id' => $deniedBranchId,
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -131,9 +131,9 @@ class SharedReservationDetailBranchIsolationTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
         ]);
 
         $response = $this->withHeaders($this->withIdempotencyKey(
@@ -247,7 +247,7 @@ class SharedReservationDetailBranchIsolationTest extends TestCase
             'user_id' => $customerId,
             'applied_user_voucher_id' => $userVoucherId,
             'notes' => 'Sensitive denied branch reservation',
-            'final_bill_amount' => '250000.00',
+            'final_bill_amount' => '250000',
             'billed_at' => $this->nowUtc(),
         ]);
         $orderId = $this->createOrder([

@@ -145,7 +145,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
             'deposit_requirement_acknowledged_at' => $this->nowUtc(),
             'deposit_intent_status' => 'Submitted',
             'deposit_intent_submitted_at' => $this->nowUtc(),
-            'deposit_paid_amount' => '50000.00',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Pending',
             'row_version' => 3,
         ]);
@@ -154,7 +154,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'payment_provider' => 'POS',
             'payment_method' => 'Cash',
         ]);
@@ -193,8 +193,8 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -286,7 +286,7 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
-            'deposit_required_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
             'deposit_status' => 'Pending',
         ]);
         config()->set('staff_auth.api_keys', ['customer-deposit-self-service-staff-key' => $staffId]);
@@ -349,8 +349,8 @@ class CustomerReservationDepositSelfServiceFlowTest extends TestCase
         $userId = $this->createUser(['role_name' => 'Customer']);
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $userId,
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'row_version' => 1,

@@ -138,8 +138,8 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -159,7 +159,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-R5-COVERAGE-DEPOSIT-ONLY',
         ]);
@@ -231,8 +231,8 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -252,15 +252,15 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-R5-COVERAGE-VOUCHER-DEPOSIT',
         ]);
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '30000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '30000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -349,8 +349,8 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'user_id' => $customerId,
             'status' => 'Reserved',
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(20),
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -370,7 +370,7 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-R5-COVERAGE-LOYALTY-DEPOSIT',
         ]);
@@ -469,8 +469,8 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,
@@ -627,9 +627,9 @@ class StaffCheckoutFinancialOutboxAndCoverageTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '100000.00',
+            'unit_price' => '100000',
             'currency' => 'VND',
-            'line_total' => '200000.00',
+            'line_total' => '200000',
         ]);
 
         $service = $this->makeCheckoutServiceWithOutbox();

@@ -22,6 +22,7 @@ class BookingHarnessGoldenFlowsCommandTest extends TestCase
         parent::setUp();
 
         $this->requireBookingSchema();
+        $this->seed(\Database\Seeders\SystemReferenceDataSeeder::class);
         config()->set('staff_auth.allowed_role_ids', [1, 2]);
         $this->manifestPath = storage_path('framework/testing/harness-golden-flows.json');
 
@@ -39,12 +40,9 @@ class BookingHarnessGoldenFlowsCommandTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_booking_harness_golden_flows_can_bootstrap_uat_and_resolve_scenario_context(): void
+    public function test_booking_harness_golden_flows_can_resolve_scenario_context_without_manifest(): void
     {
         $exitCode = Artisan::call('booking:harness:golden-flows', [
-            '--bootstrap-uat' => true,
-            '--base-url' => 'http://127.0.0.1:8000',
-            '--manifest-path' => $this->manifestPath,
             '--json' => true,
         ]);
 
@@ -55,11 +53,9 @@ class BookingHarnessGoldenFlowsCommandTest extends TestCase
 
         $this->assertSame(0, $exitCode);
         $this->assertTrue((bool) ($payload['ok'] ?? false));
-        $this->assertTrue((bool) ($payload['manifest_available'] ?? false));
+        $this->assertFalse((bool) ($payload['manifest_available'] ?? false));
         $this->assertCount(5, (array) ($payload['scenarios'] ?? []));
         $this->assertContains('customer_reservation_journey', $scenarioKeys);
         $this->assertContains('deposit_self_pay', $scenarioKeys);
-        $this->assertSame('UATDEMO', data_get($payload, 'bootstrap_summary.branch.branch_code'));
-        $this->assertFileExists($this->manifestPath);
     }
 }

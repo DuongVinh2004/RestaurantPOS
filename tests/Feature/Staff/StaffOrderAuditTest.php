@@ -38,7 +38,7 @@ final class StaffOrderAuditTest extends TestCase
 
     public function test_staff_create_on_spot_order_writes_structured_audit_subjects(): void
     {
-        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('55000.00');
+        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('55000');
 
         $order = $this->makeTableOrderService()->createOnSpotOrder(
             tableId: $tableId,
@@ -66,7 +66,7 @@ final class StaffOrderAuditTest extends TestCase
 
     public function test_staff_add_items_writes_structured_audit_subjects(): void
     {
-        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('42000.00');
+        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('42000');
         $orderId = $this->createOrder([
             'reservation_id' => $reservationId,
             'order_type' => 'OnSpot',
@@ -98,7 +98,7 @@ final class StaffOrderAuditTest extends TestCase
 
     public function test_audit_payload_contains_money_actor_branch_context(): void
     {
-        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('12345.67');
+        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('12345');
 
         $order = $this->makeTableOrderService()->createOnSpotOrder(
             tableId: $tableId,
@@ -124,14 +124,14 @@ final class StaffOrderAuditTest extends TestCase
         self::assertSame('VND', $summary['currency'] ?? null);
         self::assertSame($menuItemId, $summary['items'][0]['menu_item_id'] ?? null);
         self::assertSame(2, $summary['items'][0]['quantity'] ?? null);
-        self::assertSame('12345.67', $summary['items'][0]['unit_price'] ?? null);
-        self::assertSame('24691.34', $summary['items'][0]['line_total'] ?? null);
+        self::assertSame('12345', $summary['items'][0]['unit_price'] ?? null);
+        self::assertSame('24690', $summary['items'][0]['line_total'] ?? null);
         self::assertSame($summary, $after);
     }
 
     public function test_audit_payload_does_not_store_raw_idempotency_key_or_secret(): void
     {
-        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('99000.00');
+        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('99000');
         $rawKey = 'raw-idempotency-secret-order-audit-123';
 
         $order = $this->makeTableOrderService()->createOnSpotOrder(
@@ -159,7 +159,7 @@ final class StaffOrderAuditTest extends TestCase
 
     public function test_idempotent_replay_does_not_duplicate_actual_order_mutation_audit(): void
     {
-        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('25000.00');
+        [$staffId, $tableId, $reservationId, $menuItemId] = $this->createAuditableOrderContext('25000');
         $service = $this->makeTableOrderService();
         $payload = [['menu_item_id' => $menuItemId, 'qty' => 1]];
 

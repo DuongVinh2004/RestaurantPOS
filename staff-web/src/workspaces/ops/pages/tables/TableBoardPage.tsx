@@ -1,6 +1,6 @@
-﻿import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Space, Typography } from 'antd';
+import { Button, Card, Space, Typography, Col, Row, Statistic } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { StaffTableBoardRow, StaffTableBoardUnassignedReservation } from '../../../../shared/api/sdk';
 import {
@@ -44,9 +44,7 @@ import {
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import {
   FiltersBar,
-  KPIGrid,
   SearchInput,
-  SummaryCard,
 } from '../../../../shared/ui/primitives';
 import { useAuthStore } from '../../../../app/store/auth-store';
 import { useFlowStore } from '../../../../app/store/flow-store';
@@ -277,9 +275,9 @@ export function TableBoardPage() {
   const [walkInDrafts, setWalkInDrafts] = useState<Record<number, Partial<WalkInFormValues>>>({});
   const boardUrlState = useMemo(() => readTableBoardUrlState(searchParams), [searchParams]);
   const zone = boardUrlState.zone !== '' ? boardUrlState.zone : undefined;
+  const statusFilter = boardUrlState.status;
   const selectedTableId = journey.tableId ?? null;
   const [tableSearch, setTableSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
   const boardDataCacheKey = `${branchId ?? 'default'}|${zone ?? 'all'}|${windowRange.from}|${windowRange.to}`;
 
   const updateBoardSearch = useCallback((
@@ -293,8 +291,8 @@ export function TableBoardPage() {
   }, [searchParams, setSearchParams]);
 
   const clearBoardSelection = useCallback((options?: { replace?: boolean }) => {
-    updateBoardSearch({ zone: boardUrlState.zone }, { source: 'board' }, options);
-  }, [boardUrlState.zone, updateBoardSearch]);
+    updateBoardSearch({ zone: boardUrlState.zone, status: boardUrlState.status }, { source: 'board' }, options);
+  }, [boardUrlState.zone, boardUrlState.status, updateBoardSearch]);
 
   const openWalkInFormForRow = useCallback((row: StaffTableBoardRow) => {
     void row;
@@ -1110,8 +1108,11 @@ export function TableBoardPage() {
                     <select
                       aria-label="Lọc theo trạng thái bàn"
                       className="staff-table-board-zone-select"
-                      value={statusFilter}
-                      onChange={(event) => setStatusFilter(event.target.value)}
+                      value={boardUrlState.status ?? ''}
+                      onChange={(event) => updateBoardSearch(
+                        { status: event.target.value },
+                        { source: 'board' },
+                      )}
                     >
                       <option value="">Tất cả trạng thái</option>
                       {boardStatusOptions.map(([status, label]) => (
@@ -1132,31 +1133,52 @@ export function TableBoardPage() {
           }
         />
 
-        <KPIGrid className="staff-table-board-summary-strip">
-          <SummaryCard
-            label="Đơn phục vụ"
-            value={boardData?.summary.active_order_count ?? 0}
-            tone="processing"
-            hint="Đang mở trên sơ đồ"
-          />
-          <SummaryCard
-            label="Chưa gán bàn"
-            value={boardData?.summary.unassigned_reservation_count ?? 0}
-            tone={(boardData?.summary.unassigned_reservation_count ?? 0) > 0 ? 'warning' : 'success'}
-            hint="Cần điều phối"
-          />
-          <SummaryCard
-            label="Bàn đang hiển thị"
-            value={filteredBoardRows.length}
-            hint={statusFilter ? translateUiCode(statusFilter) : zone ? formatBoardZone(zone) : 'Tất cả khu'}
-          />
-          <SummaryCard
-            label="Realtime"
-            value={`v${boardRealtimeVersion ?? 0}`}
-            tone="default"
-            hint={isBoardRefreshing ? 'Đang đồng bộ' : 'Ổn định'}
-          />
-        </KPIGrid>
+        <div style={{ marginBottom: 24 }}>
+          <Row gutter={16}>
+            <Col xs={12} sm={12} md={6}>
+              <Card size="small" variant="borderless" style={{ height: '100%' }}>
+                <Statistic
+                  title="Đơn phục vụ"
+                  value={boardData?.summary.active_order_count ?? 0}
+                  styles={{ content: { color: '#1677ff' } }}
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Đang mở trên sơ đồ</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={12} sm={12} md={6}>
+              <Card size="small" variant="borderless" style={{ height: '100%' }}>
+                <Statistic
+                  title="Chưa gán bàn"
+                  value={boardData?.summary.unassigned_reservation_count ?? 0}
+                  styles={{ content: { color: (boardData?.summary.unassigned_reservation_count ?? 0) > 0 ? '#faad14' : '#52c41a' } }}
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Cần điều phối</Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={12} sm={12} md={6}>
+              <Card size="small" variant="borderless" style={{ height: '100%' }}>
+                <Statistic
+                  title="Bàn đang hiển thị"
+                  value={filteredBoardRows.length}
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {statusFilter ? translateUiCode(statusFilter) : zone ? formatBoardZone(zone) : 'Tất cả khu'}
+                </Typography.Text>
+              </Card>
+            </Col>
+            <Col xs={12} sm={12} md={6}>
+              <Card size="small" variant="borderless" style={{ height: '100%' }}>
+                <Statistic
+                  title="Realtime"
+                  value={`v${boardRealtimeVersion ?? 0}`}
+                />
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {isBoardRefreshing ? 'Đang đồng bộ' : 'Ổn định'}
+                </Typography.Text>
+              </Card>
+            </Col>
+          </Row>
+        </div>
       </div>
 
       {isBoardColdLoading ? <InlineLoading tip="Đang tải sơ đồ bàn..." /> : null}

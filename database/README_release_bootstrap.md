@@ -33,22 +33,20 @@ Manual equivalent:
 1. Import the canonical schema + SQL patches + built-in contract verification:
    - `php tools/mysql/bootstrap_release.php --env-file=.env`
    - If you bypass the wrapper, run `tools/mysql/verify_release_contract.sql` after the schema dump and every patch.
-2. Seed canonical reference roles:
-   - `php artisan db:seed --class=ReferenceDataSeeder --force`
-3. Clear stale Laravel caches:
+2. Clear stale Laravel caches:
    - `php artisan config:clear`
    - `php artisan cache:clear`
    - `php artisan route:clear`
    - `php artisan view:clear`
-4. Bootstrap the first operational site:
-   - `php artisan booking:bootstrap-site --json`
+3. Bootstrap the first operational site:
+   - `php artisan booking:bootstrap-site --admin-username=realadmin --staff-username=realstaff --json`
    - This is the release path that may create or mark the default branch. Runtime read paths must not auto-create branch rows.
-5. Rebuild reporting snapshots:
+4. Rebuild reporting snapshots:
    - `php artisan booking:reporting-snapshots:rebuild --days=7 --json`
-6. Normalize and inspect release artifacts:
+5. Normalize and inspect release artifacts:
    - `php artisan booking:artifacts-normalize --json`
    - `php artisan booking:release-manifest --json`
-7. Run runtime verification:
+6. Run runtime verification:
    - `php artisan booking:deploy-check --mode=preflight`
    - `php artisan booking:doctor --json`
    - `php artisan test`

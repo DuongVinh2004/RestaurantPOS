@@ -186,7 +186,7 @@ class StaffProductAuthHttpFlowTest extends TestCase
             'status' => 'Open',
             'currency' => 'VND',
             'terminal_code' => 'POS-01',
-            'opening_float_amount' => '100000.00',
+            'opening_float_amount' => '100000',
             'expected_cash_amount' => null,
             'actual_cash_amount' => null,
             'cash_discrepancy_amount' => null,

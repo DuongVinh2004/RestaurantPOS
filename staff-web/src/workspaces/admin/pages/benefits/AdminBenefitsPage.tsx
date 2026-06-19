@@ -138,6 +138,18 @@ export function AdminBenefitsPage() {
     onError: (error) => toast.error(formatApiError(error, 'Chưa cập nhật được voucher.')),
   });
 
+  const toggleVoucherMutation = useMutation({
+    mutationFn: (variables: { id: number, rowVersion: number, isActive: boolean }) => updateAdminBenefitVoucher(variables.id, {
+      row_version: variables.rowVersion,
+      is_active: variables.isActive,
+    } as any),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-benefits-vouchers'] });
+      toast.success('Đã cập nhật trạng thái voucher.');
+    },
+    onError: (error) => toast.error(formatApiError(error, 'Chưa cập nhật được voucher.')),
+  });
+
   const createTierMutation = useMutation({
     mutationFn: () => {
       const minPoints = Number(tierForm.minPoints);
@@ -183,6 +195,18 @@ export function AdminBenefitsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin-benefits-loyalty-tiers'] });
       toast.success('Đã cập nhật hạng thân thiết.');
+    },
+    onError: (error) => toast.error(formatApiError(error, 'Chưa cập nhật được hạng thân thiết.')),
+  });
+
+  const toggleTierMutation = useMutation({
+    mutationFn: (variables: { id: number, rowVersion: number, isActive: boolean }) => updateAdminLoyaltyTier(variables.id, {
+      row_version: variables.rowVersion,
+      is_active: variables.isActive,
+    } as any),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['admin-benefits-loyalty-tiers'] });
+      toast.success('Đã cập nhật trạng thái hạng thân thiết.');
     },
     onError: (error) => toast.error(formatApiError(error, 'Chưa cập nhật được hạng thân thiết.')),
   });
@@ -268,6 +292,24 @@ export function AdminBenefitsPage() {
                       <Space wrap>
                         <StatusChip label={rowBoolean(voucher, 'is_active') === false ? 'Tắt' : 'Đang bật'} tone={rowBoolean(voucher, 'is_active') === false ? 'warning' : 'success'} />
                         {rowNumber(voucher, 'row_version') ? <StatusChip label={`rv ${rowNumber(voucher, 'row_version')}`} tone="default" /> : null}
+                        {id && rowNumber(voucher, 'row_version') && (
+                          <Button
+                            size="small"
+                            danger
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Bạn có chắc muốn ${rowBoolean(voucher, 'is_active') === false ? 'mở lại' : 'tạm tắt'} voucher này?`)) {
+                                toggleVoucherMutation.mutate({
+                                  id: id as number,
+                                  rowVersion: rowNumber(voucher, 'row_version') as number,
+                                  isActive: rowBoolean(voucher, 'is_active') === false,
+                                });
+                              }
+                            }}
+                          >
+                            {rowBoolean(voucher, 'is_active') === false ? 'Mở lại' : 'Tạm tắt'}
+                          </Button>
+                        )}
                       </Space>
                     </button>
                   );
@@ -313,6 +355,24 @@ export function AdminBenefitsPage() {
                       <Space wrap>
                         <StatusChip label={rowBoolean(tier, 'is_active') === false ? 'Tắt' : 'Đang bật'} tone={rowBoolean(tier, 'is_active') === false ? 'warning' : 'success'} />
                         {rowNumber(tier, 'row_version') ? <StatusChip label={`rv ${rowNumber(tier, 'row_version')}`} tone="default" /> : null}
+                        {id && rowNumber(tier, 'row_version') && (
+                          <Button
+                            size="small"
+                            danger
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Bạn có chắc muốn ${rowBoolean(tier, 'is_active') === false ? 'mở lại' : 'tạm tắt'} hạng này?`)) {
+                                toggleTierMutation.mutate({
+                                  id: id as number,
+                                  rowVersion: rowNumber(tier, 'row_version') as number,
+                                  isActive: rowBoolean(tier, 'is_active') === false,
+                                });
+                              }
+                            }}
+                          >
+                            {rowBoolean(tier, 'is_active') === false ? 'Mở lại' : 'Tạm tắt'}
+                          </Button>
+                        )}
                       </Space>
                     </button>
                   );

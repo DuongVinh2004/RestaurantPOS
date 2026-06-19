@@ -664,7 +664,6 @@ class ReleaseArtifactManifestService
                 outputRoot: $tempOutputRoot,
                 specPath: $this->freshnessSpecPath($artifacts),
                 refreshOpenApi: false,
-                uatManifestPath: null,
             );
 
             $fingerprints = [];

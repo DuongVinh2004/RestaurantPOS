@@ -20,6 +20,7 @@ $legacyAllowedEnvironments = array_values(array_filter(array_map(
 
 return [
     'enabled' => (bool) env('CUSTOMER_AUTH_ENABLED', true),
+    'default_role_name' => (string) env('CUSTOMER_AUTH_DEFAULT_ROLE_NAME', 'Khách hàng'),
     'header' => (string) env('CUSTOMER_AUTH_HEADER', 'X-Customer-Token'),
     'allow_bearer' => (bool) env('CUSTOMER_AUTH_ALLOW_BEARER', false),
     'jwt_secret' => (string) env('CUSTOMER_AUTH_JWT_SECRET', ''),

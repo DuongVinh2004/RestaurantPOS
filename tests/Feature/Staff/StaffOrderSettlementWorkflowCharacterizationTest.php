@@ -32,8 +32,8 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -47,9 +47,9 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 3,
-            'unit_price' => '40000.00',
+            'unit_price' => '40000',
             'currency' => 'VND',
-            'line_total' => '120000.00',
+            'line_total' => '120000',
         ]);
 
         /** @var OrderSettlementWorkflow $workflow */
@@ -58,8 +58,8 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $preview = $workflow->previewSettlement($orderId, 'VND', $staffId);
 
         $this->assertSame($orderId, (int) $preview['order_id']);
-        $this->assertSame('120000.00', number_format((float) $preview['total_amount'], 2, '.', ''));
-        $this->assertSame('120000.00', number_format((float) $preview['outstanding_amount'], 2, '.', ''));
+        $this->assertSame('120000', number_format((float) $preview['total_amount'], 0, '.', ''));
+        $this->assertSame('120000', number_format((float) $preview['outstanding_amount'], 0, '.', ''));
         $this->assertSame('Failed', (string) $preview['payment_status']);
 
         $reservation = DB::table('reservations')->where('reservation_id', $reservationId)->first();
@@ -77,8 +77,8 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -92,9 +92,9 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00', // 100k total
+            'unit_price' => '50000', // 100k total
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         /** @var OrderSettlementWorkflow $workflow */
@@ -119,8 +119,8 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         // 3. billed_at should not be null
         // 4. updated_by should be staffId
 
-        $this->assertSame('15000.00', number_format((float) $reservation->discount_amount, 2, '.', ''));
-        $this->assertSame('85000.00', number_format((float) $reservation->final_bill_amount, 2, '.', ''));
+        $this->assertSame('15000', number_format((float) $reservation->discount_amount, 0, '.', ''));
+        $this->assertSame('85000', number_format((float) $reservation->final_bill_amount, 0, '.', ''));
         $this->assertNotNull($reservation->billed_at);
         $this->assertSame($staffId, (int) $reservation->updated_by);
 
@@ -139,8 +139,8 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -154,9 +154,9 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00', // 100k total
+            'unit_price' => '50000', // 100k total
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         /** @var OrderSettlementWorkflow $workflow */
@@ -181,7 +181,7 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
             ->where('reservation_id', $reservationId)
             ->where('payment_type', 'Final')
             ->where('status', 'Success')
-            ->where('amount', '100000.00')
+            ->where('amount', '100000')
             ->count();
 
         $this->assertSame(1, $paymentCount);
@@ -212,8 +212,8 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -227,9 +227,9 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '100000.00',
+            'unit_price' => '100000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         /** @var OrderSettlementWorkflow $workflow */
@@ -256,7 +256,7 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
             staffUserId: $staffId
         );
 
-        $this->assertSame('100000.00', (string) data_get($preview, 'refund.refund_amount'));
+        $this->assertSame('100000', (string) data_get($preview, 'refund.refund_amount'));
         $this->assertTrue((bool) data_get($preview, 'refund.cancelled'));
 
         $reservationRowVersion = (int) DB::table('reservations')
@@ -279,7 +279,7 @@ class StaffOrderSettlementWorkflowCharacterizationTest extends TestCase
             idempotencyKey: 'idem-char-refund-1'
         );
 
-        $this->assertSame('100000.00', (string) data_get($refund, 'refund.refund_amount'));
+        $this->assertSame('100000', (string) data_get($refund, 'refund.refund_amount'));
         $this->assertTrue((bool) data_get($refund, 'refund.cancelled'));
         $this->assertCount(1, (array) data_get($refund, 'refund.refund_payment_ids', []));
 

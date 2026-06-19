@@ -32,7 +32,7 @@ return [
     'hold_rate_limit_window_seconds' => (int) env('HOLD_RATE_LIMIT_WINDOW_SECONDS', 60),
     'throttle_tables_available_limit' => (int) env('THROTTLE_TABLES_AVAILABLE_LIMIT', $isLocalLikeEnvironment ? 1200 : 60),
     'throttle_tables_available_window' => (int) env('THROTTLE_TABLES_AVAILABLE_WINDOW', 60),
-    'throttle_table_holds_store_limit' => (int) env('THROTTLE_TABLE_HOLDS_STORE_LIMIT', $isLocalLikeEnvironment ? 120 : 30),
+    'throttle_table_holds_store_limit' => (int) env('THROTTLE_TABLE_HOLDS_STORE_LIMIT', $isLocalLikeEnvironment ? 120 : 5),
     'throttle_table_holds_store_window' => (int) env('THROTTLE_TABLE_HOLDS_STORE_WINDOW', 60),
     'throttle_reservations_store_limit' => (int) env('THROTTLE_RESERVATIONS_STORE_LIMIT', $isLocalLikeEnvironment ? 120 : 20),
     'throttle_reservations_store_window' => (int) env('THROTTLE_RESERVATIONS_STORE_WINDOW', 60),
@@ -59,6 +59,9 @@ return [
         'customer.reservations.preorder.submit',
         'customer.reservations.preorder.clear',
         'customer.privacy-requests.store',
+        'customer.favorites.store',
+        'customer.favorites.destroy',
+        'customer.favorites.sync',
         'customer.reservation-deposit.acknowledge',
         'customer.reservation-deposit.submit-intent',
         'customer.reservation-deposit.revoke-intent',
@@ -110,6 +113,7 @@ return [
         'staff.kitchen.bump',
         'staff.kitchen.recall',
         'staff.order-item.update',
+        'staff.order-item.component-swap',
         'staff.order-item.status',
         'staff.conversation-assign',
         'staff.conversation-take-over',
@@ -440,6 +444,12 @@ return [
     'reporting_snapshot_auto_rebuild_enabled' => (bool) env('BOOKING_REPORTING_SNAPSHOT_AUTO_REBUILD_ENABLED', true),
     'reporting_snapshot_auto_rebuild_hours' => max(1, (int) env('BOOKING_REPORTING_SNAPSHOT_AUTO_REBUILD_HOURS', 2)),
     'reporting_snapshot_auto_rebuild_lookback_days' => max(1, (int) env('BOOKING_REPORTING_SNAPSHOT_AUTO_REBUILD_LOOKBACK_DAYS', 7)),
+
+    // Bootstrap defaults.
+    'bootstrap' => [
+        'admin_username' => (string) env('BOOTSTRAP_ADMIN_USERNAME', ''),
+        'staff_username' => (string) env('BOOTSTRAP_STAFF_USERNAME', ''),
+    ],
 
     // Multi-branch defaults for single-site compatibility and bootstrap.
     'multi_branch' => [

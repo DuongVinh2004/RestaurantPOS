@@ -49,7 +49,7 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
             ->first(['status', 'final_bill_amount', 'bill_currency', 'billed_at', 'checked_out_at']);
 
         self::assertSame('Completed', (string) $reservation->status);
-        self::assertSame('50000.00', number_format((float) $reservation->final_bill_amount, 2, '.', ''));
+        self::assertSame('50000', number_format((float) $reservation->final_bill_amount, 0, '.', ''));
         self::assertSame('VND', (string) $reservation->bill_currency);
         self::assertNotNull($reservation->billed_at);
         self::assertNotNull($reservation->checked_out_at);
@@ -89,7 +89,7 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
                 ->where('idempotency_key', 'idem-payment-capture-replay')
                 ->count()
         );
-        self::assertSame('50000.00', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->value('amount'), 2, '.', ''));
+        self::assertSame('50000', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->value('amount'), 0, '.', ''));
         self::assertEquals($snapshotAfterFirst, $snapshotAfterReplay);
     }
 
@@ -155,7 +155,7 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
             'qty' => 3,
         ], $this->withIdempotencyKey($this->staffAuthHeaders($staffId, 'payment-capture-updated-line-total'), 'idem-payment-line-total-update'))
             ->assertOk()
-            ->assertJsonPath('data.items.0.line_total', '150000.00');
+            ->assertJsonPath('data.items.0.line_total', '150000');
 
         $this->openCashierShiftForReservationBranch($staffId, $reservationId);
         $orderRowVersion = (int) DB::table('reservation_orders')->where('order_id', $orderId)->value('row_version');
@@ -173,8 +173,8 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
             ->assertJsonPath('data.outstanding_amount', 100000)
             ->assertJsonPath('data.payment_status', 'Partial');
 
-        self::assertSame('150000.00', number_format((float) DB::table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 2, '.', ''));
-        self::assertSame('50000.00', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->value('amount'), 2, '.', ''));
+        self::assertSame('150000', number_format((float) DB::table('reservation_order_items')->where('order_item_id', $orderItemId)->value('line_total'), 0, '.', ''));
+        self::assertSame('50000', number_format((float) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->value('amount'), 0, '.', ''));
     }
 
     /**
@@ -188,8 +188,8 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -204,9 +204,9 @@ final class PaymentCaptureGuardRegressionTest extends TestCase
             'order_id' => $orderId,
             'item_id' => $this->createMenuItem(),
             'quantity' => 1,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '50000.00',
+            'line_total' => '50000',
             'status' => 'Ordered',
             'row_version' => 1,
         ]);

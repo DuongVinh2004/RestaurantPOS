@@ -176,17 +176,17 @@ class StaffReservationInboxFlowTest extends TestCase
         $tableId = $this->createRestaurantTableWithSeats(4);
         $reservationId = $this->createReservation([
             'reservation_code' => 'RSV-MONEY-001',
-            'deposit_required_amount' => '200000.00',
-            'deposit_paid_amount' => '50000.00',
-            'discount_amount' => '10000.00',
-            'final_bill_amount' => '350000.00',
+            'deposit_required_amount' => '200000',
+            'deposit_paid_amount' => '50000',
+            'discount_amount' => '10000',
+            'final_bill_amount' => '350000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
         ]);
         $this->attachReservationTable($reservationId, $tableId);
         $this->createPayment([
             'reservation_id' => $reservationId,
-            'amount' => '50000.00',
+            'amount' => '50000',
             'payment_type' => 'Deposit',
             'status' => 'Success',
         ]);
@@ -196,9 +196,9 @@ class StaffReservationInboxFlowTest extends TestCase
         $response->assertOk();
         $response->assertJsonPath('meta.total', 1);
         $response->assertJsonPath('data.0.reservation_id', $reservationId);
-        $response->assertJsonPath('data.0.financials.deposit_required_amount', '200000.00');
-        $response->assertJsonPath('data.0.financials.payment_summary.captured_total', '50000.00');
-        $response->assertJsonPath('data.0.financials.payment_summary.deposit_net', '50000.00');
+        $response->assertJsonPath('data.0.financials.deposit_required_amount', '200000');
+        $response->assertJsonPath('data.0.financials.payment_summary.captured_total', '50000');
+        $response->assertJsonPath('data.0.financials.payment_summary.deposit_net', '50000');
     }
 
     public function test_staff_history_bucket_includes_terminal_future_reservations(): void

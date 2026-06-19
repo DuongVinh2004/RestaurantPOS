@@ -58,192 +58,68 @@ export function AccountPage() {
         </p>
       </section>
 
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <UpcomingReservationsCard query={upcomingReservationsQuery} />
-        <AccountSummaryCard
-          name={displayName}
-          email={profile?.email ?? loyaltyQuery.data?.user.email ?? null}
-          phone={profile?.phone ?? loyaltyQuery.data?.user.phone ?? null}
-          benefitsEnabled={accountBenefitsRollout.enabled}
-          privacyEnabled={privacyEnabled}
-          dataExportEnabled={dataExportEnabled}
-        />
-      </div>
-
-      <ProfilePreferencesPanel profile={profile} />
-
-      <ExperienceHub
-        name={displayName}
-        email={profile?.email ?? loyaltyQuery.data?.user.email ?? null}
-        phone={profile?.phone ?? loyaltyQuery.data?.user.phone ?? null}
-        benefitsEnabled={accountBenefitsRollout.enabled}
-        privacyEnabled={privacyEnabled}
-        dataExportEnabled={dataExportEnabled}
-      />
-
-      {accountBenefitsRollout.enabled ? (
-        <section className="grid gap-4 lg:grid-cols-2">
-          <LoyaltyCard
-            enabled={accountBenefitsRollout.enabled}
-            visibilityTitle={benefitsVisibility.title}
-            visibilityDescription={benefitsVisibility.description}
-            query={loyaltyQuery}
-            state={loyaltyState}
-          />
-          <VoucherWalletCard
-            enabled={accountBenefitsRollout.enabled}
-            visibilityTitle={benefitsVisibility.title}
-            visibilityDescription={benefitsVisibility.description}
-            query={vouchersQuery}
-            wallet={voucherWallet}
-          />
-        </section>
-      ) : null}
-
-      <NotificationPreferencesPanel />
-      <FeedbackPanel />
-      {privacyEnabled ? <PrivacyPanel /> : null}
-    </ResponsivePageShell>
-  );
-}
-
-function AccountSummaryCard({
-  name,
-  email,
-  phone,
-  benefitsEnabled,
-  privacyEnabled,
-  dataExportEnabled,
-}: {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  benefitsEnabled: boolean;
-  privacyEnabled: boolean;
-  dataExportEnabled: boolean;
-}) {
-  return (
-    <AppCard className="p-4">
-      <div className="space-y-4">
-        <SectionHeader
-          eyebrow="Thông tin liên hệ"
-          title={name}
-          description="Nhà hàng dùng thông tin này để xác nhận lịch đặt và liên hệ khi cần."
-        />
-        <div className="grid gap-2 text-sm">
-          <SummaryRow label="Email" value={email ?? "Chưa cung cấp"} />
-          <SummaryRow label="Điện thoại" value={phone ?? "Chưa cung cấp"} />
-        </div>
-        <div className="grid gap-2">
-          <FeatureState label="Ưu đãi" enabled={benefitsEnabled} />
-          <FeatureState label="Yêu cầu dữ liệu cá nhân" enabled={privacyEnabled} />
-          <FeatureState label="Xuất dữ liệu" enabled={dataExportEnabled} />
-        </div>
-      </div>
-    </AppCard>
-  );
-}
-
-function ExperienceHub({
-  name,
-  email,
-  phone,
-  benefitsEnabled,
-  privacyEnabled,
-  dataExportEnabled,
-}: {
-  name: string;
-  email: string | null;
-  phone: string | null;
-  benefitsEnabled: boolean;
-  privacyEnabled: boolean;
-  dataExportEnabled: boolean;
-}) {
-  const utilityItems = [
-    {
-      label: "Thông báo",
-      value: "Đang có",
-      icon: BellRing,
-      tone: "info" as const,
-    },
-    {
-      label: "Ưu đãi",
-      value: benefitsEnabled ? "Đang có" : "Sắp ra mắt",
-      icon: WalletCards,
-      tone: benefitsEnabled ? "success" as const : "neutral" as const,
-    },
-    {
-      label: "Quyền riêng tư",
-      value: privacyEnabled ? "Đang có" : "Theo yêu cầu",
-      icon: ShieldCheck,
-      tone: privacyEnabled ? "success" as const : "neutral" as const,
-    },
-    {
-      label: "Xuất dữ liệu",
-      value: dataExportEnabled ? "Đang có" : "Theo yêu cầu",
-      icon: UserRound,
-      tone: dataExportEnabled ? "success" as const : "neutral" as const,
-    },
-  ];
-
-  return (
-    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]" aria-label="Không gian cá nhân">
-      <AppCard className="overflow-hidden p-0">
-        <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_17rem]">
-          <div className="space-y-5 p-5">
-            <div className="flex items-start gap-3">
-              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-accent text-accent-foreground">
-                <Sparkles className="h-5 w-5" />
-              </span>
-              <div>
-                <h2 className="text-2xl font-semibold tracking-normal">Hồ sơ dùng bữa</h2>
-                <p className="mt-1 max-w-xl text-sm text-muted-foreground">
-                  Dùng thông tin đã có để đặt bàn nhanh hơn, theo dõi lịch và nhận nhắc hẹn.
-                </p>
+      <div className="grid gap-6 lg:grid-cols-[280px_1fr] items-start">
+        {/* Sidebar */}
+        <aside className="space-y-6">
+          {/* Profile Card */}
+          <AppCard className="p-5 text-center">
+            <div className="flex flex-col items-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-teal-100 text-2xl font-bold text-teal-800">
+                {displayName.slice(0, 2).toUpperCase()}
               </div>
+              <h2 className="mt-3 text-lg font-semibold">{displayName}</h2>
+              {profile?.email || profile?.phone ? (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {profile.email ?? profile.phone}
+                </p>
+              ) : null}
             </div>
-            <div className="grid gap-3 md:grid-cols-3">
-              <ProfileSignal icon={UserRound} label="Khách hàng" value={name} />
-              <ProfileSignal icon={BellRing} label="Liên hệ" value={email ?? phone ?? "Chưa cung cấp"} />
-              <ProfileSignal icon={Heart} label="Sở thích" value="Lưu tại thiết bị" />
-            </div>
-          </div>
-          <div className="border-t bg-secondary/35 p-5 lg:border-l lg:border-t-0">
-            <p className="font-semibold">Lối tắt thuận tiện</p>
-            <div className="mt-3 grid gap-2">
+
+            {/* Quick Actions / Shortcuts */}
+            <div className="mt-5 border-t pt-4 space-y-2 text-left">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Lối tắt
+              </p>
               <ShortcutLink href="/booking" icon={CalendarDays} label="Đặt bàn mới" />
               <ShortcutLink href="/menu" icon={ReceiptText} label="Xem thực đơn" />
-              <ShortcutLink href="/reservations" icon={CalendarDays} label="Theo dõi lịch đặt" />
             </div>
-          </div>
-        </div>
-      </AppCard>
+          </AppCard>
+        </aside>
 
-      <AppCard className="p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">Tiện ích của tôi</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Những mục có thể dùng trong tài khoản.</p>
-          </div>
-          <StatusPill label="An toàn" tone="success" />
-        </div>
-        <div className="grid gap-2">
-            {utilityItems.map((item) => (
-            <ReadinessRow key={item.label} {...item} />
-          ))}
-        </div>
-      </AppCard>
-    </section>
-  );
-}
+        {/* Main Content Area */}
+        <div className="space-y-6">
+          <UpcomingReservationsCard query={upcomingReservationsQuery} />
 
-function ProfileSignal({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
-  return (
-    <div className="min-h-24 rounded-lg border bg-background p-3">
-      <Icon className="h-4 w-4 text-teal-700" />
-      <p className="mt-3 text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate font-semibold">{value}</p>
-    </div>
+          {accountBenefitsRollout.enabled ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              <LoyaltyCard
+                enabled={accountBenefitsRollout.enabled}
+                visibilityTitle={benefitsVisibility.title}
+                visibilityDescription={benefitsVisibility.description}
+                query={loyaltyQuery}
+                state={loyaltyState}
+              />
+              <VoucherWalletCard
+                enabled={accountBenefitsRollout.enabled}
+                visibilityTitle={benefitsVisibility.title}
+                visibilityDescription={benefitsVisibility.description}
+                query={vouchersQuery}
+                wallet={voucherWallet}
+              />
+            </div>
+          ) : null}
+
+          <ProfilePreferencesPanel profile={profile} />
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <NotificationPreferencesPanel />
+            <FeedbackPanel />
+          </div>
+
+          {privacyEnabled ? <PrivacyPanel /> : null}
+        </div>
+      </div>
+    </ResponsivePageShell>
   );
 }
 
@@ -256,28 +132,6 @@ function ShortcutLink({ href, icon: Icon, label }: { href: string; icon: LucideI
       </span>
       <span className="text-muted-foreground">Mở</span>
     </Link>
-  );
-}
-
-function ReadinessRow({
-  icon: Icon,
-  label,
-  value,
-  tone,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-  tone: "neutral" | "success" | "warning" | "danger" | "info";
-}) {
-  return (
-    <div className="flex min-h-12 items-center justify-between gap-3 rounded-lg border bg-background px-3 py-2">
-      <span className="flex min-w-0 items-center gap-2">
-        <Icon className="h-4 w-4 text-teal-700" />
-        <span className="truncate text-sm font-medium">{label}</span>
-      </span>
-      <StatusPill label={value} tone={tone} />
-    </div>
   );
 }
 
@@ -473,23 +327,7 @@ function VoucherWalletCard({
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="min-w-0 truncate font-medium">{value}</span>
-    </div>
-  );
-}
 
-function FeatureState({ label, enabled }: { label: string; enabled: boolean }) {
-  return (
-    <div className="flex items-center justify-between gap-3 text-sm">
-      <span>{label}</span>
-      <AppBadge>{enabled ? "Đang có" : "Sắp ra mắt"}</AppBadge>
-    </div>
-  );
-}
 
 function MetricCard({ label, value }: { label: string; value: number | string }) {
   return (

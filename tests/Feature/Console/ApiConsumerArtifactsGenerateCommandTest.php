@@ -12,7 +12,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 {
     private string $root = 'storage/framework/testing/api_consumer_artifacts';
 
-    private string $manifestPath = 'storage/framework/testing/api_consumer_artifacts/uat-manifest.json';
 
     protected function tearDown(): void
     {
@@ -22,16 +21,11 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 
     public function test_api_consumer_artifact_command_generates_collection_templates_sdk_and_uat_environment(): void
     {
-        File::ensureDirectoryExists(dirname(base_path($this->manifestPath)));
-        File::put(
-            base_path($this->manifestPath),
-            json_encode($this->sampleManifest(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-        );
+
 
         $exitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
             '--output-root' => $this->root,
-            '--uat-manifest' => $this->manifestPath,
         ]);
 
         self::assertSame(0, $exitCode);
@@ -40,12 +34,10 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         $payload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
         self::assertTrue((bool) ($payload['ok'] ?? false));
         self::assertSame($this->root, $payload['output_root'] ?? null);
-        self::assertTrue((bool) ($payload['summary']['uat_environment_generated'] ?? false));
         self::assertSame(13, $payload['summary']['mutation_contract_group_count'] ?? null);
 
         $collectionPath = base_path((string) ($payload['artifacts']['collection'] ?? ''));
         $localEnvPath = base_path((string) ($payload['artifacts']['local_environment'] ?? ''));
-        $uatEnvPath = base_path((string) ($payload['artifacts']['uat_environment'] ?? ''));
         $sdkPath = base_path((string) ($payload['artifacts']['sdk_typescript'] ?? ''));
         $sdkEnumsPath = base_path((string) ($payload['artifacts']['enum_state_typescript'] ?? ''));
         $mutationContractPath = base_path((string) ($payload['artifacts']['mutation_contract'] ?? ''));
@@ -56,7 +48,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertArrayHasKey('enum_state_typescript', $payload['artifacts'] ?? []);
         self::assertFileExists($collectionPath);
         self::assertFileExists($localEnvPath);
-        self::assertFileExists($uatEnvPath);
         self::assertFileExists($sdkPath);
         self::assertFileExists($sdkEnumsPath);
         self::assertFileExists($mutationContractPath);
@@ -96,15 +87,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertSame('', $this->environmentValue($localEnv, 'staffApiKey'));
         self::assertSame('', $this->environmentValue($localEnv, 'staffCsrfToken'));
 
-        /** @var array<string,mixed> $uatEnv */
-        $uatEnv = json_decode((string) File::get($uatEnvPath), true, 512, JSON_THROW_ON_ERROR);
-        self::assertSame('RestaurantPOS UAT', $uatEnv['name'] ?? null);
-        self::assertSame('http://127.0.0.1:8000', $this->environmentValue($uatEnv, 'baseUrl'));
-        self::assertSame('spk_staff_uat', $this->environmentValue($uatEnv, 'staffApiKey'));
-        self::assertSame('101', $this->environmentValue($uatEnv, 'reservationIdDeposit'));
-        self::assertSame('401', $this->environmentValue($uatEnv, 'tableTemplateId'));
-        self::assertSame('{{$isoTimestamp}}', $this->environmentValue($uatEnv, 'checkedInAt'));
-        self::assertSame('{{$isoTimestamp}}', $this->environmentValue($uatEnv, 'paymentWebhookOccurredAt'));
 
         $sdk = (string) File::get($sdkPath);
         self::assertStringContainsString('export class RestaurantPosClient', $sdk);
@@ -436,16 +418,11 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 
     public function test_api_consumer_artifact_command_preserves_existing_artifact_timestamps_for_same_inputs_when_outputs_are_current(): void
     {
-        File::ensureDirectoryExists(dirname(base_path($this->manifestPath)));
-        File::put(
-            base_path($this->manifestPath),
-            json_encode($this->sampleManifest(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-        );
+
 
         $firstExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
             '--output-root' => $this->root,
-            '--uat-manifest' => $this->manifestPath,
         ]);
         self::assertSame(0, $firstExitCode);
 
@@ -453,31 +430,25 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         $firstPayload = json_decode(Artisan::output(), true, 512, JSON_THROW_ON_ERROR);
 
         $collectionPath = base_path((string) ($firstPayload['artifacts']['collection'] ?? ''));
-        $uatEnvironmentPath = base_path((string) ($firstPayload['artifacts']['uat_environment'] ?? ''));
         $enumStateJsonPath = base_path((string) ($firstPayload['artifacts']['enum_state_json'] ?? ''));
         $specPath = base_path((string) ($firstPayload['spec_path'] ?? 'storage/app/booking_release/openapi-v1.json'));
         $specTimestamp = File::lastModified($specPath);
         $firstCollectionHash = hash_file('sha256', $collectionPath);
         $firstLocalEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['local_environment'] ?? '')));
         $firstStagingEnvironmentHash = hash_file('sha256', base_path((string) ($firstPayload['artifacts']['staging_environment'] ?? '')));
-        $firstUatEnvironmentHash = hash_file('sha256', $uatEnvironmentPath);
         $firstEnumStateJsonHash = hash_file('sha256', $enumStateJsonPath);
 
         $currentTimestamp = max(time(), $specTimestamp) + 60;
         touch($collectionPath, $currentTimestamp);
-        touch($uatEnvironmentPath, $currentTimestamp);
         touch($enumStateJsonPath, $currentTimestamp);
         clearstatcache(true, $collectionPath);
-        clearstatcache(true, $uatEnvironmentPath);
         clearstatcache(true, $enumStateJsonPath);
         self::assertSame($currentTimestamp, File::lastModified($collectionPath));
-        self::assertSame($currentTimestamp, File::lastModified($uatEnvironmentPath));
         self::assertSame($currentTimestamp, File::lastModified($enumStateJsonPath));
 
         $secondExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
             '--output-root' => $this->root,
-            '--uat-manifest' => $this->manifestPath,
         ]);
         self::assertSame(0, $secondExitCode);
 
@@ -487,29 +458,21 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertSame($firstCollectionHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['collection'] ?? ''))));
         self::assertSame($firstLocalEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['local_environment'] ?? ''))));
         self::assertSame($firstStagingEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['staging_environment'] ?? ''))));
-        self::assertSame($firstUatEnvironmentHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['uat_environment'] ?? ''))));
         self::assertSame($firstEnumStateJsonHash, hash_file('sha256', base_path((string) ($secondPayload['artifacts']['enum_state_json'] ?? ''))));
 
         clearstatcache(true, $collectionPath);
-        clearstatcache(true, $uatEnvironmentPath);
         clearstatcache(true, $enumStateJsonPath);
         self::assertSame($currentTimestamp, File::lastModified($collectionPath));
-        self::assertSame($currentTimestamp, File::lastModified($uatEnvironmentPath));
         self::assertSame($currentTimestamp, File::lastModified($enumStateJsonPath));
     }
 
     public function test_api_consumer_artifact_command_refreshes_unchanged_artifact_timestamps_when_openapi_is_newer(): void
     {
-        File::ensureDirectoryExists(dirname(base_path($this->manifestPath)));
-        File::put(
-            base_path($this->manifestPath),
-            json_encode($this->sampleManifest(), JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
-        );
+
 
         $firstExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
             '--output-root' => $this->root,
-            '--uat-manifest' => $this->manifestPath,
         ]);
         self::assertSame(0, $firstExitCode);
 
@@ -539,7 +502,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         $secondExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
             '--output-root' => $this->root,
-            '--uat-manifest' => $this->manifestPath,
         ]);
         self::assertSame(0, $secondExitCode);
 

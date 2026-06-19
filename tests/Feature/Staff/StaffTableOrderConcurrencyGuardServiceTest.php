@@ -147,8 +147,8 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -162,9 +162,9 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 1,
-            'unit_price' => '100000.00',
+            'unit_price' => '100000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
         $this->createCashierShift([
             'cashier_user_id' => $staffId,
@@ -189,7 +189,7 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
         $itemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '25000.00',
+            'price' => '25000',
             'currency' => 'VND',
         ]);
 
@@ -221,7 +221,7 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
         $reservationId = $this->createReservation([
             'status' => 'Reserved',
             'bill_currency' => 'VND',
-            'final_bill_amount' => '100000.00',
+            'final_bill_amount' => '100000',
             'billed_at' => $this->nowUtc(),
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -234,7 +234,7 @@ class StaffTableOrderConcurrencyGuardServiceTest extends TestCase
         $itemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '25000.00',
+            'price' => '25000',
             'currency' => 'VND',
         ]);
 

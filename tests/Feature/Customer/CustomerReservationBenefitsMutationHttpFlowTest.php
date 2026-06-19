@@ -59,7 +59,7 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
         [$user, $reservationId, $userVoucherId] = $this->seedReservationWithVoucherAndPoints();
         DB::table('reservations')->where('reservation_id', $reservationId)->update([
             'applied_user_voucher_id' => $userVoucherId,
-            'discount_amount' => '50000.00',
+            'discount_amount' => '50000',
         ]);
         DB::table('user_vouchers')->where('user_voucher_id', $userVoucherId)->update([
             'lock_token' => 'reservation:'.$reservationId,
@@ -227,7 +227,7 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '250000.00',
+            'amount' => '250000',
         ]);
 
         $response = $this->actingAs($user)
@@ -257,7 +257,7 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '180000.00',
+            'amount' => '180000',
         ]);
 
         $currentVersion = (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('row_version');
@@ -333,8 +333,8 @@ class CustomerReservationBenefitsMutationHttpFlowTest extends TestCase
         $voucherId = $this->createVoucher([
             'code' => 'BENEFITS-50',
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '100000.00',
+            'discount_value' => '50000',
+            'min_spend' => '100000',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $userId,

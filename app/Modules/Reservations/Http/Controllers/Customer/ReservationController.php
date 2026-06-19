@@ -75,6 +75,35 @@ class ReservationController extends Controller
         $reservation = $this->service->createReservation($payload, $actorUserId !== null ? (int) $actorUserId : null);
         $request->attributes->set('reservation_access_scope', $accessScope);
 
+        // Auto-create VNPay session for customer deposit
+        if (!$isStaff && ($reservation->deposit_required_amount ?? 0) > 0) {
+            try {
+                /** @var \App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService $depositPaymentService */
+                $depositPaymentService = app(\App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService::class);
+                
+                $paymentSessionResult = $depositPaymentService->createSession(
+                    (int) $reservation->reservation_id,
+                    [
+                        'provider_code' => 'vnpay',
+                        'row_version' => $reservation->row_version,
+                    ],
+                    $actorUserId !== null ? (int) $actorUserId : null,
+                    $sessionId ?? null,
+                    ''
+                );
+                
+                $providerPayload = $paymentSessionResult['payment_session']->provider_payload_json ?? [];
+                if (is_array($providerPayload) && isset($providerPayload['payment_url'])) {
+                    $meta = $reservation->meta ?? [];
+                    $meta['deposit_payment_url'] = $providerPayload['payment_url'];
+                    $reservation->meta = $meta;
+                }
+            } catch (\Throwable $e) {
+                // Ignore payment session creation failure and let the reservation succeed.
+                report($e);
+            }
+        }
+
         return response()->json([
             'data' => new ReservationResource($reservation),
         ], 201);

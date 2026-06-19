@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Alert,
@@ -276,7 +276,7 @@ export function CashierShiftPage() {
           </>
         )}
         extra={(
-          <>
+          <Space wrap>
             {returnToCheckoutPath ? (
               <Button type="primary" onClick={() => navigate(returnToCheckoutPath)}>
                 Quay lại thanh toán
@@ -291,7 +291,7 @@ export function CashierShiftPage() {
             >
               Làm mới dữ liệu ca
             </Button>
-          </>
+          </Space>
         )}
       />
 

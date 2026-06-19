@@ -94,6 +94,7 @@ class ReservationPreorderService
                         'item_id' => (int) $item->item->item_id,
                         'code' => $item->item->code,
                         'name' => $item->item->name,
+                        'img_url' => $item->item->img_url,
                     ]
                     : null,
             ];

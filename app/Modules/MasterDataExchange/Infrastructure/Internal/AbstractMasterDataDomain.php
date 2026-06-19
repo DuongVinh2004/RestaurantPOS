@@ -99,7 +99,7 @@ abstract class AbstractMasterDataDomain
             return null;
         }
 
-        return number_format((float) $value, 2, '.', '');
+        return number_format((float) $value, 0, '.', '');
     }
 
     protected function isoDateTime(mixed $value): ?string

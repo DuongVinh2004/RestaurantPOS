@@ -350,7 +350,7 @@ class CustomerReservationPreorderService
                 'totals' => [
                     'item_count' => 0,
                     'quantity' => 0,
-                    'subtotal' => number_format(0, 2, '.', ''),
+                    'subtotal' => number_format(0, 0, '.', ''),
                 ],
                 'normalized_pre_order_items' => [],
             ];
@@ -382,6 +382,7 @@ class CustomerReservationPreorderService
                 'status' => 'Ordered', // Fixed status for lines
                 'name' => (string) ($item->item_name_snapshot ?: ($menuItem?->name ?? '')),
                 'code' => $menuItem?->code,
+                'img_url' => $menuItem?->img_url,
                 'unit_price' => Money::formatMinor($unitPriceMinor),
                 'line_total' => Money::formatMinor($lineTotalMinor),
                 'currency' => (string) ($item->currency ?: $currency),

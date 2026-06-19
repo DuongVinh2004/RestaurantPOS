@@ -381,7 +381,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '145000.00',
+            'price' => '145000',
             'currency' => 'VND',
             'effective_from' => $serviceTime->copy()->subDay(),
         ]);
@@ -415,7 +415,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
         self::assertGreaterThanOrEqual(1, (int) $response->json('meta.total'));
         self::assertCount(1, $matchingItems);
         self::assertSame('Pho Inventory', (string) data_get($matchingItems[0], 'name'));
-        self::assertSame('145000.00', (string) data_get($matchingItems[0], 'price.amount'));
+        self::assertSame('145000', (string) data_get($matchingItems[0], 'price.amount'));
     }
 
     public function test_recipe_linkage_requires_matching_ingredient_unit_code(): void

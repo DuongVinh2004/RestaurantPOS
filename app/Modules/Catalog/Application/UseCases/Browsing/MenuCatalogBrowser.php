@@ -161,8 +161,8 @@ class MenuCatalogBrowser
                 'name' => (string) $menuItem->name,
                 'category_id' => $menuItem->category_id !== null ? (int) $menuItem->category_id : null,
                 'quantity' => $quantity,
-                'unit_price' => number_format($unitPrice, 2, '.', ''),
-                'line_total' => number_format($lineTotal, 2, '.', ''),
+                'unit_price' => number_format($unitPrice, 0, '.', ''),
+                'line_total' => number_format($lineTotal, 0, '.', ''),
                 'currency' => (string) ($priceRow->currency ?: 'VND'),
                 'preorder_cutoff_minutes' => (int) ($menuItem->preorder_cutoff_minutes ?? 0),
                 'preorder_quota_per_day' => $menuItem->preorder_quota_per_day !== null ? (int) $menuItem->preorder_quota_per_day : null,
@@ -176,7 +176,7 @@ class MenuCatalogBrowser
             'totals' => [
                 'item_count' => count($lines),
                 'quantity' => array_sum(array_map(static fn (array $line): int => (int) $line['quantity'], $lines)),
-                'subtotal' => number_format($subtotal, 2, '.', ''),
+                'subtotal' => number_format($subtotal, 0, '.', ''),
             ],
             'normalized_pre_order_items' => array_map(static fn (array $row): array => [
                 'item_id' => (int) $row['item_id'],
@@ -206,6 +206,10 @@ class MenuCatalogBrowser
                 'menu_items.is_preorder_enabled',
                 'menu_items.preorder_quota_per_day',
                 'menu_items.preorder_cutoff_minutes',
+                'menu_items.is_combo',
+                'menu_items.is_best_seller',
+                'menu_items.compare_at_price_amount',
+                'menu_items.serving_size',
                 'menu_items.created_at',
                 'menu_items.updated_at',
                 'menu_categories.name as category_name',
@@ -241,6 +245,7 @@ class MenuCatalogBrowser
                         ->orWhere('menu_categories.name', 'like', $like);
                 });
             })
+            ->with(['comboComponents.componentItem'])
             ->orderByRaw('CASE WHEN menu_items.category_id IS NULL THEN 1 ELSE 0 END ASC')
             ->orderBy('menu_categories.sort_order')
             ->orderBy('menu_categories.category_id')

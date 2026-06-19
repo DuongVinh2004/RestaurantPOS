@@ -222,7 +222,6 @@ $writeOpsGateArtifactReport = static function (
 };
 
 require __DIR__.'/console/feature_flags.php';
-require __DIR__.'/console/uat.php';
 require __DIR__.'/console/ops_release.php';
 require __DIR__.'/console/verification.php';
 require __DIR__.'/console/auth_identity.php';
@@ -230,3 +229,4 @@ require __DIR__.'/console/site_ops.php';
 require __DIR__.'/console/notifications.php';
 require __DIR__.'/console/schedule.php';
 require __DIR__.'/console/harness.php';
+require __DIR__.'/console/uat_pack.php';

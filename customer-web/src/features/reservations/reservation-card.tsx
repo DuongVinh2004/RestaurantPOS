@@ -7,9 +7,23 @@ import { formatCustomerTableName } from "@/lib/i18n/customer-display";
 import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { getReservationBillSummaryState, getReservationDepositSummaryState } from "./state";
 
-function tableListLabel(tableIds: number[] | null | undefined): string {
+function tableListLabel(reservation: ReservationSummary): string {
+  const tableCodes = Array.isArray(reservation.table_summary?.table_codes)
+    ? (reservation.table_summary.table_codes as string[])
+    : null;
+    
+  const zones = Array.isArray(reservation.table_summary?.zones)
+    ? (reservation.table_summary.zones as string[])
+    : null;
+  const primaryZone = zones && zones.length > 0 ? zones[0] : null;
+
+  if (tableCodes && tableCodes.length > 0) {
+    return tableCodes.map((code) => formatCustomerTableName(code, primaryZone)).join(", ");
+  }
+
+  const tableIds = reservation.table_ids;
   return tableIds?.length
-    ? tableIds.map((tableId) => formatCustomerTableName(null, null, tableId)).join(", ")
+    ? tableIds.map((tableId) => formatCustomerTableName(null, primaryZone, tableId)).join(", ")
     : "Đang chờ";
 }
 
@@ -40,7 +54,7 @@ export function ReservationCard({ reservation }: { reservation: ReservationSumma
           <ReservationSignal
             icon={CalendarDays}
             label="Bàn"
-            value={tableListLabel(reservation.table_ids)}
+            value={tableListLabel(reservation)}
           />
         </div>
 

@@ -111,7 +111,7 @@ Lenh nay se:
 
 - import `database/schema/mysql-schema.sql`
 - apply `database/patches/*.sql`
-- seed `ReferenceDataSeeder`
+- seed `SystemReferenceDataSeeder`
 - clear cache Laravel
 - chay `booking:bootstrap-site`
 - rebuild reporting snapshots

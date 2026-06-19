@@ -90,7 +90,7 @@ class StaffOrderCriticalFlowHttpTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '50000.00',
+            'price' => '50000',
             'currency' => 'VND',
         ]);
 

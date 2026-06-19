@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, CalendarDays, ShoppingBag } from "lucide-react";
-import { useState } from "react";
+import { ArrowLeft, CalendarDays, ShoppingBag, Compass, AlertCircle, Sparkles, Clock } from "lucide-react";
+import { useState, type ComponentType } from "react";
 import { toast } from "sonner";
 import {
   AppBadge,
@@ -76,28 +76,29 @@ export function MenuDetailPage({ id }: { id: number }) {
 
   return (
     <main className="mx-auto w-full max-w-6xl px-4 py-6 pb-28 lg:pb-8">
-      <AppButton asChild variant="ghost" className="mb-4">
-        <Link href="/menu">
-          <ArrowLeft className="h-4 w-4" />
-          Quay lại thực đơn
-        </Link>
-      </AppButton>
+      <Link
+        href="/menu"
+        className="group mb-5 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+      >
+        <ArrowLeft className="h-4 w-4 transition-transform group-hover:-translate-x-1" />
+        <span>Quay lại thực đơn</span>
+      </Link>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="space-y-5">
-          <AppCard className="group overflow-hidden">
-            <MenuItemImage item={item} className="h-80" />
-            <div className="space-y-5 p-5">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="space-y-2">
-                  <AppBadge>{categoryName}</AppBadge>
-                  <h1 className="text-3xl font-semibold tracking-normal">{itemName}</h1>
-                  <p className="max-w-2xl text-muted-foreground">{description}</p>
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <section className="space-y-6">
+          <AppCard className="group overflow-hidden border border-primary/10 bg-background/80 backdrop-blur-md shadow-md rounded-2xl transition-all hover:shadow-lg">
+            <MenuItemImage item={item} className="h-80 md:h-[420px]" />
+            <div className="space-y-5 p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-3">
+                  <AppBadge className="rounded-md px-2.5 py-0.5 text-xs font-semibold">{categoryName}</AppBadge>
+                  <h1 className="text-3xl font-bold tracking-tight text-foreground">{itemName}</h1>
+                  <p className="max-w-2xl text-base text-muted-foreground leading-relaxed">{description}</p>
                 </div>
-                <PriceText amount={item.price.amount} currency={item.price.currency} className="text-2xl" />
+                <PriceText amount={item.price.amount} currency={item.price.currency} className="text-3xl font-extrabold text-primary sm:text-right" />
               </div>
 
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 pt-2">
                 <StatusPill label={item.is_available ? "Còn phục vụ" : "Tạm hết"} tone={item.is_available ? "success" : "warning"} />
                 {featureFlags.preorder && item.preorder.enabled ? (
                   <StatusPill label="Có thể thêm trước" tone="info" />
@@ -109,15 +110,16 @@ export function MenuDetailPage({ id }: { id: number }) {
             </div>
           </AppCard>
 
-          <AppCard className="p-5">
+          <AppCard className="p-6 border border-primary/10 bg-background/80 backdrop-blur-md shadow-md rounded-2xl">
             <SectionHeader
-              title="Thông tin món"
+              title="Thông tin món ăn"
               description="Thông tin cơ bản để bạn chọn món trước khi đặt bàn."
+              className="mb-5"
             />
-            <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-              <DetailItem label="Thành phần" value="Nhà hàng sẽ bổ sung thông tin này sau." />
-              <DetailItem label="Dị ứng" value="Vui lòng ghi chú khi đặt bàn hoặc hỏi nhân viên." />
-              <DetailItem label="Tùy chọn và topping" value="Nhà hàng sẽ xác nhận tùy chọn khi bạn gọi món." />
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <DetailItem label="Thành phần" value="Nhà hàng sẽ bổ sung thông tin này sau." icon={Compass} />
+              <DetailItem label="Dị ứng" value="Vui lòng ghi chú khi đặt bàn hoặc hỏi nhân viên." icon={AlertCircle} />
+              <DetailItem label="Tùy chọn và topping" value="Nhà hàng sẽ xác nhận tùy chọn khi bạn gọi món." icon={Sparkles} />
               <DetailItem
                 label="Hạn chót đặt trước"
                 value={
@@ -125,13 +127,14 @@ export function MenuDetailPage({ id }: { id: number }) {
                     ? `${item.preorder.cutoff_minutes} phút trước lượt ghé`
                     : "Món này chưa mở đặt trước"
                 }
+                icon={Clock}
               />
             </dl>
           </AppCard>
         </section>
 
-        <aside className="space-y-4 lg:sticky lg:top-[5.25rem] lg:h-fit">
-          <AppCard className="p-5">
+        <aside className="space-y-5 lg:sticky lg:top-[5.25rem] lg:h-fit">
+          <AppCard className="p-6 border border-primary/10 bg-background/80 backdrop-blur-md shadow-md rounded-2xl">
             <SectionHeader
               eyebrow="Chọn món"
               title={canPreorder ? "Thêm món trước" : "Đặt bàn để thưởng thức"}
@@ -141,11 +144,12 @@ export function MenuDetailPage({ id }: { id: number }) {
                   : "Món này vẫn có thể thưởng thức tại nhà hàng khi còn phục vụ."
               }
             />
-            <div className="mt-4 space-y-4">
+            <div className="mt-5 space-y-4">
               {selectedBranch ? (
-                <p className="rounded-lg border bg-secondary/30 p-3 text-sm">
-                  Chi nhánh: <span className="font-medium">{selectedBranch.branchName}</span>
-                </p>
+                <div className="rounded-xl border border-primary/5 bg-secondary/30 p-3.5 text-sm flex items-center justify-between">
+                  <span className="text-muted-foreground">Chi nhánh đã chọn:</span>
+                  <span className="font-semibold text-foreground">{selectedBranch.branchName}</span>
+                </div>
               ) : (
                 <EmptyState title="Đang tải chi nhánh" description="Chọn chi nhánh trước khi thêm món đặt trước." />
               )}
@@ -155,16 +159,26 @@ export function MenuDetailPage({ id }: { id: number }) {
                 value={note}
                 onChange={(event) => setNote(event.target.value)}
                 helperText="Ghi chú được giữ trong phiên này để bạn xem lại trước khi xác nhận."
+                className="rounded-xl"
               />
               {featureFlags.preorder ? (
-                <AppButton type="button" className="w-full" disabled={!canPreorder || !selectedBranch} onClick={addToCart}>
-                  <ShoppingBag className="h-4 w-4" />
+                <AppButton
+                  type="button"
+                  className="w-full h-11 rounded-xl font-semibold shadow-sm hover:scale-[1.01] active:scale-[0.99] transition-all"
+                  disabled={!canPreorder || !selectedBranch}
+                  onClick={addToCart}
+                >
+                  <ShoppingBag className="h-4 w-4 mr-2" />
                   Thêm món
                 </AppButton>
               ) : null}
-              <AppButton asChild variant="outline" className="w-full">
+              <AppButton
+                asChild
+                variant="outline"
+                className="w-full h-11 rounded-xl font-semibold border-muted-foreground/20 hover:bg-secondary hover:scale-[1.01] active:scale-[0.99] transition-all"
+              >
                 <Link href="/booking">
-                  <CalendarDays className="h-4 w-4" />
+                  <CalendarDays className="h-4 w-4 mr-2" />
                   Đặt bàn
                 </Link>
               </AppButton>
@@ -178,11 +192,25 @@ export function MenuDetailPage({ id }: { id: number }) {
   );
 }
 
-function DetailItem({ label, value }: { label: string; value: string }) {
+function DetailItem({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  icon: ComponentType<{ className?: string }>;
+}) {
   return (
-    <div className="rounded-lg border p-3">
-      <dt className="text-sm text-muted-foreground">{label}</dt>
-      <dd className="mt-1 font-medium">{value}</dd>
+    <div className="flex items-start gap-3.5 rounded-xl border border-primary/5 bg-secondary/20 p-4 transition-all hover:bg-secondary/35">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="space-y-1">
+        <dt className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</dt>
+        <dd className="text-sm font-medium text-foreground">{value}</dd>
+      </div>
     </div>
   );
 }
+

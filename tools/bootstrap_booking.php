@@ -33,7 +33,7 @@ try {
         );
     }
 
-    $steps[] = runArtisan($rootDir, $phpBinary, $artisanEnvironment, ['db:seed', '--class=ReferenceDataSeeder', '--force'], 'seed_reference_data');
+    // Removed db:seed step: roles are now loaded via canonical SQL patch in mysql-schema.sql
     $steps[] = runArtisan($rootDir, $phpBinary, $artisanEnvironment, ['config:clear', '--ansi'], 'config_clear');
     $steps[] = runArtisan($rootDir, $phpBinary, $artisanEnvironment, ['cache:clear', '--ansi'], 'cache_clear');
     $steps[] = runArtisan($rootDir, $phpBinary, $artisanEnvironment, ['route:clear', '--ansi'], 'route_clear');

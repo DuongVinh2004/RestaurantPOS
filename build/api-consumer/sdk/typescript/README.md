@@ -42,6 +42,7 @@ The SDK only guarantees method coverage for the curated priority batch listed be
 ### Availability + Reservation
 
 - GET api/v1/restaurant/profile
+- GET api/v1/restaurant/branches
 - GET api/v1/tables/available
 - POST api/v1/table-holds
 - GET api/v1/table-holds/{hold_id}

@@ -877,11 +877,17 @@ export function WaitingListPage() {
             <Typography.Text type="secondary">
               Sự kiện: {changesQuery.data?.data.events.length ?? 0}
             </Typography.Text>
-                  <Button onClick={() => navigate(boardReturnSearch ? `${staffRoutePaths.ops.tables}?${boardReturnSearch}` : staffRoutePaths.ops.tables)}>
-              Mở sơ đồ bàn
-            </Button>
           </Space>
         )}
+      </Card>
+
+      <Card title="Bước chuyển tiếp tiếp theo" className="staff-workspace-next-card">
+        <Button
+          block
+          onClick={() => navigate(boardReturnSearch ? `${staffRoutePaths.ops.tables}?${boardReturnSearch}` : staffRoutePaths.ops.tables)}
+        >
+          Quay lại sơ đồ bàn
+        </Button>
       </Card>
     </Space>
   );

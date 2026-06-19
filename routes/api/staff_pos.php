@@ -357,10 +357,16 @@ Route::middleware([
                     ->middleware(['staff.capability:kitchen.manage', 'idempotency:staff.kitchen.recall']);
                 Route::get('kitchen/changes', [KitchenDispatchController::class, 'changes'])
                     ->middleware('staff.capability:kitchen.manage');
+                Route::get('kitchen/eta', [KitchenDispatchController::class, 'eta'])
+                    ->middleware('staff.capability:kitchen.manage');
                 Route::patch('orders/{order_id}/items/{order_item_id}', [OrderItemLifecycleController::class, 'update'])
                     ->whereNumber('order_id')
                     ->whereNumber('order_item_id')
                     ->middleware(['staff.capability:order.manage', 'idempotency:staff.order-item.update']);
+                Route::post('orders/{order_id}/items/{order_item_id}/component-swap', [OrderItemLifecycleController::class, 'swapComponent'])
+                    ->whereNumber('order_id')
+                    ->whereNumber('order_item_id')
+                    ->middleware(['staff.capability:order.manage', 'idempotency:staff.order-item.component-swap']);
                 Route::post('orders/{order_id}/items/{order_item_id}/status', [OrderItemLifecycleController::class, 'updateStatus'])
                     ->whereNumber('order_id')
                     ->whereNumber('order_item_id')

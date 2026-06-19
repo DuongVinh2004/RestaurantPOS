@@ -42,7 +42,7 @@ class RestaurantTable extends Model
         'status' => RestaurantTableStatus::class,
         'is_deleted' => 'bool',
         'row_version' => 'int',
-        'price' => 'decimal:2',
+        'price' => 'decimal:0',
         'qr_payment_token' => 'string',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

@@ -131,10 +131,10 @@ final class CustomerSelfServiceBolaReservationAccessTest extends TestCase
             'start_time' => $this->nowUtc()->copy()->addHours(4),
             'end_time' => $this->nowUtc()->copy()->addHours(6),
             'guest_count' => 2,
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
-            'final_bill_amount' => '150000.00',
+            'final_bill_amount' => '150000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
             'row_version' => 1,
@@ -146,7 +146,7 @@ final class CustomerSelfServiceBolaReservationAccessTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $preorderItemId,
-            'price' => '50000.00',
+            'price' => '50000',
             'currency' => 'VND',
             'effective_from' => $this->nowUtc()->copy()->subHour(),
             'effective_to' => null,

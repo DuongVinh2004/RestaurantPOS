@@ -5,10 +5,12 @@ use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Modules\Billing\Http\Controllers\Customer\QrBillPreviewController;
 use App\Modules\Billing\Http\Controllers\Customer\ReservationBillController;
+use App\Modules\BranchScheduling\Http\Controllers\Guest\RestaurantBranchController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\RestaurantProfileController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableAvailabilityController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableHoldController;
 use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
+use App\Modules\Catalog\Http\Controllers\Customer\FavoriteMenuItemController;
 use App\Modules\Loyalty\Http\Controllers\Customer\LoyaltySummaryController;
 use App\Modules\Loyalty\Http\Controllers\Customer\ReservationLoyaltyController;
 use App\Modules\Payments\Http\Controllers\Customer\ReservationBillPaymentController;
@@ -28,6 +30,7 @@ Route::middleware([
     ResolveCustomerAuthMiddleware::class,
 ])->group(function () {
     Route::get('restaurant/profile', [RestaurantProfileController::class, 'show']);
+    Route::get('restaurant/branches', [RestaurantBranchController::class, 'index']);
 
     Route::get('menu/categories', [MenuCatalogController::class, 'categories']);
     Route::get('menu/items', [MenuCatalogController::class, 'items']);
@@ -40,6 +43,14 @@ Route::middleware([
     Route::middleware(['require.redis'])->group(function () {
         Route::middleware([CustomerOrStaffMiddleware::class])->group(function () {
             Route::get('me/loyalty', [LoyaltySummaryController::class, 'show']);
+            Route::get('me/favorites', [FavoriteMenuItemController::class, 'index']);
+            Route::post('me/favorites', [FavoriteMenuItemController::class, 'store'])
+                ->middleware('idempotency:customer.favorites.store');
+            Route::delete('me/favorites/{menu_item_id}', [FavoriteMenuItemController::class, 'destroy'])
+                ->whereNumber('menu_item_id')
+                ->middleware('idempotency:customer.favorites.destroy');
+            Route::post('me/favorites/sync', [FavoriteMenuItemController::class, 'sync'])
+                ->middleware('idempotency:customer.favorites.sync');
             Route::get('me/vouchers', [BenefitsController::class, 'vouchers']);
             Route::get('me/data-export', [PrivacyRequestController::class, 'export']);
             Route::get('me/privacy-requests', [PrivacyRequestController::class, 'index']);

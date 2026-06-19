@@ -36,8 +36,8 @@ class StaffCheckoutRefundAllocationGuardTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -46,7 +46,7 @@ class StaffCheckoutRefundAllocationGuardTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-SOURCE-1',
         ]);
@@ -56,7 +56,7 @@ class StaffCheckoutRefundAllocationGuardTest extends TestCase
             'payment_type' => 'Refund',
             'status' => 'Refunded',
             'refund_of_payment_id' => $sourcePaymentId,
-            'amount' => '80000.00',
+            'amount' => '80000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-REFUND-EXISTING',
         ]);

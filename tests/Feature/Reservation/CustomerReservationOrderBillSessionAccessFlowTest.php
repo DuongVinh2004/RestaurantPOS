@@ -40,7 +40,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.reservation_id', $reservationId)
             ->assertJsonPath('data.active_order.order_id', $orderId)
-            ->assertJsonPath('data.active_order.totals.total_due', '100000.00');
+            ->assertJsonPath('data.active_order.totals.total_due', '100000');
 
         $this->withHeaders([
             'Accept' => 'application/json',
@@ -49,8 +49,8 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.reservation_id', $reservationId)
             ->assertJsonPath('data.bill_preview.snapshot_mode', 'locked')
-            ->assertJsonPath('data.bill_preview.total_due_amount', '100000.00')
-            ->assertJsonPath('data.bill_preview.outstanding_amount', '100000.00')
+            ->assertJsonPath('data.bill_preview.total_due_amount', '100000')
+            ->assertJsonPath('data.bill_preview.outstanding_amount', '100000')
             ->assertJsonPath('data.bill_preview.self_payment.available', true);
 
         $this->assertSame($customerId, (int) DB::table('reservations')->where('reservation_id', $reservationId)->value('user_id'));
@@ -72,8 +72,8 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
 
         $create->assertCreated()
             ->assertJsonPath('data.reservation_id', $reservationId)
-            ->assertJsonPath('data.bill.total_due_amount', '100000.00')
-            ->assertJsonPath('data.payment_session.amount', '100000.00')
+            ->assertJsonPath('data.bill.total_due_amount', '100000')
+            ->assertJsonPath('data.payment_session.amount', '100000')
             ->assertJsonPath('data.payment_session.session_status', 'Pending');
 
         $paymentSessionId = (int) $create->json('data.payment_session.bill_payment_session_id');
@@ -96,7 +96,7 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         ])->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
-            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+            ->assertJsonPath('data.bill.outstanding_amount', '0');
 
         $this->assertSame(
             $customerId,
@@ -159,8 +159,8 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -173,9 +173,9 @@ class CustomerReservationOrderBillSessionAccessFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         if ($lockBill) {

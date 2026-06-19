@@ -14,7 +14,8 @@
     "test": "node ../scripts/ui-text-encoding-guard.mjs && npm run integrity:check && vitest run src scripts/live-smoke.test.mjs scripts/local-runtime-preflight.test.mjs scripts/text-encoding-guard.test.mjs scripts/package-integrity.test.mjs",
     "smoke:live": "node scripts/live-smoke.mjs",
     "e2e:smoke": "npx playwright test --project=chromium",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.97.0",

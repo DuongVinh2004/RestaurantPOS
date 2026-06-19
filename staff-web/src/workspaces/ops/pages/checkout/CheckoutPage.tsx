@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -777,14 +777,13 @@ export function CheckoutPage({
           </>
         )}
         extra={
-          <>
-            <Button onClick={() => orderQuery.refetch()} disabled={!orderId} loading={orderQuery.isFetching}>
-              Làm mới đơn hàng
-            </Button>
-            <Button onClick={() => previewQuery.refetch()} disabled={!orderId} loading={previewQuery.isFetching}>
-              Làm mới bản xem trước
-            </Button>
-          </>
+          <Button
+            onClick={() => void refreshCheckoutWorkspace()}
+            disabled={!orderId}
+            loading={orderQuery.isFetching || previewQuery.isFetching}
+          >
+            Làm mới dữ liệu
+          </Button>
         }
       />
 
@@ -829,30 +828,30 @@ export function CheckoutPage({
       {currentOrder ? (
         <Card title={`Đơn hàng #${currentOrder.order.order_id}`} className="staff-workspace-detail-card">
           <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Trạng thái đơn">
+            <Descriptions.Item label="Trạng thái đơn">
               <StatusChip label={currentOrder.order.status} tone={orderTone(currentOrder.order.status)} />
             </Descriptions.Item>
-                <Descriptions.Item label="Trạng thái thanh toán">
-                  <StatusChip label={currentOrder.order.payment_status ?? 'Pending'} tone={paymentTone(currentOrder.order.payment_status)} />
-                </Descriptions.Item>
-                <Descriptions.Item label="Đặt bàn">
-                  {currentOrder.reservation?.reservation_code ?? 'Khách vãng lai'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Bàn">
-                  {tableLabel}
-                </Descriptions.Item>
-                <Descriptions.Item label="Khách">
-                  <Space wrap size={8}>
-                    <Typography.Text>{customerLabel}</Typography.Text>
-                    {isSnapshotOnlyGuest ? (
-                      <StatusChip label={RESERVATION_SNAPSHOT_GUEST_LABEL} tone="processing" variant="freshness" />
-                    ) : null}
-                  </Space>
-                </Descriptions.Item>
-                <Descriptions.Item label="Tạm tính">
+            <Descriptions.Item label="Trạng thái thanh toán">
+              <StatusChip label={currentOrder.order.payment_status ?? 'Pending'} tone={paymentTone(currentOrder.order.payment_status)} />
+            </Descriptions.Item>
+            <Descriptions.Item label="Đặt bàn">
+              {currentOrder.reservation?.reservation_code ?? 'Khách vãng lai'}
+            </Descriptions.Item>
+            <Descriptions.Item label="Bàn">
+              {tableLabel}
+            </Descriptions.Item>
+            <Descriptions.Item label="Khách">
+              <Space wrap size={8}>
+                <Typography.Text>{customerLabel}</Typography.Text>
+                {isSnapshotOnlyGuest ? (
+                  <StatusChip label={RESERVATION_SNAPSHOT_GUEST_LABEL} tone="processing" variant="freshness" />
+                ) : null}
+              </Space>
+            </Descriptions.Item>
+            <Descriptions.Item label="Tạm tính">
               {formatMoney(currentOrder.financial_summary.subtotal, currentOrder.financial_summary.currency ?? 'VND')}
             </Descriptions.Item>
-                <Descriptions.Item label="Còn thiếu">
+            <Descriptions.Item label="Còn thiếu">
               {formatMoney(currentOrder.financial_summary.outstanding, currentOrder.financial_summary.currency ?? 'VND')}
             </Descriptions.Item>
           </Descriptions>
@@ -1176,6 +1175,23 @@ export function CheckoutPage({
               Quay lại thanh toán
             </Button>
           ) : null}
+          <Button
+            onClick={() =>
+              navigate(`${staffRoutePaths.ops.orders}?${buildJourneySearch({
+                source: checkoutSource,
+                tableId: primaryTableId ?? undefined,
+                tableIds: resolvedTableIds,
+                reservationId: refundReservationId ?? undefined,
+                reservationRowVersion: reservationSummary?.row_version ?? journey.reservationRowVersion,
+                orderId: orderId ?? undefined,
+                orderRowVersion: currentOrder?.order.row_version ?? undefined,
+                stationId: journey.stationId,
+              })}`)
+            }
+            disabled={!orderId}
+          >
+            Quay lại đơn hàng
+          </Button>
           <Button
             onClick={() =>
               navigate(`${staffRoutePaths.kitchen.landing}?${buildJourneySearch({

@@ -49,7 +49,7 @@ class StaffReservationVoucherServiceGuardTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '250000.00',
+            'amount' => '250000',
             'transaction_code' => 'FINAL-1',
         ]);
 

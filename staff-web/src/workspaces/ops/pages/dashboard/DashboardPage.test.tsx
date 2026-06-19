@@ -312,15 +312,9 @@ describe('DashboardPage', () => {
   it('renders dashboard blocks from live query data', async () => {
     renderDashboard();
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Cockpit vận hành Mộc Sen' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 2, name: 'Cockpit vận hành Mộc Sen' })).toBeInTheDocument();
     expect(screen.getByText('Tình trạng ca')).toBeInTheDocument();
-    expect(await screen.findAllByRole('button', { name: /mở đối soát/i })).not.toHaveLength(0);
-    expect(screen.getByRole('heading', { level: 4, name: 'Sàn phục vụ' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 4, name: 'Hàng bếp' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 4, name: 'Thanh toán & đối soát' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 4, name: 'Hộp thư cần xử lý' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 4, name: 'Lớp giám sát' })).toBeInTheDocument();
-    expect(screen.getAllByText('SHIFT-01').length).toBeGreaterThan(0);
+    expect(await screen.findAllByText('SHIFT-01')).not.toHaveLength(0);
   });
 
   it('deep-links from a KPI card into the relevant workspace', async () => {

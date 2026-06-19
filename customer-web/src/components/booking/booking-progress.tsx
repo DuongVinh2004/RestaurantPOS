@@ -8,10 +8,10 @@ export type BookingProgressStep = {
 };
 
 export const bookingProgressSteps: BookingProgressStep[] = [
-  { key: "time", label: "Chọn thời gian", description: "Ngày, giờ và số khách" },
-  { key: "table", label: "Chọn bàn", description: "Bàn phù hợp trong khu vực" },
-  { key: "guest", label: "Thông tin khách", description: "Liên hệ xác nhận" },
-  { key: "confirm", label: "Xác nhận", description: "Kiểm tra lịch đặt" },
+  { key: "time", label: "Thời gian", description: "Ngày, giờ và số khách" },
+  { key: "table", label: "Chọn bàn", description: "Bàn phù hợp" },
+  { key: "preorder", label: "Chọn món", description: "Món đặt trước" },
+  { key: "guest", label: "Liên hệ", description: "Xác nhận đặt bàn" },
 ];
 
 export function BookingProgress({

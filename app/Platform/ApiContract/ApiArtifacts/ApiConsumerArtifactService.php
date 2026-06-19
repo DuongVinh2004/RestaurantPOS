@@ -29,7 +29,6 @@ class ApiConsumerArtifactService
         ?string $outputRoot = null,
         ?string $specPath = null,
         bool $refreshOpenApi = false,
-        ?string $uatManifestPath = null,
     ): array {
         $outputRoot = $this->normalizeRelativePath($outputRoot ?: (string) config('api_artifacts.output_root', 'build/api-consumer'));
         $specRelativePath = $this->normalizeRelativePath($specPath ?: (string) config('api_artifacts.source_openapi_path', 'storage/app/booking_release/openapi-v1.json'));
@@ -52,11 +51,7 @@ class ApiConsumerArtifactService
         $localEnvironment = $this->buildEnvironmentPayload('local', null, $selectedSignatures, $specRelativePath);
         $stagingEnvironment = $this->buildEnvironmentPayload('staging', null, $selectedSignatures, $specRelativePath);
 
-        $resolvedManifestPath = $this->resolveManifestPath($uatManifestPath);
-        $manifest = $resolvedManifestPath !== null ? $this->readManifest($resolvedManifestPath) : null;
-        $uatEnvironment = $manifest !== null
-            ? $this->buildEnvironmentPayload('uat', $manifest, $selectedSignatures, $specRelativePath)
-            : null;
+        $uatEnvironment = null;
 
         $sdkOperations = [];
         foreach ($selectedSignatures as $signature) {
@@ -86,7 +81,6 @@ class ApiConsumerArtifactService
             'ok' => true,
             'spec_path' => $specRelativePath,
             'output_root' => $outputRoot,
-            'uat_manifest_path' => $resolvedManifestPath,
             'artifacts' => $written,
             'contract_report_summary' => (array) ($contractReport['summary'] ?? []),
             'summary' => [
@@ -764,35 +758,6 @@ class ApiConsumerArtifactService
     private function operationHasJsonBody(array $operation): bool
     {
         return Arr::has($operation, 'requestBody.content.application/json');
-    }
-
-    private function resolveManifestPath(?string $manifestPath): ?string
-    {
-        $resolved = trim((string) ($manifestPath ?? ''));
-        if ($resolved === '') {
-            $default = $this->normalizeRelativePath((string) config('api_artifacts.uat_manifest_path', 'storage/app/uat/scenario-pack.json'));
-            $absolute = base_path($default);
-
-            return File::exists($absolute) ? $default : null;
-        }
-
-        $relative = $this->normalizeRelativePath($resolved);
-        if (! File::exists(base_path($relative))) {
-            throw new RuntimeException(sprintf('UAT manifest [%s] was not found.', $relative));
-        }
-
-        return $relative;
-    }
-
-    /**
-     * @return array<string,mixed>
-     */
-    private function readManifest(string $relativePath): array
-    {
-        /** @var array<string,mixed> $manifest */
-        $manifest = json_decode((string) File::get(base_path($relativePath)), true, 512, JSON_THROW_ON_ERROR);
-
-        return $manifest;
     }
 
     /**

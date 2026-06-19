@@ -139,6 +139,30 @@ export type WalkInPayload = {
   notes?: string | null;
 };
 
+import { apiBaseUrl } from '../config/env';
+import { readStoredStaffToken } from '../auth/storage';
+
+export async function uploadAdminMedia(file: File, folder: string = 'uploads'): Promise<{ url: string; path: string }> {
+  const formData = new FormData();
+  formData.append('image', file);
+  formData.append('folder', folder);
+
+  const res = await fetch(`${apiBaseUrl}/api/v1/admin/upload`, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'Accept': 'application/json',
+      'X-Staff-Key': readStoredStaffToken() || '',
+    }
+  });
+
+  if (!res.ok) {
+    throw new StaffApiError(res.status, await res.json().catch(() => null), 'Lỗi tải ảnh lên');
+  }
+
+  return await res.json();
+}
+
 export type CreateReservationPayload = StoreReservationRequest;
 
 export type UpdateReservationStatusPayload = {
@@ -253,6 +277,7 @@ export type AdminBenefitsQuery = {
 export type AdminPrivacyRequestQuery = {
   status?: 'requested' | 'rejected' | 'completed' | 'failed';
   user_id?: number;
+  page?: number;
   per_page?: number;
 };
 
@@ -382,24 +407,58 @@ export type AdminMenuItemPrice = {
   effective_to: string | null;
 };
 
+export type AdminMenuModifier = {
+  modifier_id: number;
+  group_id: number;
+  name: string;
+  description?: string | null;
+  price_adjustment: number;
+  is_active: boolean;
+  sort_order: number;
+};
+
+export type AdminMenuModifierGroup = {
+  group_id: number;
+  name: string;
+  description?: string | null;
+  min_selections: number;
+  max_selections: number;
+  is_active: boolean;
+  modifiers?: Array<AdminMenuModifier>;
+};
+
+export type AdminMenuItemComboComponent = {
+  component_item_id: number;
+  quantity: number;
+};
+
 export type AdminMenuItem = {
   item_id: number;
-  category_id: number | null;
-  code: string | null;
+  category_id?: number | null;
+  code?: string | null;
   name: string;
-  description: string | null;
-  img_url: string | null;
+  description?: string | null;
+  img_url?: string | null;
   is_available: boolean;
-  is_preorder_enabled: boolean | null;
-  preorder_quota_per_day: number | null;
-  preorder_cutoff_minutes: number | null;
+  is_preorder_enabled?: boolean | null;
+  preorder_quota_per_day?: number | null;
+  preorder_cutoff_minutes?: number | null;
   category?: AdminMenuCategory | null;
   current_price?: AdminMenuItemPrice | null;
   prices?: Array<AdminMenuItemPrice>;
+  modifier_groups?: Array<AdminMenuModifierGroup>;
+  is_combo?: boolean;
+  serving_size?: number | null;
+  combo_components?: Array<AdminMenuItemComboComponent>;
 };
 
 export type AdminMenuItemCollectionEnvelope = {
   data: Array<AdminMenuItem>;
+  meta?: Record<string, unknown>;
+};
+
+export type AdminMenuModifierGroupCollectionEnvelope = {
+  data: Array<AdminMenuModifierGroup>;
   meta?: Record<string, unknown>;
 };
 
@@ -736,7 +795,78 @@ export async function createAdminPurchaseOrderReceipt(
 }
 
 export async function showAdminPurchaseOrder(purchaseOrderId: number): Promise<Record<string, unknown>> {
-  return apiRequest(`/admin/inventory/purchase-orders/${purchaseOrderId}`, { method: 'GET' }) as Promise<Record<string, unknown>>;
+  return apiRequest(`/api/v1/admin/inventory/purchase-orders/${purchaseOrderId}`, { method: 'GET' }) as Promise<Record<string, unknown>>;
+}
+
+export type AdminIngredientUpdatePayload = {
+  row_version: number;
+  code?: string | null;
+  name?: string;
+  unit_code?: string;
+  description?: string | null;
+  is_active?: boolean;
+};
+
+export async function updateAdminIngredient(
+  ingredientId: number,
+  payload: AdminIngredientUpdatePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest(`/api/v1/admin/inventory/ingredients/${ingredientId}`, {
+    method: 'PATCH',
+    body: payload,
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`admin-ingredient-update-${ingredientId}-${Date.now()}`),
+    },
+  });
+}
+
+export type AdminSupplierUpdatePayload = {
+  row_version: number;
+  code?: string | null;
+  name?: string;
+  contact_name?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  notes?: string | null;
+  is_active?: boolean;
+};
+
+export async function updateAdminSupplier(
+  supplierId: number,
+  payload: AdminSupplierUpdatePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest(`/api/v1/admin/inventory/suppliers/${supplierId}`, {
+    method: 'PATCH',
+    body: payload,
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`admin-supplier-update-${supplierId}-${Date.now()}`),
+    },
+  });
+}
+
+export type AdminPurchaseOrderUpdatePayload = {
+  row_version: number;
+  supplier_id?: number;
+  branch_id?: number | null;
+  order_code?: string | null;
+  purchase_order_status?: string | null;
+  ordered_at?: string | null;
+  expected_at?: string | null;
+  supplier_reference?: string | null;
+  notes?: string | null;
+};
+
+export async function updateAdminPurchaseOrder(
+  purchaseOrderId: number,
+  payload: AdminPurchaseOrderUpdatePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest(`/api/v1/admin/inventory/purchase-orders/${purchaseOrderId}`, {
+    method: 'PATCH',
+    body: payload,
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`admin-purchase-order-update-${purchaseOrderId}-${Date.now()}`),
+    },
+  });
 }
 
 export async function listAdminBranches(
@@ -787,6 +917,33 @@ export async function listAdminMenuItemPrices(
   return res as unknown as AdminMenuItemPriceCollectionEnvelope;
 }
 
+export type AdminMenuModifierGroupQuery = {
+  q?: string;
+  per_page?: number;
+};
+
+export async function listAdminMenuModifierGroups(
+  query: AdminMenuModifierGroupQuery = { per_page: 50 },
+): Promise<AdminMenuModifierGroupCollectionEnvelope> {
+  const params = new URLSearchParams();
+  if (query.q) params.set('search', query.q);
+  if (query.per_page) params.set('per_page', query.per_page.toString());
+
+  return apiRequest<AdminMenuModifierGroupCollectionEnvelope>(`/api/v1/admin/menu/modifier-groups?${params.toString()}`, { method: 'GET' });
+}
+
+export async function createAdminMenuModifierGroup(payload: any): Promise<{ data: AdminMenuModifierGroup }> {
+  return apiRequest<{ data: AdminMenuModifierGroup }>(`/api/v1/admin/menu/modifier-groups`, { method: 'POST', body: payload });
+}
+
+export async function updateAdminMenuModifierGroup(groupId: number, payload: any): Promise<{ data: AdminMenuModifierGroup }> {
+  return apiRequest<{ data: AdminMenuModifierGroup }>(`/api/v1/admin/menu/modifier-groups/${groupId}`, { method: 'PUT', body: payload });
+}
+
+export async function deleteAdminMenuModifierGroup(groupId: number): Promise<void> {
+  return apiRequest<void>(`/api/v1/admin/menu/modifier-groups/${groupId}`, { method: 'DELETE' });
+}
+
 export async function createAdminMenuCategory(
   payload: StoreMenuCategoryRequest,
 ): Promise<GenericDataEnvelope> {
@@ -795,11 +952,60 @@ export async function createAdminMenuCategory(
   });
 }
 
+export type AdminMenuCategoryUpdatePayload = {
+  name?: string;
+  description?: string | null;
+  sort_order?: number;
+  is_deleted?: boolean;
+};
+
+export async function updateAdminMenuCategory(
+  categoryId: number,
+  payload: AdminMenuCategoryUpdatePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest(`/api/v1/admin/menu/categories/${categoryId}`, {
+    method: 'PATCH',
+    body: payload,
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`admin-menu-category-update-${categoryId}-${Date.now()}`),
+    },
+  });
+}
+
 export async function createAdminMenuItem(
-  payload: StoreMenuItemRequest,
+  payload: StoreMenuItemRequest & { is_combo?: boolean; serving_size?: number | null; combo_components?: { component_item_id: number; quantity: number }[] | null },
 ): Promise<GenericDataEnvelope> {
   return staffClient.postV1AdminMenuItems(payload, {
     idempotencyKey: createIdempotencyKey(`admin-menu-item-${payload.code ?? payload.name}`),
+  });
+}
+
+export type AdminMenuItemUpdatePayload = {
+  name?: string;
+  code?: string | null;
+  category_id?: number | null;
+  description?: string | null;
+  img_url?: string | null;
+  is_combo?: boolean;
+  serving_size?: number | null;
+  combo_components?: { component_item_id: number; quantity: number }[] | null;
+  is_available?: boolean;
+  is_preorder_enabled?: boolean | null;
+  preorder_quota_per_day?: number | null;
+  preorder_cutoff_minutes?: number | null;
+  modifier_group_ids?: Array<number>;
+};
+
+export async function updateAdminMenuItem(
+  itemId: number,
+  payload: AdminMenuItemUpdatePayload,
+): Promise<GenericDataEnvelope> {
+  return apiRequest(`/api/v1/admin/menu/items/${itemId}`, {
+    method: 'PATCH',
+    body: payload,
+    headers: {
+      'Idempotency-Key': createIdempotencyKey(`admin-menu-item-update-${itemId}-${Date.now()}`),
+    },
   });
 }
 
@@ -830,11 +1036,14 @@ export async function createAdminBenefitVoucher(payload: AdminVoucherPayload): P
   );
 }
 
-export async function updateAdminBenefitVoucher(voucherId: number, payload: AdminVoucherUpdatePayload): Promise<AdminVoucherEnvelope> {
+export async function updateAdminBenefitVoucher(
+  voucherId: number,
+  payload: AdminVoucherUpdatePayload,
+): Promise<AdminVoucherEnvelope> {
   return staffClient.patchV1AdminBenefitsVouchersId(
     { id: voucherId },
-    payload as UpdateVoucherRequest,
-    { idempotencyKey: createIdempotencyKey(`admin-benefit-voucher-update-${voucherId}`) },
+    payload as unknown as UpdateVoucherRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-voucher-update-${voucherId}-${Date.now()}`) },
   );
 }
 
@@ -854,11 +1063,14 @@ export async function createAdminLoyaltyTier(payload: AdminLoyaltyTierPayload): 
   );
 }
 
-export async function updateAdminLoyaltyTier(tierId: number, payload: AdminLoyaltyTierUpdatePayload): Promise<AdminLoyaltyTierEnvelope> {
+export async function updateAdminLoyaltyTier(
+  tierId: number,
+  payload: AdminLoyaltyTierUpdatePayload,
+): Promise<AdminLoyaltyTierEnvelope> {
   return staffClient.patchV1AdminBenefitsLoyaltyTiersId(
     { id: tierId },
-    payload as UpdateLoyaltyTierRequest,
-    { idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-update-${tierId}`) },
+    payload as unknown as UpdateLoyaltyTierRequest,
+    { idempotencyKey: createIdempotencyKey(`admin-loyalty-tier-update-${tierId}-${Date.now()}`) },
   );
 }
 
@@ -1651,6 +1863,19 @@ function adminMasterDataImportOptions(payload: AdminMasterDataImportPayload) {
     body,
     idempotencyKey,
   } as const;
+}
+
+export type SmartEtaResponse = Record<number, {
+  estimatedMinutes: number;
+  confidence: 'high' | 'medium' | 'low';
+  reason: string;
+}>;
+
+export async function getKitchenSmartETA(itemIds: number[]): Promise<{ data: SmartEtaResponse }> {
+  if (itemIds.length === 0) {
+    return { data: {} };
+  }
+  return apiRequest<{ data: SmartEtaResponse }>(`/api/v1/staff/kitchen/eta?item_ids=${itemIds.join(',')}`, { method: 'GET' });
 }
 
 function selectCanonicalActiveOrder(reservationId: number, orders: Array<ReservationOrder>): ReservationOrder | null {

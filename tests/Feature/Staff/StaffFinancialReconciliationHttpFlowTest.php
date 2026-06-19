@@ -29,10 +29,10 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '40000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '40000',
             'deposit_status' => 'PartiallyRefunded',
-            'final_bill_amount' => '200000.00',
+            'final_bill_amount' => '200000',
             'bill_currency' => 'VND',
         ]);
 
@@ -40,7 +40,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -52,7 +52,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '150000.00',
+            'amount' => '150000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -64,7 +64,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Refund',
             'status' => 'Refunded',
-            'amount' => '10000.00',
+            'amount' => '10000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -106,10 +106,10 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
-            'final_bill_amount' => '150000.00',
+            'final_bill_amount' => '150000',
             'bill_currency' => 'VND',
         ]);
 
@@ -117,7 +117,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -129,7 +129,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Refund',
             'status' => 'Refunded',
-            'amount' => '10000.00',
+            'amount' => '10000',
             'currency' => 'VND',
             'payment_method' => 'Card',
             'payment_provider' => 'simulated',
@@ -174,7 +174,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $this->assertStringContainsString('has_bill_outstanding', $csv);
         $this->assertStringContainsString('discrepancy_reasons', $csv);
         $this->assertStringContainsString((string) $reservationId, $csv);
-        $this->assertStringContainsString('-10000.00', $csv);
+        $this->assertStringContainsString('-10000', $csv);
         $this->assertStringContainsString('deposit_sync_gap,bill_outstanding', $csv);
     }
 
@@ -190,20 +190,20 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'branch_id' => $branchA,
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
-            'final_bill_amount' => '90000.00',
+            'final_bill_amount' => '90000',
             'bill_currency' => 'VND',
         ]);
         $reservationB = $this->createReservation([
             'branch_id' => $branchB,
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
-            'final_bill_amount' => '110000.00',
+            'final_bill_amount' => '110000',
             'bill_currency' => 'VND',
         ]);
 
@@ -212,7 +212,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationA,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '90000.00',
+            'amount' => '90000',
             'currency' => 'VND',
             'created_by' => $staffId,
             'transaction_code' => 'FIN-BRANCH-A',
@@ -222,7 +222,7 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
             'reservation_id' => $reservationB,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '110000.00',
+            'amount' => '110000',
             'currency' => 'VND',
             'created_by' => $staffId,
             'transaction_code' => 'FIN-BRANCH-B',
@@ -277,8 +277,8 @@ class StaffFinancialReconciliationHttpFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'final_bill_amount' => null,
             'bill_currency' => 'VND',

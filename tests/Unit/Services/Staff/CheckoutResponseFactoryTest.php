@@ -122,11 +122,11 @@ class CheckoutResponseFactoryTest extends TestCase
             currency: '',
         );
 
-        $this->assertSame('30.00', $payload['refund']['refund_amount']);
+        $this->assertSame('30', $payload['refund']['refund_amount']);
         $this->assertSame('VND', $payload['refund']['currency']);
         $this->assertSame([5, 6], $payload['refund']['refund_payment_ids']);
         $this->assertTrue($payload['refund']['cancelled']);
         $this->assertSame('Completed', $payload['refund']['reservation_status']);
-        $this->assertSame('120.00', $payload['refund']['payment_summary']['net_paid_total']);
+        $this->assertSame('120', $payload['refund']['payment_summary']['net_paid_total']);
     }
 }

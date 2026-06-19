@@ -19,6 +19,12 @@ export const staffThemeTokens = {
   warning: '#d97706',
   danger: '#dc2626',
   analytics: '#7c3aed',
+  // New Operational Status tokens
+  pending: '#eab308',
+  offline: '#64748b',
+  syncing: '#3b82f6',
+  conflict: '#f97316',
+  criticalAlert: '#991b1b',
 } as const;
 
 export const staffAntTheme: ThemeConfig = {
@@ -38,12 +44,12 @@ export const staffAntTheme: ThemeConfig = {
     colorTextSecondary: staffThemeTokens.textSecondary,
     colorTextTertiary: staffThemeTokens.textTertiary,
     colorTextDisabled: staffThemeTokens.disabled,
-    borderRadius: 10,
-    borderRadiusLG: 14,
-    borderRadiusSM: 8,
-    controlHeight: 36,
-    controlHeightSM: 30,
-    controlHeightLG: 44,
+    borderRadius: 6,
+    borderRadiusLG: 8,
+    borderRadiusSM: 4,
+    controlHeight: 44,
+    controlHeightSM: 36,
+    controlHeightLG: 52,
     fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     fontSize: 13,
     wireframe: false,
@@ -56,11 +62,11 @@ export const staffAntTheme: ThemeConfig = {
       colorErrorBg: 'rgba(220, 38, 38, 0.1)',
     },
     Button: {
-      borderRadius: 10,
-      controlHeight: 36,
-      controlHeightLG: 44,
-      fontWeight: 700,
-      primaryShadow: '0 10px 22px rgba(37, 99, 235, 0.2)',
+      borderRadius: 6,
+      controlHeight: 44,
+      controlHeightLG: 52,
+      fontWeight: 600,
+      primaryShadow: 'none',
     },
     Card: {
       borderRadiusLG: 14,
@@ -77,7 +83,7 @@ export const staffAntTheme: ThemeConfig = {
     },
     Layout: {
       bodyBg: staffThemeTokens.background,
-      headerBg: 'rgba(255, 255, 255, 0.94)',
+      headerBg: staffThemeTokens.surface1,
       siderBg: staffThemeTokens.surface1,
     },
     Menu: {

@@ -6,7 +6,7 @@ import { startTransition, useCallback, useEffect, useMemo, useRef, useState } fr
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
-import { CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, RefreshCw, Search, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BookingProgress } from "@/components/booking/booking-progress";
+import { BookingPreorderReview } from "@/components/booking/booking-preorder-review";
 import { StickyBookingSummary } from "@/components/booking/sticky-booking-summary";
-import { EmptyState } from "@/components/states/state-blocks";
 import { SelectedBranchEntry } from "@/features/branch/branch-selector";
 import { useBranchSelection } from "@/features/branch/hooks";
 import {
@@ -29,6 +29,7 @@ import {
   clearLocalPreorderCart,
   localCartSubmitItems,
   readLocalPreorderCart,
+  localCartSubtotal,
 } from "@/features/preorder/local-cart";
 import {
   storePendingReservationPreorderDraft,
@@ -62,7 +63,7 @@ import {
   formatLocalDateTimeInput,
   parseLocalDateTimeInput,
 } from "@/lib/contracts/datetime";
-import { formatDateTime } from "@/lib/contracts/format";
+import { formatDateTime, formatMoney } from "@/lib/contracts/format";
 import type { TableHold } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { formatCustomerTableName } from "@/lib/i18n/customer-display";
 import { useAuth } from "@/providers/auth-provider";
@@ -426,6 +427,7 @@ export function ReservationCreatePage() {
   const [holdActionError, setHoldActionError] = useState<unknown>(null);
   const [recoveryAttempted, setRecoveryAttempted] = useState(false);
   const recoveryAttemptedRef = useRef(false);
+  const [mounted, setMounted] = useState(false);
 
   const form = useForm<ReservationFormValues>({
     resolver: zodResolver(reservationFormSchemaForCustomer(isAuthenticated)),
@@ -491,6 +493,10 @@ export function ReservationCreatePage() {
       return holdStateFromError(holdQuery.error);
     }
 
+    if (liveHold?.confirmed_reservation_id) {
+      return "active";
+    }
+
     if (!liveHoldState?.isActive || holdExpiredByClock) {
       return "expired";
     }
@@ -507,6 +513,7 @@ export function ReservationCreatePage() {
     holdNoticeState,
     holdQuery.error,
     holdQuery.isLoading,
+    liveHold?.confirmed_reservation_id,
     liveHoldState?.isActive,
     remainingMs,
   ]);
@@ -514,6 +521,27 @@ export function ReservationCreatePage() {
   const reservationStartTime = liveHoldStartTime ?? watchedStartTime;
   const visitStartLabel = formatVisitStartForCustomer(reservationStartTime);
   const branchLabel = branchSelection.selectedBranch?.branchName ?? (selectedBranchId ? `#${selectedBranchId}` : "Chưa chọn");
+  const storedCartForDeposit = readLocalPreorderCart(customerSessionId, selectedBranchId);
+  const preorderSubtotal = localCartSubtotal(storedCartForDeposit).amount;
+
+  const estimatedDeposit = useMemo(() => {
+    let baseFee = 0;
+    const guests = watchedGuestCount ?? initialGuestCount ?? 0;
+    if (guests <= 4) baseFee = 200000;
+    else if (guests <= 10) baseFee = guests * 100000;
+    else baseFee = guests * 200000;
+
+    let multiplier = 1.0;
+    const date = watchedStartTime ? new Date(watchedStartTime) : new Date();
+    const day = date.getDay(); // 0 is Sunday, 6 is Saturday
+    const hour = date.getHours();
+    if (day === 0 || day === 6 || (day === 5 && hour >= 17)) {
+      multiplier = 1.5;
+    }
+
+    return Math.max(preorderSubtotal, baseFee) * multiplier;
+  }, [watchedGuestCount, initialGuestCount, watchedStartTime, preorderSubtotal]);
+
   const bookingSummaryItems = [
     { label: "Chi nhánh", value: branchLabel },
     { label: "Ngày giờ", value: visitStartLabel },
@@ -521,6 +549,7 @@ export function ReservationCreatePage() {
     { label: "Thời lượng", value: `${liveHoldDurationMinutes ?? initialDurationMinutes} phút` },
     { label: "Bàn đã chọn", value: liveHoldTableLabel },
     { label: "Món chọn trước", value: preorderQuantity > 0 ? `${preorderQuantity} món sau đặt bàn` : "Tùy chọn sau" },
+    { label: "Tiền cọc (Ước tính)", value: formatMoney(estimatedDeposit) },
   ];
 
   const persistBookingDraft = useCallback((values: ReservationFormValues = form.getValues()) => {
@@ -805,6 +834,26 @@ export function ReservationCreatePage() {
   ]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setMounted(true);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (mounted && !currentHoldId) {
+      toast.error("Thời gian giữ bàn đã hết hạn. Vui lòng chọn bàn mới để tiếp tục.");
+    }
+  }, [mounted, currentHoldId]);
+
+  useEffect(() => {
+    if (mounted && liveHold?.confirmed_reservation_id) {
+      toast("Đang chuyển hướng đến chi tiết lịch đặt...", { id: "hold-booked" });
+      router.replace(`/reservations/${liveHold.confirmed_reservation_id}`);
+    }
+  }, [mounted, liveHold?.confirmed_reservation_id, router]);
+
+  useEffect(() => {
     if (!selectedBranchId) {
       return;
     }
@@ -956,6 +1005,7 @@ export function ReservationCreatePage() {
           branch_id: values.branch_id ?? selectedBranchId ?? undefined,
           hold_id: hold.hold_id,
           table_ids: getTableIdsFromHold(hold, liveHoldTableIds),
+          pre_order_items: preorderItems.map((item) => ({ item_id: item.item_id, quantity: item.quantity })),
         });
       let submitRetryAttempted = false;
 
@@ -987,13 +1037,24 @@ export function ReservationCreatePage() {
         if (selectedBranchId) {
           clearLocalPreorderCart(customerSessionId, selectedBranchId);
         }
-        clearCustomerBookingDraft();
+      }
+
+      clearCustomerBookingDraft();
+
+      const meta = reservation.meta as Record<string, unknown> | undefined;
+      const paymentUrl = meta?.deposit_payment_url;
+      if (paymentUrl && typeof paymentUrl === "string") {
+        toast.loading("Vui lòng thanh toán cọc để hoàn tất đặt bàn...");
+        window.location.href = paymentUrl;
+        return;
+      }
+
+      if (preorderItems.length > 0) {
         toast.success("Đặt bàn thành công. Mộc Sen đã giữ giỏ món để bạn chọn sau.");
         router.push(`/reservations/${reservation.reservation_id}?next=preorder#preorder`);
         return;
       }
 
-      clearCustomerBookingDraft();
       toast.success("Đặt bàn thành công.");
       router.push(`/reservations/${reservation.reservation_id}`);
     },
@@ -1025,9 +1086,9 @@ export function ReservationCreatePage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6 pb-28 lg:pb-8">
       <section className="mb-5 space-y-3">
-        <h1 className="text-4xl font-semibold tracking-normal">Xác nhận đặt bàn</h1>
+        <h1 className="text-4xl font-semibold tracking-normal">Thông tin liên hệ & Thanh toán cọc</h1>
         <p className="mt-2 max-w-2xl text-muted-foreground">
-          Hoàn tất thông tin liên hệ để Mộc Sen Bistro xác nhận bàn nhanh. Bạn có thể chọn món trước sau khi đặt bàn thành công.
+          Hoàn tất thông tin liên hệ và thanh toán cọc để Mộc Sen Bistro giữ bàn cho bạn. Bàn của bạn sẽ được xác nhận ngay sau khi đặt cọc thành công.
         </p>
         <BookingProgress currentStep="guest" />
         <div className="max-w-sm">
@@ -1036,9 +1097,12 @@ export function ReservationCreatePage() {
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <Card className="rounded-lg">
-          <CardHeader>
-            <CardTitle>{isAuthenticated ? "Thông tin liên hệ" : "Thông tin khách"}</CardTitle>
+        <div className="space-y-6">
+          <BookingPreorderReview branchId={selectedBranchId} />
+          
+          <Card className="rounded-lg">
+            <CardHeader>
+              <CardTitle>{isAuthenticated ? "Thông tin liên hệ" : "Thông tin khách"}</CardTitle>
           </CardHeader>
           <CardContent>
             <form
@@ -1058,18 +1122,27 @@ export function ReservationCreatePage() {
                   retryDisabled={Boolean(holdActionPending)}
                 />
               ) : (
-                <EmptyState
-                  title="Chưa có bàn đang giữ"
-                  description="Mộc Sen đã giữ thông tin của bạn. Vui lòng chọn lại bàn phù hợp để tiếp tục."
-                  action={
-                    <Button asChild variant="outline" className="rounded-lg">
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-6 shadow-sm space-y-4">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-600">
+                      <AlertTriangle className="h-5 w-5 animate-pulse" />
+                    </div>
+                    <div className="space-y-1.5 pt-0.5">
+                      <h3 className="text-base font-bold text-amber-900 leading-tight">Chưa có bàn đang giữ</h3>
+                      <p className="text-sm text-amber-800/90 leading-relaxed max-w-xl">
+                        Thời gian giữ bàn của quý khách đã hết hạn trong lúc chọn món hoặc thông tin chưa hoàn tất. Mộc Sen đã lưu lại thông tin liên hệ và giỏ món ăn đặt trước của quý khách. Vui lòng chọn lại bàn để tiếp tục.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end pt-2">
+                    <Button asChild className="min-h-10 px-6 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white rounded-lg border-none shadow-md transition-all duration-300">
                       <Link href="/booking">
                         <Search className="mr-2 h-4 w-4" />
                         Chọn bàn
                       </Link>
                     </Button>
-                  }
-                />
+                  </div>
+                </div>
               )}
 
               {holdActionError ? (
@@ -1147,17 +1220,7 @@ export function ReservationCreatePage() {
                 <Label htmlFor="notes">Ghi chú</Label>
                 <Textarea id="notes" className="min-h-24 rounded-lg" {...form.register("notes")} />
               </div>
-
-              <Alert className="rounded-lg">
-                <CheckCircle2 className="h-4 w-4" />
-                <AlertTitle>Bạn có thể chọn món trước sau khi đặt bàn thành công.</AlertTitle>
-                <AlertDescription>
-                  {preorderQuantity > 0
-                    ? `Mộc Sen đang giữ ${preorderQuantity} món trong giỏ. Sau khi đặt bàn thành công, bạn có thể xem trước và lưu món đặt trước.`
-                    : "Bạn có thể bỏ qua bước này và chọn món tại nhà hàng."}
-                </AlertDescription>
-              </Alert>
-
+              
               {createError ? (
                 <Alert variant="destructive" className="rounded-lg">
                   <AlertDescription>{customerFriendlyHoldMessage(createError, { recoveryFailed: true })}</AlertDescription>
@@ -1166,16 +1229,17 @@ export function ReservationCreatePage() {
 
               <Button
                 type="submit"
-                className="min-h-11 w-full rounded-lg"
+                className="min-h-11 w-full rounded-lg bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white border-none shadow-md"
                 disabled={createActionDisabled}
                 data-testid="customer-submit-reservation-button"
               >
                 <CheckCircle2 className="mr-2 h-4 w-4" />
-                {createMutation.isPending ? "Đang xác nhận đặt bàn" : "Xác nhận đặt bàn"}
+                {createMutation.isPending ? "Đang xử lý..." : "Hoàn tất đặt bàn"}
               </Button>
             </form>
           </CardContent>
         </Card>
+        </div>
 
         <StickyBookingSummary
           title="Tóm tắt đặt bàn"
@@ -1183,7 +1247,7 @@ export function ReservationCreatePage() {
           holdCode={currentHoldId}
           holdExpiresAt={expiresAt}
           holdStatusLabel={holdStatusCopy(currentHoldUxState, remainingLabel).title}
-          primaryActionLabel={createMutation.isPending ? "Đang xác nhận đặt bàn" : "Xác nhận đặt bàn"}
+          primaryActionLabel={createMutation.isPending ? "Đang xử lý..." : "Hoàn tất đặt bàn"}
           primaryActionDisabled={createActionDisabled}
           onPrimaryAction={() => form.handleSubmit(submitReservation)()}
         />

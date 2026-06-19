@@ -155,6 +155,7 @@ class ReservationResource extends JsonResource
             'bill_currency' => $canViewFinancials ? ($this->bill_currency ?? null) : null,
             'billed_at' => $canViewFinancials ? $this->iso($this->billed_at) : null,
             'notes' => $this->notes,
+            'meta' => $this->resource->meta ?? null,
             'row_version' => (int) $this->row_version,
             'created_at' => $this->iso($this->created_at),
             'updated_at' => $this->iso($this->updated_at),

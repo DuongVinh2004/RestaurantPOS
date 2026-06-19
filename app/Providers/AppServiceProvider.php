@@ -27,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        \Illuminate\Support\Facades\Gate::define('viewPulse', function ($user = null) {
+            return $user !== null || app()->environment('local');
+        });
+
         if ($this->app->bound('router')) {
             /** @var Router $router */
             $router = $this->app->make('router');

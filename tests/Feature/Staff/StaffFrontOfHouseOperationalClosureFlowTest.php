@@ -148,7 +148,7 @@ class StaffFrontOfHouseOperationalClosureFlowTest extends TestCase
         $menuItemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $menuItemId,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
         ]);
 

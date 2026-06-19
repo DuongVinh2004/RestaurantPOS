@@ -264,7 +264,48 @@ class ReservationService
                     ]);
                 }
 
-                // 5. KHỞI TẠO ĐƠN ĐẶT BÀN VÀ LƯU VÀO DATABASE
+                // 5. CHUẨN BỊ MÓN ĐẶT TRƯỚC (PRE-ORDER) & TÍNH TOÁN CỌC THEO QUY TẮC NGHIÊM NGẶT
+                $preOrderItems = $payload['pre_order_items'] ?? null;
+                $preorderTotal = 0.0;
+                $preparedPreorder = null;
+
+                if (is_array($preOrderItems) && count($preOrderItems) > 0) {
+                    if (! MenuItem::supportsPreorderColumns()) {
+                        throw ValidationException::withMessages([
+                            'pre_order_items' => ['Hệ thống chưa được đồng bộ contract pre-order. Vui lòng áp dụng patch database mới nhất rồi thử lại.'],
+                        ]);
+                    }
+
+                    $preparedPreorder = $this->menuPreorderPolicyService->prepareRequestedItems($preOrderItems, $startUtc, null, 'VND', $tableBranchId);
+                    $normalizedPreOrderItems = $preparedPreorder['rows'];
+                    $priceRows = $preparedPreorder['price_rows'];
+
+                    foreach ($normalizedPreOrderItems as $row) {
+                        $priceRow = $priceRows->get((int) $row['item_id']);
+                        $preorderTotal += (float) $priceRow->price * (int) $row['quantity'];
+                    }
+                }
+
+                // Tính phí giữ chỗ (Base Fee)
+                $baseFee = 0.0;
+                if ($guestCount <= 4) {
+                    $baseFee = 200000.0;
+                } elseif ($guestCount <= 10) {
+                    $baseFee = $guestCount * 100000.0;
+                } else {
+                    $baseFee = $guestCount * 200000.0;
+                }
+
+                // Tính hệ số ngày cuối tuần (Thứ 6 sau 17:00, Thứ 7, Chủ Nhật)
+                $isWeekend = false;
+                $dayOfWeekIso = (int) $startUtc->dayOfWeekIso;
+                $hour = (int) $startUtc->hour;
+                if ($dayOfWeekIso === 6 || $dayOfWeekIso === 7 || ($dayOfWeekIso === 5 && $hour >= 17)) {
+                    $isWeekend = true;
+                }
+                $multiplier = $isWeekend ? 1.5 : 1.0;
+
+                // 6. KHỞI TẠO ĐƠN ĐẶT BÀN VÀ LƯU VÀO DATABASE
                 $reservation = new Reservation;
                 $reservation->branch_id = $tableBranchId;
                 $reservation->user_id = $userId;
@@ -284,10 +325,11 @@ class ReservationService
                     ? 'Offline' // Nhân viên tạo giúp
                     : 'Online'; // Khách tự tạo
 
-                // Online Deposit Lean Rule: Yêu cầu đặt cọc 500,000 VND nếu số lượng khách >= 5 (cho booking Online)
-                if ($reservation->source === 'Online' && $guestCount >= 5) {
-                    $reservation->deposit_required_amount = 500000.00;
-                    $reservation->deposit_status = DepositStatus::Pending;
+                // Quy tắc cọc nghiêm ngặt: Max(Tiền món, Phí giữ chỗ) * Hệ số
+                if ($reservation->source === 'Online') {
+                    $depositRequired = max($preorderTotal, $baseFee) * $multiplier;
+                    $reservation->deposit_required_amount = $depositRequired;
+                    $reservation->deposit_status = $depositRequired > 0 ? DepositStatus::Pending : DepositStatus::NotRequired;
                 } else {
                     $reservation->deposit_required_amount = 0.00;
                     $reservation->deposit_status = DepositStatus::NotRequired;
@@ -327,16 +369,8 @@ class ReservationService
                 // Liên kết Bàn với Phiên đặt chỗ
                 $reservation->tables()->attach($tableIds);
 
-                // 6. XỬ LÝ GỌI MÓN TRƯỚC (PRE-ORDER)
-                $preOrderItems = $payload['pre_order_items'] ?? null;
-                if (is_array($preOrderItems) && count($preOrderItems) > 0) {
-                    if (! MenuItem::supportsPreorderColumns()) {
-                        throw ValidationException::withMessages([
-                            'pre_order_items' => ['Hệ thống chưa được đồng bộ contract pre-order. Vui lòng áp dụng patch database mới nhất rồi thử lại.'],
-                        ]);
-                    }
-
-                    $preparedPreorder = $this->menuPreorderPolicyService->prepareRequestedItems($preOrderItems, $startUtc, null, (string) ($reservation->currency ?? 'VND'), (int) $reservation->branch_id);
+                // 7. XỬ LÝ LƯU GỌI MÓN TRƯỚC (PRE-ORDER)
+                if ($preparedPreorder !== null) {
                     $normalizedPreOrderItems = $preparedPreorder['rows'];
                     $menuItems = $preparedPreorder['menu_items'];
                     $priceRows = $preparedPreorder['price_rows'];

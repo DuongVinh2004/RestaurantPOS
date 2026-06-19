@@ -63,7 +63,7 @@ class ReservationVoucherPreviewService
             'voucher_code' => (string) ($voucher?->code ?? ''),
             'description' => (string) ($voucher?->description ?? ''),
             'discount_type' => $voucher?->discount_type?->value ?? (string) ($voucher?->discount_type ?? ''),
-            'discount_value' => $voucher?->discount_value !== null ? number_format((float) $voucher->discount_value, 2, '.', '') : null,
+            'discount_value' => $voucher?->discount_value !== null ? number_format((float) $voucher->discount_value, 0, '.', '') : null,
             'min_spend' => $voucher?->min_spend !== null ? Money::format($voucher->min_spend, true) : null,
             'free_item' => $voucher && (int) ($voucher->free_item_id ?? 0) > 0 ? [
                 'item_id' => (int) $voucher->free_item_id,

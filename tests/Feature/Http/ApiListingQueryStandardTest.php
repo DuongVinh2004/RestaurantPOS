@@ -154,13 +154,13 @@ class ApiListingQueryStandardTest extends TestCase
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemA,
-            'price' => '120000.00',
+            'price' => '120000',
             'currency' => 'VND',
             'effective_from' => now('UTC')->subDay(),
         ]);
         $this->createMenuItemPrice([
             'item_id' => $itemB,
-            'price' => '110000.00',
+            'price' => '110000',
             'currency' => 'VND',
             'effective_from' => now('UTC')->subHours(2),
         ]);
@@ -266,10 +266,10 @@ class ApiListingQueryStandardTest extends TestCase
             'user_id' => $customerId,
             'reservation_code' => 'Q-FIN-001',
             'status' => 'Completed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
-            'final_bill_amount' => '150000.00',
+            'final_bill_amount' => '150000',
             'bill_currency' => 'VND',
             'billed_at' => Carbon::parse('2026-04-05 08:30:00', 'UTC'),
         ]);
@@ -278,7 +278,7 @@ class ApiListingQueryStandardTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'created_by' => $staffId,
             'paid_at' => Carbon::parse('2026-04-05 08:00:00', 'UTC'),
@@ -287,7 +287,7 @@ class ApiListingQueryStandardTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'created_by' => $staffId,
             'paid_at' => Carbon::parse('2026-04-05 08:35:00', 'UTC'),

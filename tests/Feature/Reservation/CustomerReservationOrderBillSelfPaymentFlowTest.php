@@ -60,8 +60,8 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $activeOrder->assertOk()
             ->assertJsonPath('data.reservation_id', $reservationId)
             ->assertJsonPath('data.active_order.order_id', $orderId)
-            ->assertJsonPath('data.active_order.totals.total_due', '100000.00')
-            ->assertJsonPath('data.active_order.totals.outstanding', '100000.00')
+            ->assertJsonPath('data.active_order.totals.total_due', '100000')
+            ->assertJsonPath('data.active_order.totals.outstanding', '100000')
             ->assertJsonPath('meta.has_active_order', true);
 
         $billPreview = $this->actingAs($customer)
@@ -72,9 +72,9 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             ->assertJsonPath('data.reservation_id', $reservationId)
             ->assertJsonPath('data.bill_preview.snapshot_mode', 'provisional')
             ->assertJsonPath('data.bill_preview.active_order_present', true)
-            ->assertJsonPath('data.bill_preview.computed_subtotal_amount', '100000.00')
-            ->assertJsonPath('data.bill_preview.total_due_amount', '100000.00')
-            ->assertJsonPath('data.bill_preview.outstanding_amount', '100000.00')
+            ->assertJsonPath('data.bill_preview.computed_subtotal_amount', '100000')
+            ->assertJsonPath('data.bill_preview.total_due_amount', '100000')
+            ->assertJsonPath('data.bill_preview.outstanding_amount', '100000')
             ->assertJsonPath('data.bill_preview.payment_status', 'Failed')
             ->assertJsonPath('data.bill_preview.self_payment.available', false)
             ->assertJsonPath('data.bill_preview.self_payment.next_step', 'awaiting_staff_bill_lock');
@@ -163,9 +163,9 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $billPreview->assertOk()
             ->assertJsonPath('data.active_order', null)
             ->assertJsonPath('data.bill_preview.active_order_present', false)
-            ->assertJsonPath('data.bill_preview.computed_subtotal_amount', '0.00')
-            ->assertJsonPath('data.bill_preview.total_due_amount', '0.00')
-            ->assertJsonPath('data.bill_preview.outstanding_amount', '0.00')
+            ->assertJsonPath('data.bill_preview.computed_subtotal_amount', '0')
+            ->assertJsonPath('data.bill_preview.total_due_amount', '0')
+            ->assertJsonPath('data.bill_preview.outstanding_amount', '0')
             ->assertJsonPath('data.bill_preview.self_payment.available', false)
             ->assertJsonPath('data.bill_preview.self_payment.next_step', 'awaiting_staff_bill_lock');
     }
@@ -192,7 +192,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $settledCustomer = User::query()->findOrFail($settledCustomerId);
         $this->createPayment([
             'reservation_id' => $settledReservationId,
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -221,7 +221,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $partialCustomer = User::query()->findOrFail($partialCustomerId);
         $this->createPayment([
             'reservation_id' => $partialReservationId,
-            'amount' => '40000.00',
+            'amount' => '40000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -250,7 +250,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $mixedCustomer = User::query()->findOrFail($mixedCustomerId);
         $this->createPayment([
             'reservation_id' => $mixedReservationId,
-            'amount' => '10000.00',
+            'amount' => '10000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Cash',
@@ -260,7 +260,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         ]);
         $this->createPayment([
             'reservation_id' => $mixedReservationId,
-            'amount' => '10000.00',
+            'amount' => '10000',
             'currency' => 'USD',
             'payment_method' => 'Card',
             'payment_provider' => 'Card',
@@ -425,7 +425,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $confirm->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
-            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+            ->assertJsonPath('data.bill.outstanding_amount', '0');
 
         $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
         $this->assertSame(1, (int) DB::table('reservation_bill_payment_sessions')->where('reservation_id', $reservationId)->count());
@@ -473,8 +473,8 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         ]);
 
         $firstConfirm->assertOk()
-            ->assertJsonPath('data.bill.total_due_amount', '100000.00')
-            ->assertJsonPath('data.bill.outstanding_amount', '0.00')
+            ->assertJsonPath('data.bill.total_due_amount', '100000')
+            ->assertJsonPath('data.bill.outstanding_amount', '0')
             ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied');
 
@@ -524,7 +524,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             ->getJson('/api/v1/reservations/'.$reservationId.'/bill-preview');
 
         $preview->assertOk()
-            ->assertJsonPath('data.bill_preview.outstanding_amount', '0.00')
+            ->assertJsonPath('data.bill_preview.outstanding_amount', '0')
             ->assertJsonPath('data.bill_preview.self_payment.available', false)
             ->assertJsonPath('data.bill_preview.self_payment.awaiting_staff_finalization', true)
             ->assertJsonPath('data.bill_preview.self_payment.next_step', 'payment_recorded_awaiting_staff_finalization');
@@ -589,7 +589,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             'provider_session_code' => 'shared-provider-session-code-2',
             'provider_payment_code' => null,
             'payment_method' => 'Online',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -699,7 +699,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
             ->assertJsonPath('data.payment_session.linked_payment_id', $linkedPaymentId)
             ->assertJsonPath('data.payment_session.row_version', $terminalRowVersion)
-            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+            ->assertJsonPath('data.bill.outstanding_amount', '0');
 
         $this->assertSame(
             1,
@@ -724,7 +724,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             'provider_session_code' => 'sim-bill-existing-payment-1',
             'provider_payment_code' => 'sim-bill-pay-existing-payment-1',
             'payment_method' => 'Online',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'NotApplied',
@@ -749,7 +749,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Online',
             'payment_provider' => 'simulated',
@@ -779,7 +779,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $confirm->assertOk()
             ->assertJsonPath('data.payment_session.linked_payment_id', $paymentId)
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
-            ->assertJsonPath('data.bill.outstanding_amount', '0.00');
+            ->assertJsonPath('data.bill.outstanding_amount', '0');
 
         $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
         $this->assertSame($paymentId, (int) DB::table('reservation_bill_payment_sessions')->where('bill_payment_session_id', $sessionId)->value('linked_payment_id'));
@@ -813,7 +813,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $pending->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Pending')
             ->assertJsonPath('data.payment_session.linked_payment_id', null)
-            ->assertJsonPath('data.bill.outstanding_amount', '100000.00');
+            ->assertJsonPath('data.bill.outstanding_amount', '100000');
 
         $failed = $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'cust-bill-failed-confirm-1',
@@ -826,7 +826,7 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $failed->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Failed')
             ->assertJsonPath('data.payment_session.linked_payment_id', null)
-            ->assertJsonPath('data.bill.outstanding_amount', '100000.00');
+            ->assertJsonPath('data.bill.outstanding_amount', '100000');
 
         $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Final')->count());
     }
@@ -895,8 +895,8 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
             'branch_id' => $branchId,
             'user_id' => $customerId,
             'status' => 'Reserved',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
         ]);
@@ -909,9 +909,9 @@ class CustomerReservationOrderBillSelfPaymentFlowTest extends TestCase
         $this->createOrderItem([
             'order_id' => $orderId,
             'quantity' => 2,
-            'unit_price' => '50000.00',
+            'unit_price' => '50000',
             'currency' => 'VND',
-            'line_total' => '100000.00',
+            'line_total' => '100000',
         ]);
 
         if ($lockBill) {

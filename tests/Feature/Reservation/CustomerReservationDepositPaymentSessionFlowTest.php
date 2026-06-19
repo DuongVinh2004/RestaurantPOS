@@ -57,8 +57,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '150000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '150000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -78,9 +78,9 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
 
         $create->assertCreated()
             ->assertJsonPath('data.reservation_id', $reservationId)
-            ->assertJsonPath('data.deposit.required_amount', '150000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '150000.00')
-            ->assertJsonPath('data.payment_session.amount', '100000.00')
+            ->assertJsonPath('data.deposit.required_amount', '150000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '150000')
+            ->assertJsonPath('data.payment_session.amount', '100000')
             ->assertJsonPath('data.payment_session.currency', 'VND')
             ->assertJsonPath('data.payment_session.session_status', 'Pending')
             ->assertJsonPath('data.payment_session.provider_payload.mode', 'simulated');
@@ -118,8 +118,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '150000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '150000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -145,7 +145,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
 
         $create->assertCreated()
             ->assertJsonPath('data.reservation_id', $reservationId)
-            ->assertJsonPath('data.payment_session.amount', '100000.00')
+            ->assertJsonPath('data.payment_session.amount', '100000')
             ->assertJsonPath('data.payment_session.session_status', 'Pending');
 
         $depositSessionId = (int) $create->json('data.payment_session.deposit_payment_session_id');
@@ -170,7 +170,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $confirm->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
-            ->assertJsonPath('data.deposit.paid_amount', '100000.00');
+            ->assertJsonPath('data.deposit.paid_amount', '100000');
 
         $this->assertNull(DB::table('reservation_deposit_payment_sessions')->where('deposit_payment_session_id', $depositSessionId)->value('updated_by'));
     }
@@ -182,8 +182,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
 
@@ -215,8 +215,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $ownerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -252,8 +252,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $noDepositReservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
         ]);
 
@@ -269,8 +269,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $paidReservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -278,7 +278,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'reservation_id' => $paidReservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-ALREADY-PAID-1',
         ]);
@@ -301,8 +301,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -327,8 +327,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
         $customer = User::query()->findOrFail($customerId);
@@ -369,8 +369,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -422,8 +422,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -438,7 +438,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'provider_session_code' => 'shared-provider-session-code-1',
             'provider_payment_code' => null,
             'payment_method' => 'Online',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'session_status' => 'Pending',
             'settlement_status' => 'NotApplied',
@@ -516,8 +516,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -552,8 +552,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         ]);
 
         $firstConfirm->assertOk()
-            ->assertJsonPath('data.deposit.paid_amount', '50000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00')
+            ->assertJsonPath('data.deposit.paid_amount', '50000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0')
             ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied');
 
@@ -623,8 +623,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -634,7 +634,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'payment_provider' => 'simulated',
             'transaction_code' => 'dep-terminal-refresh-1',
@@ -648,7 +648,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'provider_session_code' => 'sim-dep-terminal-refresh-1',
             'provider_payment_code' => 'sim-pay-terminal-refresh-1',
             'payment_method' => 'Online',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'Applied',
@@ -686,8 +686,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
             ->assertJsonPath('data.payment_session.linked_payment_id', $paymentId)
             ->assertJsonPath('data.payment_session.row_version', 7)
-            ->assertJsonPath('data.deposit.paid_amount', '50000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00');
+            ->assertJsonPath('data.deposit.paid_amount', '50000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0');
 
         $this->assertSame(
             1,
@@ -704,8 +704,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '70000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '70000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -719,7 +719,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'provider_session_code' => 'sim-dep-terminal-backfill-1',
             'provider_payment_code' => 'sim-pay-terminal-backfill-1',
             'payment_method' => 'Online',
-            'amount' => '70000.00',
+            'amount' => '70000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'NotApplied',
@@ -755,8 +755,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $confirm->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Succeeded')
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
-            ->assertJsonPath('data.deposit.paid_amount', '70000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00');
+            ->assertJsonPath('data.deposit.paid_amount', '70000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0');
 
         $linkedPaymentId = (int) $confirm->json('data.payment_session.linked_payment_id');
         $this->assertGreaterThan(0, $linkedPaymentId);
@@ -778,8 +778,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '70000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '70000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);
@@ -793,7 +793,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'provider_session_code' => 'sim-dep-existing-payment-1',
             'provider_payment_code' => 'sim-pay-existing-payment-1',
             'payment_method' => 'Online',
-            'amount' => '70000.00',
+            'amount' => '70000',
             'currency' => 'VND',
             'session_status' => 'Succeeded',
             'settlement_status' => 'NotApplied',
@@ -818,7 +818,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '70000.00',
+            'amount' => '70000',
             'currency' => 'VND',
             'payment_method' => 'Online',
             'payment_provider' => 'simulated',
@@ -848,8 +848,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $confirm->assertOk()
             ->assertJsonPath('data.payment_session.linked_payment_id', $paymentId)
             ->assertJsonPath('data.payment_session.settlement_status', 'Applied')
-            ->assertJsonPath('data.deposit.paid_amount', '70000.00')
-            ->assertJsonPath('data.deposit.outstanding_amount', '0.00');
+            ->assertJsonPath('data.deposit.paid_amount', '70000')
+            ->assertJsonPath('data.deposit.outstanding_amount', '0');
 
         $this->assertSame(1, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
         $this->assertSame($paymentId, (int) DB::table('reservation_deposit_payment_sessions')->where('deposit_payment_session_id', $sessionId)->value('linked_payment_id'));
@@ -861,8 +861,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '120000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '120000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
         ]);
         $customer = User::query()->findOrFail($customerId);
@@ -890,7 +890,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $pending->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Pending')
             ->assertJsonPath('data.payment_session.linked_payment_id', null)
-            ->assertJsonPath('data.deposit.paid_amount', '0.00');
+            ->assertJsonPath('data.deposit.paid_amount', '0');
 
         $failed = $this->actingAs($customer)->withHeaders([
             'Idempotency-Key' => 'cust-dep-failed-confirm-1',
@@ -903,7 +903,7 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $failed->assertOk()
             ->assertJsonPath('data.payment_session.session_status', 'Failed')
             ->assertJsonPath('data.payment_session.linked_payment_id', null)
-            ->assertJsonPath('data.deposit.paid_amount', '0.00');
+            ->assertJsonPath('data.deposit.paid_amount', '0');
 
         $this->assertSame(0, (int) DB::table('payments')->where('reservation_id', $reservationId)->where('payment_type', 'Deposit')->count());
     }
@@ -916,8 +916,8 @@ class CustomerReservationDepositPaymentSessionFlowTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '80000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '80000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
         ]);

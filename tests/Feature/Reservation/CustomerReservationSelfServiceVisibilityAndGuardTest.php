@@ -34,8 +34,8 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             'end_time' => $this->nowUtc()->copy()->addHours(7),
             'status' => 'Confirmed',
             'deposit_status' => 'Required',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '20000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '20000',
             'row_version' => 1,
         ]);
         $this->attachReservationTable($reservationId, $tableId);
@@ -43,7 +43,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '20000.00',
+            'amount' => '20000',
             'payment_provider' => 'Cash',
             'payment_method' => 'Cash',
         ]);
@@ -58,7 +58,7 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             ->assertJsonPath('data.0.table_summary.count', 1)
             ->assertJsonPath('data.0.table_summary.zones.0', 'Main Hall')
             ->assertJsonPath('data.0.deposit_summary.status', 'Required')
-            ->assertJsonPath('data.0.deposit_summary.outstanding_amount', '30000.00')
+            ->assertJsonPath('data.0.deposit_summary.outstanding_amount', '30000')
             ->assertJsonPath('data.0.customer_self_service.scope', 'owner')
             ->assertJsonPath('data.0.customer_self_service.can_attempt_cancel', true)
             ->assertJsonPath('data.0.customer_self_service.can_attempt_reschedule', true);
@@ -81,8 +81,8 @@ class CustomerReservationSelfServiceVisibilityAndGuardTest extends TestCase
             'end_time' => $end,
             'status' => 'Confirmed',
             'deposit_status' => 'Required',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '20000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '20000',
         ]);
         $this->attachReservationTable($reservationId, $tableId);
         $this->createTableHold([

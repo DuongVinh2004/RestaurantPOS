@@ -1,0 +1,19 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+# Nginx sẽ serve staff-web static files trực tiếp từ volume hoặc image riêng.
+# Vì staff-web tĩnh, ta dùng nginx:alpine làm runner cho staff-web, 
+# HOẶC ta chỉ việc copy vào một volume chung để nginx chính serve.
+# Ở đây ta đóng gói thành image chứa file tĩnh
+FROM alpine:latest
+WORKDIR /app/dist
+COPY --from=builder /app/dist ./
+# Container này chỉ làm nhiệm vụ cung cấp dữ liệu qua volume
+CMD ["tail", "-f", "/dev/null"]

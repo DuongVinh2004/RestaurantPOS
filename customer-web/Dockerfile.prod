@@ -1,0 +1,26 @@
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Enable corepack and prepare Next.js standalone build
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+# We must disable typecheck/lint in production build if they are done in CI, 
+# or ensure they pass. Next.js standalone requires next.config.ts configuration.
+# Assuming next.config.ts has output: 'standalone'
+RUN npm run build
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV production
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]

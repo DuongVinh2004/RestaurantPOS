@@ -69,17 +69,17 @@ class AdminMenuManagementHttpFlowTest extends TestCase
 
         $activePriceResponse = $this->withHeaders($this->staffHeaders('admin-menu-key'))
             ->postJson(sprintf('/api/v1/admin/menu/items/%d/prices', $itemId), [
-                'price' => '185000.00',
+                'price' => '185000',
                 'currency' => 'VND',
                 'effective_from' => $activeFrom->toIso8601String(),
             ]);
 
         $activePriceResponse->assertCreated()
-            ->assertJsonPath('data.price', '185000.00');
+            ->assertJsonPath('data.price', '185000');
 
         $futurePriceResponse = $this->withHeaders($this->staffHeaders('admin-menu-key'))
             ->postJson(sprintf('/api/v1/admin/menu/items/%d/prices', $itemId), [
-                'price' => '195000.00',
+                'price' => '195000',
                 'currency' => 'VND',
                 'effective_from' => $futureFrom->toIso8601String(),
             ]);
@@ -89,20 +89,20 @@ class AdminMenuManagementHttpFlowTest extends TestCase
 
         $updateFuturePriceResponse = $this->withHeaders($this->staffHeaders('admin-menu-key'))
             ->putJson(sprintf('/api/v1/admin/menu/prices/%d', $futurePriceId), [
-                'price' => '197000.00',
+                'price' => '197000',
                 'currency' => 'VND',
                 'effective_from' => $futureFrom->toIso8601String(),
             ]);
 
         $updateFuturePriceResponse->assertOk()
-            ->assertJsonPath('data.price', '197000.00');
+            ->assertJsonPath('data.price', '197000');
 
         $showItemResponse = $this->withHeaders($this->staffHeaders('admin-menu-key'))
             ->getJson(sprintf('/api/v1/admin/menu/items/%d', $itemId));
 
         $showItemResponse->assertOk()
             ->assertJsonPath('data.name', 'Seasonal Steak')
-            ->assertJsonPath('data.current_price.price', '185000.00')
+            ->assertJsonPath('data.current_price.price', '185000')
             ->assertJsonCount(2, 'data.prices');
 
         $listItemsResponse = $this->withHeaders($this->staffHeaders('admin-menu-key'))
@@ -110,7 +110,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
 
         $listItemsResponse->assertOk()
             ->assertJsonPath('data.0.item_id', $itemId)
-            ->assertJsonPath('data.0.current_price.price', '185000.00');
+            ->assertJsonPath('data.0.current_price.price', '185000');
     }
 
     public function test_staff_without_menu_manage_capability_is_forbidden(): void
@@ -143,7 +143,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
         $start = Carbon::now('UTC')->subDay()->startOfMinute();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '99000.00',
+            'price' => '99000',
             'currency' => 'VND',
             'effective_from' => $start,
             'effective_to' => null,
@@ -151,7 +151,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
 
         $response = $this->withHeaders($this->staffHeaders('admin-menu-key'))
             ->postJson(sprintf('/api/v1/admin/menu/items/%d/prices', $itemId), [
-                'price' => '105000.00',
+                'price' => '105000',
                 'currency' => 'VND',
                 'effective_from' => $start->copy()->addHour()->toIso8601String(),
             ]);
@@ -175,7 +175,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
         $serviceStart = Carbon::now('UTC')->addHours(3)->startOfMinute();
         $this->createMenuItemPrice([
             'item_id' => $itemId,
-            'price' => '215000.00',
+            'price' => '215000',
             'currency' => 'VND',
             'effective_from' => $serviceStart->copy()->subDay(),
             'effective_to' => null,
@@ -187,7 +187,7 @@ class AdminMenuManagementHttpFlowTest extends TestCase
 
         $this->assertSame($itemId, (int) $prepared['rows'][0]['item_id']);
         $this->assertSame(2, (int) $prepared['rows'][0]['quantity']);
-        $this->assertSame('215000.00', number_format((float) $prepared['price_rows']->get($itemId)->price, 2, '.', ''));
+        $this->assertSame('215000', number_format((float) $prepared['price_rows']->get($itemId)->price, 0, '.', ''));
         $this->assertSame('VND', (string) $prepared['price_rows']->get($itemId)->currency);
     }
 

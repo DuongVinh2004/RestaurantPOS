@@ -136,9 +136,11 @@ class MenuCatalogManagementService
         return MenuItem::query()
             ->with([
                 'category',
+                'comboComponents',
                 'prices' => fn ($priceQuery) => $priceQuery
                     ->orderByDesc('effective_from')
                     ->orderByDesc('price_id'),
+                'modifierGroups.modifiers',
             ])
             ->findOrFail($itemId);
     }
@@ -151,6 +153,31 @@ class MenuCatalogManagementService
         return DB::transaction(function () use ($attributes, $actorUserId): MenuItem {
             /** @var MenuItem $item */
             $item = MenuItem::query()->create($this->normalizeItemAttributes($attributes));
+
+            if (isset($attributes['modifier_group_ids']) && is_array($attributes['modifier_group_ids'])) {
+                $syncData = [];
+                foreach ($attributes['modifier_group_ids'] as $idx => $groupId) {
+                    $syncData[$groupId] = ['sort_order' => $idx];
+                }
+                $item->modifierGroups()->sync($syncData);
+            }
+
+            if (isset($attributes['combo_components']) && is_array($attributes['combo_components'])) {
+                $componentsData = [];
+                foreach ($attributes['combo_components'] as $component) {
+                    if (isset($component['component_item_id']) && isset($component['quantity'])) {
+                        $componentsData[] = [
+                            'combo_item_id' => $item->item_id,
+                            'component_item_id' => $component['component_item_id'],
+                            'quantity' => $component['quantity'],
+                        ];
+                    }
+                }
+                $item->comboComponents()->delete();
+                if (!empty($componentsData)) {
+                    $item->comboComponents()->insert($componentsData);
+                }
+            }
 
             $fresh = $this->showItem((int) $item->item_id);
 
@@ -188,6 +215,31 @@ class MenuCatalogManagementService
             $before = $this->itemSnapshot($item);
             $item->fill($this->normalizeItemAttributes($attributes));
             $item->save();
+
+            if (isset($attributes['modifier_group_ids']) && is_array($attributes['modifier_group_ids'])) {
+                $syncData = [];
+                foreach ($attributes['modifier_group_ids'] as $idx => $groupId) {
+                    $syncData[$groupId] = ['sort_order' => $idx];
+                }
+                $item->modifierGroups()->sync($syncData);
+            }
+
+            if (isset($attributes['combo_components']) && is_array($attributes['combo_components'])) {
+                $componentsData = [];
+                foreach ($attributes['combo_components'] as $component) {
+                    if (isset($component['component_item_id']) && isset($component['quantity'])) {
+                        $componentsData[] = [
+                            'combo_item_id' => $item->item_id,
+                            'component_item_id' => $component['component_item_id'],
+                            'quantity' => $component['quantity'],
+                        ];
+                    }
+                }
+                $item->comboComponents()->delete();
+                if (!empty($componentsData)) {
+                    $item->comboComponents()->insert($componentsData);
+                }
+            }
 
             $fresh = $this->showItem($itemId);
 
@@ -282,7 +334,7 @@ class MenuCatalogManagementService
                     'after' => $this->priceSnapshot($fresh),
                     'summary' => [
                         'item_code' => $fresh->item?->code,
-                        'price' => number_format((float) $fresh->price, 2, '.', ''),
+                        'price' => number_format((float) $fresh->price, 0, '.', ''),
                         'currency' => (string) ($fresh->currency ?? 'VND'),
                     ],
                     'actor' => $this->auditActor($actorUserId),
@@ -335,7 +387,7 @@ class MenuCatalogManagementService
                     'after' => $this->priceSnapshot($fresh),
                     'summary' => [
                         'item_code' => $fresh->item?->code,
-                        'price' => number_format((float) $fresh->price, 2, '.', ''),
+                        'price' => number_format((float) $fresh->price, 0, '.', ''),
                         'currency' => (string) ($fresh->currency ?? 'VND'),
                     ],
                     'actor' => $this->auditActor($actorUserId),
@@ -405,6 +457,8 @@ class MenuCatalogManagementService
             'name' => (string) $attributes['name'],
             'description' => $attributes['description'] ?? null,
             'img_url' => $attributes['img_url'] ?? null,
+            'is_combo' => (bool) ($attributes['is_combo'] ?? false),
+            'serving_size' => isset($attributes['serving_size']) ? (int) $attributes['serving_size'] : null,
             'is_available' => (bool) ($attributes['is_available'] ?? true),
         ];
 
@@ -448,6 +502,16 @@ class MenuCatalogManagementService
             'name' => (string) $item->name,
             'description' => $item->description,
             'img_url' => $item->img_url,
+            'is_combo' => (bool) ($item->is_combo ?? false),
+            'serving_size' => $item->serving_size,
+            'combo_components' => $item->relationLoaded('comboComponents') 
+                ? $item->comboComponents->map(function ($c) {
+                    return [
+                        'component_item_id' => $c->component_item_id,
+                        'quantity' => $c->quantity,
+                    ];
+                })->toArray()
+                : [],
             'is_available' => (bool) ($item->is_available ?? false),
             'is_preorder_enabled' => $item->is_preorder_enabled !== null ? (bool) $item->is_preorder_enabled : false,
             'preorder_quota_per_day' => $item->preorder_quota_per_day !== null ? (int) $item->preorder_quota_per_day : null,
@@ -463,7 +527,7 @@ class MenuCatalogManagementService
         return [
             'item_id' => (int) $price->item_id,
             'item_code' => $price->item?->code,
-            'price' => number_format((float) $price->price, 2, '.', ''),
+            'price' => number_format((float) $price->price, 0, '.', ''),
             'currency' => (string) ($price->currency ?? 'VND'),
             'effective_from' => $price->effective_from?->utc()?->toIso8601String(),
             'effective_to' => $price->effective_to?->utc()?->toIso8601String(),
@@ -533,9 +597,11 @@ class MenuCatalogManagementService
         $query = MenuItem::query()
             ->with([
                 'category',
+                'comboComponents',
                 'prices' => fn ($priceQuery) => $priceQuery
                     ->orderByDesc('effective_from')
                     ->orderByDesc('price_id'),
+                'modifierGroups.modifiers',
             ]);
 
         if (array_key_exists('category_id', $filters) && $filters['category_id'] !== null && $filters['category_id'] !== '') {

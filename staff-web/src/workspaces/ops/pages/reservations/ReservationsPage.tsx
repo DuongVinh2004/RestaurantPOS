@@ -689,20 +689,6 @@ export function ReservationsPage() {
                   return <StatusChip label={reservation.deposit_status} tone="default" />;
                 },
               },
-              {
-                title: 'Hành động',
-                render: (_, reservation) => (
-                  <Button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      syncSelectedReservation(reservation);
-                      setDetailOpen(true);
-                    }}
-                  >
-                    Mở chi tiết
-                  </Button>
-                ),
-              },
             ]}
           />
         ) : null}
@@ -738,30 +724,6 @@ export function ReservationsPage() {
             className="staff-inline-note"
           />
         ) : null}
-        <Button disabled={!selectedReservation} onClick={openOrderWorkspace}>
-          Tiếp tục sang màn hình đơn hàng
-        </Button>
-        {canOpenCheckout ? (
-          <Button disabled={!selectedReservation || !activeOrder} onClick={openCheckoutWorkspace}>
-            Mở thanh toán
-          </Button>
-        ) : null}
-        <Button
-          disabled={!selectedReservation}
-          onClick={() =>
-                      navigate(`${staffRoutePaths.ops.tables}?${buildJourneySearch({
-              source: journey.source ?? 'reservation',
-              tableId: getPrimaryReservationTableId(selectedReservation),
-              tableIds: selectedReservation?.table_ids,
-              reservationId: selectedReservation?.reservation_id,
-              reservationRowVersion: detailReservation?.row_version ?? selectedReservation?.row_version,
-              orderId: activeOrder?.order_id,
-              orderRowVersion: activeOrder?.row_version ?? undefined,
-            })}`)
-          }
-        >
-          Quay lại sơ đồ bàn
-        </Button>
         <ReservationDetailDrawer
           open={detailOpen && !!selectedReservation}
           reservation={detailReservation}

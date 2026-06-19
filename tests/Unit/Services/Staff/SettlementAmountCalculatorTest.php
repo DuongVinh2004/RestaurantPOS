@@ -58,21 +58,21 @@ class SettlementAmountCalculatorTest extends TestCase
         $deposit = new Payment;
         $deposit->payment_type = 'Deposit';
         $deposit->status = 'Success';
-        $deposit->amount = '0.10';
+        $deposit->amount = 100;
         $deposit->currency = 'VND';
 
         $final = new Payment;
         $final->payment_type = 'Final';
         $final->status = 'Success';
-        $final->amount = '0.20';
+        $final->amount = 200;
         $final->currency = 'VND';
 
-        $summary = $calculator->buildSettlementAmounts(collect([$deposit, $final]), '0.30');
+        $summary = $calculator->buildSettlementAmounts(collect([$deposit, $final]), 300);
 
-        self::assertSame(0.10, $summary['deposit_net_amount']);
-        self::assertSame(0.10, $summary['deposit_applied_amount']);
-        self::assertSame(0.20, $summary['final_paid_amount']);
-        self::assertSame(0.30, $summary['settled_amount']);
+        self::assertSame(100.0, $summary['deposit_net_amount']);
+        self::assertSame(100.0, $summary['deposit_applied_amount']);
+        self::assertSame(200.0, $summary['final_paid_amount']);
+        self::assertSame(300.0, $summary['settled_amount']);
         self::assertSame(0.0, $summary['remaining_due']);
     }
 }

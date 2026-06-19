@@ -36,8 +36,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -46,7 +46,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-LIFECYCLE-1',
         ]);
@@ -88,8 +88,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -98,7 +98,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-SHIFT-FK-1',
         ]);
@@ -135,8 +135,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -145,7 +145,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-CURRENCY-MISMATCH-1',
         ]);
@@ -184,8 +184,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -194,7 +194,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-LIFECYCLE-FULL-1',
         ]);
@@ -250,8 +250,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -260,7 +260,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-OVERPAID-DENIED-1',
         ]);
@@ -299,8 +299,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -309,7 +309,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-REFUND-REPLAY-1',
         ]);
@@ -357,8 +357,8 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '100000.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '100000',
             'deposit_status' => 'Paid',
             'bill_currency' => 'VND',
         ]);
@@ -367,7 +367,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-REFUND-MISMATCH-1',
         ]);
@@ -421,10 +421,10 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
         $reservationId = $this->createReservation([
             'user_id' => $customerId,
             'status' => 'Completed',
-            'deposit_required_amount' => '50000.00',
-            'deposit_paid_amount' => '50000.00',
+            'deposit_required_amount' => '50000',
+            'deposit_paid_amount' => '50000',
             'deposit_status' => 'Paid',
-            'final_bill_amount' => '150000.00',
+            'final_bill_amount' => '150000',
             'bill_currency' => 'VND',
             'billed_at' => $this->nowUtc(),
             'checked_out_at' => $this->nowUtc(),
@@ -434,7 +434,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Deposit',
             'status' => 'Success',
-            'amount' => '50000.00',
+            'amount' => '50000',
             'currency' => 'VND',
             'transaction_code' => 'DEP-REFUND-CANCEL-FINAL-1',
         ]);
@@ -442,7 +442,7 @@ class StaffCheckoutRefundLifecycleTest extends TestCase
             'reservation_id' => $reservationId,
             'payment_type' => 'Final',
             'status' => 'Success',
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'transaction_code' => 'FINAL-REFUND-CANCEL-FINAL-1',
         ]);

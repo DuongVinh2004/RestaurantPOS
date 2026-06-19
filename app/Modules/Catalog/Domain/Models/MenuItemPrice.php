@@ -27,7 +27,7 @@ class MenuItemPrice extends Model
     protected $casts = [
         'price_id' => 'int',
         'item_id' => 'int',
-        'price' => 'decimal:2',
+        'price' => 'decimal:0',
         'currency' => 'string',
         'effective_from' => 'datetime',
         'effective_to' => 'datetime',

@@ -3,14 +3,12 @@
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CalendarCheck2, Clock3, UsersRound, type LucideIcon } from "lucide-react";
+import { ArrowLeft, CalendarCheck2, Clock3, UsersRound } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { BookingProgress } from "@/components/booking/booking-progress";
-import { ReservationTimeline, type ReservationTimelineItem } from "@/components/booking/reservation-timeline";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,7 +18,8 @@ import { ConfirmDialog } from "@/components/customer/ui";
 import { isConflictLikeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { localDateTimeRangeToUtc } from "@/lib/contracts/datetime";
-import { formatDateTime, formatMoney } from "@/lib/contracts/format";
+import { formatDateTime } from "@/lib/contracts/format";
+import { formatCustomerTableName } from "@/lib/i18n/customer-display";
 import { BillingPanel } from "@/features/billing/billing-panel";
 import { DepositPanel } from "@/features/deposit/deposit-panel";
 import { PreorderPanel } from "@/features/preorder/preorder-panel";
@@ -30,125 +29,13 @@ import { cancelReservation, getReservation, mergeReservationInList, rescheduleRe
 import { reservationActionSchema, type ReservationActionValues } from "./schemas";
 import {
   getReservationActionPolicy,
-  getReservationBillSummaryState,
-  getReservationDepositSummaryState,
   getReservationDurationMinutes,
   getReservationHoldSummaryState,
-  getReservationWorkspaceStatus,
   reservationStartInputValue,
 } from "./state";
 import { getSelfServiceAccessState, getSelfServiceBlockedState } from "./self-service-boundary";
 
-function WorkspaceSummaryTile({
-  eyebrow,
-  title,
-  description,
-  footer,
-}: {
-  eyebrow: string;
-  title: string;
-  description: string;
-  footer?: string | null;
-}) {
-  return (
-    <div className="rounded-lg bg-secondary p-4">
-      <p className="text-sm text-muted-foreground">{eyebrow}</p>
-      <p className="mt-2 font-semibold">{title}</p>
-      <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-      {footer ? <p className="mt-3 text-sm font-medium">{footer}</p> : null}
-    </div>
-  );
-}
 
-function VisitPassTile({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="min-w-0 rounded-lg border bg-background/85 p-3">
-      <Icon className="h-4 w-4 text-teal-700" />
-      <p className="mt-3 text-xs font-medium text-muted-foreground">{label}</p>
-      <p className="mt-1 truncate font-semibold" title={value}>{value}</p>
-    </div>
-  );
-}
-
-function buildReservationTimelineItems({
-  reservation,
-  holdSummary,
-  depositSummary,
-  billSummary,
-  workspaceStatus,
-}: {
-  reservation: ReservationSummary;
-  holdSummary: ReturnType<typeof getReservationHoldSummaryState>;
-  depositSummary: ReturnType<typeof getReservationDepositSummaryState>;
-  billSummary: ReturnType<typeof getReservationBillSummaryState>;
-  workspaceStatus: ReturnType<typeof getReservationWorkspaceStatus>;
-}): ReservationTimelineItem[] {
-  const status = (reservation.status ?? "").toLowerCase();
-  const isCancelled = status.includes("cancel");
-  const isCompleted = status.includes("completed");
-  const isServing = status.includes("reserved") || status.includes("checked") || status.includes("seated");
-
-  return [
-    {
-      key: "created",
-      title: "Đã xác nhận lịch đặt",
-      description: "Nhà hàng đã nhận thông tin đặt bàn của bạn.",
-      state: "done",
-      meta: reservation.reservation_code,
-    },
-    {
-      key: "hold",
-      title: holdSummary.title,
-      description: holdSummary.description,
-      state: holdSummary.state === "active" || holdSummary.state === "released" ? "done" : holdSummary.state === "expired" ? "blocked" : "pending",
-      meta: holdSummary.expiresAt ? formatDateTime(holdSummary.expiresAt) : null,
-    },
-    {
-      key: "preorder",
-      title: "Món đặt trước là tùy chọn",
-      description: "Bạn có thể chọn món trước để Mộc Sen chuẩn bị nhanh hơn, hoặc bỏ qua và chọn món tại nhà hàng.",
-      state: isCancelled ? "blocked" : "pending",
-      meta: null,
-    },
-    {
-      key: "deposit",
-      title: depositSummary.title,
-      description: depositSummary.description,
-      state: depositSummary.state === "paid" || depositSummary.state === "not_required" ? "done" : depositSummary.requiresAction ? "current" : "pending",
-      meta: depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null,
-    },
-    {
-      key: "confirmed",
-      title: workspaceStatus.title,
-      description: workspaceStatus.description,
-      state: isCancelled ? "blocked" : "done",
-      meta: workspaceStatus.label,
-    },
-    {
-      key: "service",
-      title: isCompleted ? "Lượt ghé đã hoàn tất" : isServing ? "Đang phục vụ tại nhà hàng" : "Chờ đến giờ nhận bàn",
-      description: isServing || isCompleted
-        ? "Nhân viên sẽ cập nhật món, hóa đơn và thanh toán khi phát sinh."
-        : "Khi đến nhà hàng, nhân viên sẽ nhận bàn và mở luồng phục vụ.",
-      state: isCompleted ? "done" : isServing ? "current" : "pending",
-    },
-    {
-      key: "bill",
-      title: billSummary.title,
-      description: billSummary.description,
-      state: billSummary.state === "settled" ? "done" : billSummary.available ? "current" : "pending",
-      meta: billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label,
-    },
-  ];
-}
 
 export function ReservationDetailPage({ id }: { id: number }) {
   const queryClient = useQueryClient();
@@ -263,9 +150,6 @@ export function ReservationDetailPage({ id }: { id: number }) {
   const reservation = reservationQuery.data;
   const accessState = getSelfServiceAccessState(reservation.access_scope);
   const actionPolicy = getReservationActionPolicy(reservation);
-  const workspaceStatus = getReservationWorkspaceStatus(reservation);
-  const depositSummary = getReservationDepositSummaryState(reservation);
-  const billSummary = getReservationBillSummaryState(reservation);
   const holdSummary = getReservationHoldSummaryState(reservation);
   const actionError = cancelMutation.error ?? rescheduleMutation.error;
   const actionPending = cancelMutation.isPending || rescheduleMutation.isPending;
@@ -277,16 +161,25 @@ export function ReservationDetailPage({ id }: { id: number }) {
     : holdSummary.tableCount > 0
       ? `${holdSummary.tableCount} bàn`
       : null;
-  const depositFooter = depositSummary.amount ? formatMoney(depositSummary.amount, depositSummary.currency) : null;
-  const billFooter = billSummary.available ? formatMoney(billSummary.amount, billSummary.currency) : billSummary.label;
-  const tableSummary = holdFooter ?? holdSummary.title;
-  const timelineItems = buildReservationTimelineItems({
-    reservation,
-    holdSummary,
-    depositSummary,
-    billSummary,
-    workspaceStatus,
-  });
+
+  
+  const tableCodes = Array.isArray(reservation.table_summary?.table_codes)
+    ? (reservation.table_summary.table_codes as string[])
+    : null;
+    
+  const zones = Array.isArray(reservation.table_summary?.zones)
+    ? (reservation.table_summary.zones as string[])
+    : null;
+  const primaryZone = zones && zones.length > 0 ? zones[0] : null;
+    
+  let assignedTablesString = null;
+  if (tableCodes && tableCodes.length > 0) {
+    assignedTablesString = tableCodes.map((code) => formatCustomerTableName(code, primaryZone)).join(", ");
+  } else if (reservation.table_ids?.length) {
+    assignedTablesString = reservation.table_ids.map((id) => formatCustomerTableName(null, primaryZone, id)).join(", ");
+  }
+
+  const tableSummary = assignedTablesString ?? holdFooter ?? holdSummary.title;
 
   return (
     <main className="mx-auto w-full max-w-5xl px-4 py-6">
@@ -298,82 +191,32 @@ export function ReservationDetailPage({ id }: { id: number }) {
       </Button>
 
       <section className="mb-5 overflow-hidden rounded-lg border bg-card">
-              <div className="bg-[linear-gradient(135deg,var(--restaurant-amber-soft),white_56%,var(--restaurant-teal-soft))] p-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between bg-teal-50/50">
           <div>
-            <p className="text-sm font-semibold text-teal-700">Lượt ghé của bạn</p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-normal">{formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}</h1>
-            <p className="mt-2 text-sm text-muted-foreground">Hiển thị thông tin này cho nhân viên khi đến nhà hàng.</p>
+            <h1 className="text-xl sm:text-2xl font-semibold">{formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-muted-foreground">
+              <span className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4 text-teal-600" /> #{reservation.reservation_code ?? reservation.reservation_id}</span>
+              <span className="flex items-center gap-1.5"><UsersRound className="h-4 w-4 text-teal-600" /> {reservation.guest_count ?? "?"} khách</span>
+              <span className="flex items-center gap-1.5"><Clock3 className="h-4 w-4 text-teal-600" /> {tableSummary}</span>
+            </div>
           </div>
           <StatusBadge status={reservation.status} />
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <VisitPassTile icon={CalendarCheck2} label="Mã đặt bàn" value={reservation.reservation_code ?? `#${reservation.reservation_id}`} />
-          <VisitPassTile icon={UsersRound} label="Số khách" value={`${reservation.guest_count ?? "Chưa rõ"} khách`} />
-          <VisitPassTile icon={Clock3} label="Bàn" value={tableSummary} />
-        </div>
-        </div>
-        <div className="m-5 rounded-lg bg-secondary/60 p-4">
-          <p className="text-sm text-muted-foreground">Trạng thái lịch đặt</p>
-          <p className="mt-1 text-lg font-semibold">{workspaceStatus.title}</p>
-          <p className="mt-1 text-sm text-muted-foreground">{workspaceStatus.description}</p>
-        </div>
         {accessState ? (
-          <div className="mt-5 rounded-lg border bg-secondary/40 p-4">
-            <p className="text-sm font-medium">{accessState.title}</p>
-            <p className="mt-1 text-sm text-muted-foreground">{accessState.description}</p>
+          <div className="border-t bg-secondary/20 p-3 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{accessState.title}:</span> {accessState.description}
           </div>
         ) : null}
-        <div className="mx-5 mt-5 grid gap-3 sm:grid-cols-4">
-          <WorkspaceSummaryTile eyebrow="Bàn giữ" title={holdSummary.title} description={holdSummary.description} footer={holdFooter} />
-          <WorkspaceSummaryTile
-            eyebrow="Món đặt trước"
-            title="Tùy chọn sau đặt bàn"
-            description="Bạn có thể chọn món trước để Mộc Sen chuẩn bị nhanh hơn."
-            footer={depositSummary.requiresAction ? "Đặt cọc hiển thị sau món đặt trước" : "Có thể bỏ qua"}
-          />
-          <WorkspaceSummaryTile eyebrow="Đặt cọc" title={depositSummary.title} description={depositSummary.description} footer={depositFooter} />
-          <WorkspaceSummaryTile eyebrow="Hóa đơn" title={billSummary.title} description={billSummary.description} footer={billFooter} />
-        </div>
-        <div className="m-5">
-          <BookingProgress currentStep="confirm" />
-        </div>
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="space-y-5">
-          <ReservationTimeline items={timelineItems} />
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold">Chi tiết lượt ghé</h2>
-            <p className="text-sm text-muted-foreground">Xem thông tin bàn, đặt cọc, hóa đơn và các cập nhật liên quan đến lượt ghé này.</p>
-          </div>
-          <Card className="rounded-lg">
-            <CardContent className="space-y-4 p-4">
-              <div>
-                <h3 className="text-lg font-semibold">Bàn giữ</h3>
-                <p className="text-sm text-muted-foreground">Xem bàn giữ tạm thời còn hiệu lực cho lịch đặt này hay không.</p>
-              </div>
-              {holdSummary.state === "unavailable" ? (
-                <EmptyState title={holdSummary.title} description={holdSummary.description} />
-              ) : (
-                <div className="rounded-lg bg-secondary p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Trạng thái bàn giữ</p>
-                      <p className="text-lg font-semibold">{holdSummary.title}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{holdSummary.description}</p>
-                    </div>
-                    <StatusBadge status={holdSummary.label} />
-                  </div>
-                  {holdFooter ? <p className="mt-4 text-sm font-medium">{holdFooter}</p> : null}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          <section id="preorder" className="scroll-mt-24">
-            <PreorderPanel reservationId={reservation.reservation_id} />
+          <section id="deposit" className="scroll-mt-24">
+            <DepositPanel reservation={reservation} onReservationChanged={syncReservation} />
           </section>
-          <DepositPanel reservation={reservation} onReservationChanged={syncReservation} />
+          <section id="preorder" className="scroll-mt-24">
+            <PreorderPanel reservation={reservation} />
+          </section>
           <BillingPanel reservation={reservation} onReservationChanged={syncReservation} />
           <BenefitsPanel reservationId={reservation.reservation_id} />
         </section>

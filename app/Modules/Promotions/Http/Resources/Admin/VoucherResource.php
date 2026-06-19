@@ -23,7 +23,7 @@ class VoucherResource extends JsonResource
             'discount_type' => $this->discount_type instanceof \BackedEnum
                 ? $this->discount_type->value
                 : (string) $this->discount_type,
-            'discount_value' => $this->discount_value !== null ? number_format((float) $this->discount_value, 2, '.', '') : null,
+            'discount_value' => $this->discount_value !== null ? number_format((float) $this->discount_value, 0, '.', '') : null,
             'free_item' => [
                 'item_id' => $this->free_item_id !== null ? (int) $this->free_item_id : null,
                 'name' => $this->relationLoaded('freeItem') && $this->freeItem !== null

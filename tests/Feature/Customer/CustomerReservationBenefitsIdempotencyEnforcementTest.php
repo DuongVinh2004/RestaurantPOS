@@ -87,8 +87,8 @@ final class CustomerReservationBenefitsIdempotencyEnforcementTest extends TestCa
         $voucherId = $this->createVoucher([
             'code' => 'BENEFITS-50',
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '100000.00',
+            'discount_value' => '50000',
+            'min_spend' => '100000',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $userId,

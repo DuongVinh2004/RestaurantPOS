@@ -74,4 +74,42 @@ class CustomerRestaurantProfileHttpFlowTest extends TestCase
             ->assertJsonPath('data.current_status.is_open', true)
             ->assertJsonPath('data.current_status.timezone', 'Asia/Ho_Chi_Minh');
     }
+    public function test_guest_can_read_public_restaurant_branches(): void
+    {
+        CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:15:00', 'Asia/Ho_Chi_Minh'));
+
+        $businessHours = collect(range(0, 6))
+            ->map(static fn (int $day): array => [
+                'day_of_week' => $day,
+                'periods' => [[
+                    'start_time' => '09:00',
+                    'end_time' => '22:00',
+                ]],
+            ])
+            ->all();
+
+        DB::table('branches')->updateOrInsert(
+            ['branch_code' => 'B2'],
+            [
+                'branch_name' => 'Branch 2',
+                'description' => 'Branch 2 description',
+                'timezone' => 'Asia/Ho_Chi_Minh',
+                'currency' => 'VND',
+                'business_hours' => json_encode($businessHours, JSON_THROW_ON_ERROR),
+                'closure_windows' => json_encode([], JSON_THROW_ON_ERROR),
+                'booking_policy' => null,
+                'is_active' => true,
+                'is_default' => false,
+                'row_version' => 1,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]
+        );
+
+        $response = $this->getJson('/api/v1/restaurant/branches');
+
+        $response->assertOk()
+            ->assertJsonPath('meta.action', 'restaurant_branch_index')
+            ->assertJsonIsArray('data');
+    }
 }

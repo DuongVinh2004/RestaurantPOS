@@ -107,7 +107,7 @@ class CustomerAnonymizationWorkflow
             'can_commit' => $blockers === [],
             'retained_tables' => ['reservations', 'preorders', 'payments', 'reservation_deposit_payment_sessions', 'reservation_bill_payment_sessions', 'user_vouchers', 'user_points', 'loyalty_point_transactions', 'user_tier_history', 'audit_logs', 'payment_provider_webhook_receipts', 'billing_invoices'],
             'anonymized_tables' => ['users', 'reservations', 'preorders', 'waiting_list', 'conversations', 'conversation_messages', 'conversation_files', 'message_entities', 'conversation_events', 'conversation_analyses', 'notification_outbox', 'notification_delivery_attempts'],
-            'purged_tables' => ['customer_access_sessions', 'user_auth_tokens', 'notification_preferences', 'bank_accounts'],
+            'purged_tables' => ['customer_access_sessions', 'user_auth_tokens', 'notification_preferences', 'bank_accounts', 'user_favorite_menu_items'],
             'redacted_fields' => ['users.username', 'users.full_name', 'users.email', 'users.phone', 'users.password_hash', 'reservations.notes', 'reservations.cancel_reason', 'preorders.notes', 'waiting_list.guest_name', 'waiting_list.phone', 'waiting_list.notes', 'waiting_list.cancel_reason', 'conversations.session_id', 'conversations.customer_session_id', 'conversation_messages.message_text', 'conversation_messages.attachment_url', 'conversation_files.file_url', 'message_entities.entity_text', 'message_entities.entity_normalized', 'conversation_events.event_data', 'conversation_analyses.extracted_info', 'notification_outbox.recipient', 'notification_outbox.payload_json', 'notification_outbox.last_error', 'notification_delivery_attempts.recipient', 'notification_delivery_attempts.error_message', 'notification_delivery_attempts.request_payload_json', 'notification_delivery_attempts.response_payload_json'],
         ];
     }
@@ -175,6 +175,7 @@ class CustomerAnonymizationWorkflow
         $purged['notification_preferences'] = $this->delete('notification_preferences', fn ($q) => $q->where('user_id', $userId));
         $purged['bank_accounts'] = $this->delete('bank_accounts', fn ($q) => $q->where('user_id', $userId));
         $purged['customer_access_sessions'] = $this->delete('customer_access_sessions', fn ($q) => $q->where('user_id', $userId));
+        $purged['user_favorite_menu_items'] = $this->delete('user_favorite_menu_items', fn ($q) => $q->where('user_id', $userId));
         $purged['user_auth_tokens'] = $this->delete('user_auth_tokens', function ($q) use ($userId, $contacts): void {
             $q->where('user_id', $userId);
             foreach ($contacts as $contact) {

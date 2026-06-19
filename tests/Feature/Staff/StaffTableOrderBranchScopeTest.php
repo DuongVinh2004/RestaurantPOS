@@ -36,7 +36,7 @@ final class StaffTableOrderBranchScopeTest extends TestCase
         DB::purge('sqlite');
         DB::reconnect('sqlite');
 
-        foreach (['reservation_orders', 'reservation_tables', 'reservations', 'restaurant_tables', 'branches'] as $table) {
+        foreach (['reservation_orders', 'reservation_tables', 'reservations', 'restaurant_tables', 'branches', 'reservation_bill_payment_sessions'] as $table) {
             Schema::dropIfExists($table);
         }
 
@@ -103,6 +103,12 @@ final class StaffTableOrderBranchScopeTest extends TestCase
             $table->unsignedInteger('row_version')->default(1);
             $table->dateTime('created_at')->nullable();
             $table->dateTime('updated_at')->nullable();
+        });
+
+        Schema::create('reservation_bill_payment_sessions', function (Blueprint $table): void {
+            $table->increments('session_id');
+            $table->unsignedInteger('reservation_id');
+            $table->string('session_status');
         });
 
         DB::table('branches')->insert([

@@ -5646,10 +5646,14 @@
                                 "name": "Demo Customer",
                                 "description": "example",
                                 "img_url": "example",
+                                "is_combo": true,
+                                "serving_size": 101,
+                                "combo_components": [],
                                 "is_available": true,
                                 "is_preorder_enabled": true,
                                 "preorder_quota_per_day": 101,
-                                "preorder_cutoff_minutes": 1
+                                "preorder_cutoff_minutes": 1,
+                                "modifier_group_ids": []
                             }
                         }
                     }
@@ -5950,10 +5954,14 @@
                                 "name": "Demo Customer",
                                 "description": "example",
                                 "img_url": "example",
+                                "is_combo": true,
+                                "serving_size": 101,
+                                "combo_components": [],
                                 "is_available": true,
                                 "is_preorder_enabled": true,
                                 "preorder_quota_per_day": 101,
-                                "preorder_cutoff_minutes": 1
+                                "preorder_cutoff_minutes": 1,
+                                "modifier_group_ids": []
                             }
                         }
                     }
@@ -6256,6 +6264,250 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/admin/menu/modifier-groups": {
+            "get": {
+                "operationId": "get_v1adminmenumodifier_groups",
+                "summary": "GET Menu Modifier Groups",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1adminmenumodifier_groups",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@index",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:menu.manage"
+                ]
+            },
+            "post": {
+                "operationId": "post_v1adminmenumodifier_groups",
+                "summary": "POST Menu Modifier Groups",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1adminmenumodifier_groups",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@store",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:menu.manage",
+                    "capability:menu.write"
+                ]
+            }
+        },
+        "/api/v1/admin/menu/modifier-groups/{modifierGroup}": {
+            "delete": {
+                "operationId": "delete_v1adminmenumodifier_groupsmodifiergroup",
+                "summary": "DELETE Modifier Groups Modifiergroup",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "modifierGroup",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "delete_v1adminmenumodifier_groupsmodifiergroup",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@destroy",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:menu.manage",
+                    "capability:menu.write"
+                ]
+            },
+            "get": {
+                "operationId": "get_v1adminmenumodifier_groupsmodifiergroup",
+                "summary": "GET Modifier Groups Modifiergroup",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "modifierGroup",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1adminmenumodifier_groupsmodifiergroup",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@show",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:menu.manage"
+                ]
+            },
+            "put": {
+                "operationId": "put_v1adminmenumodifier_groupsmodifiergroup",
+                "summary": "PUT Modifier Groups Modifiergroup",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "modifierGroup",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "put_v1adminmenumodifier_groupsmodifiergroup",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Admin\\MenuModifierGroupController@update",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:menu.manage",
+                    "capability:menu.write"
+                ]
             }
         },
         "/api/v1/admin/menu/prices/export": {
@@ -8712,6 +8964,50 @@
                 }
             }
         },
+        "/api/v1/admin/upload": {
+            "post": {
+                "operationId": "post_v1adminupload",
+                "summary": "POST Admin Upload",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1adminupload",
+                "x-action": "App\\Http\\Controllers\\Admin\\UploadController@uploadImage",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:menu.manage"
+                ]
+            }
+        },
         "/api/v1/auth/customer/login": {
             "post": {
                 "operationId": "post_v1_auth_customer_login",
@@ -9483,6 +9779,273 @@
                     "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
                     "require.redis",
                     "App\\Http\\Middleware\\CustomerOrStaffMiddleware"
+                ]
+            }
+        },
+        "/api/v1/me/favorites": {
+            "get": {
+                "operationId": "get_v1mefavorites",
+                "summary": "GET Me Favorites",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    },
+                    {
+                        "CustomerSessionId": []
+                    },
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1mefavorites",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@index",
+                "x-auth-mode": "customer_or_staff",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\CustomerOrStaffMiddleware"
+                ]
+            },
+            "post": {
+                "operationId": "post_v1mefavorites",
+                "summary": "POST Me Favorites",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    },
+                    {
+                        "CustomerSessionId": []
+                    },
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1mefavorites",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@store",
+                "x-auth-mode": "customer_or_staff",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
+                    "idempotency:customer.favorites.store"
+                ]
+            }
+        },
+        "/api/v1/me/favorites/sync": {
+            "post": {
+                "operationId": "post_v1mefavoritessync",
+                "summary": "POST Favorites Sync",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    },
+                    {
+                        "CustomerSessionId": []
+                    },
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1mefavoritessync",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@sync",
+                "x-auth-mode": "customer_or_staff",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
+                    "idempotency:customer.favorites.sync"
+                ]
+            }
+        },
+        "/api/v1/me/favorites/{menu_item_id}": {
+            "delete": {
+                "operationId": "delete_v1mefavoritesmenu_item_id",
+                "summary": "DELETE Favorites Menu Item Id",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "menu_item_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "CustomerAccessToken": []
+                    },
+                    {
+                        "CustomerSessionId": []
+                    },
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "delete_v1mefavoritesmenu_item_id",
+                "x-action": "App\\Modules\\Catalog\\Http\\Controllers\\Customer\\FavoriteMenuItemController@destroy",
+                "x-auth-mode": "customer_or_staff",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\CustomerOrStaffMiddleware",
+                    "idempotency:customer.favorites.destroy"
                 ]
             }
         },
@@ -14705,6 +15268,42 @@
                 }
             }
         },
+        "/api/v1/restaurant/branches": {
+            "get": {
+                "operationId": "get_v1restaurantbranches",
+                "summary": "List active restaurant branches",
+                "description": "Return customer-web active restaurant branches and their operating context.",
+                "tags": [
+                    "Restaurant Profile"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RestaurantProfileCollectionEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "deprecated": false,
+                "x-route-key": "get_v1restaurantbranches",
+                "x-action": "App\\Modules\\BranchScheduling\\Http\\Controllers\\Guest\\RestaurantBranchController@index",
+                "x-auth-mode": "public",
+                "x-contract-grade": "full",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware"
+                ]
+            }
+        },
         "/api/v1/restaurant/profile": {
             "get": {
                 "operationId": "get_v1_restaurant_profile",
@@ -19532,6 +20131,50 @@
                 ]
             }
         },
+        "/api/v1/staff/kitchen/eta": {
+            "get": {
+                "operationId": "get_v1staffkitcheneta",
+                "summary": "GET Kitchen Eta",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "get_v1staffkitcheneta",
+                "x-action": "App\\Modules\\KitchenDispatch\\Http\\Controllers\\Staff\\KitchenDispatchController@eta",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:kitchen.manage"
+                ]
+            }
+        },
         "/api/v1/staff/kitchen/stations": {
             "get": {
                 "operationId": "get_v1_staff_kitchen_stations",
@@ -21283,6 +21926,105 @@
                                 "row_version": 2,
                                 "qty": 3,
                                 "note": "No onion"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/staff/orders/{order_id}/items/{order_item_id}/component-swap": {
+            "post": {
+                "operationId": "post_v1staffordersorder_iditemsorder_item_idcomponent_swap",
+                "summary": "POST Order Item Id Component Swap",
+                "description": "Runtime route mirrored from Laravel route inventory.",
+                "tags": [
+                    "Legacy"
+                ],
+                "parameters": [
+                    {
+                        "name": "order_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "order_item_id",
+                        "in": "path",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical idempotency header. Compatibility aliases X-Idempotency-Key and body field idempotency_key are also accepted by the current implementation."
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successful response.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericDataEnvelope"
+                                }
+                            }
+                        },
+                        "headers": {
+                            "Idempotency-Replayed": {
+                                "schema": {
+                                    "type": "string",
+                                    "enum": [
+                                        "true",
+                                        "false"
+                                    ]
+                                },
+                                "description": "Indicates whether the successful response was replayed from the idempotency cache."
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "StaffApiKey": []
+                    }
+                ],
+                "deprecated": false,
+                "x-route-key": "post_v1staffordersorder_iditemsorder_item_idcomponent_swap",
+                "x-action": "App\\Modules\\Ordering\\Http\\Controllers\\Staff\\OrderItemLifecycleController@swapComponent",
+                "x-auth-mode": "staff_api_key",
+                "x-contract-grade": "fallback",
+                "x-runtime-middleware": [
+                    "api",
+                    "reqid",
+                    "audit.request",
+                    "App\\Http\\Middleware\\MetricsRequestMiddleware",
+                    "App\\Http\\Middleware\\ResolveCustomerAuthMiddleware",
+                    "require.redis",
+                    "App\\Http\\Middleware\\StaffApiKeyMiddleware",
+                    "redis.throttle:staff.ops,1200,60,either",
+                    "staff.capability:order.manage",
+                    "idempotency:staff.order-item.component-swap"
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateOrderItemComponentSwapRequest"
+                            },
+                            "example": {
+                                "new_item_id": 101,
+                                "unit_price": 100000,
+                                "order_row_version": 1,
+                                "row_version": 1
                             }
                         }
                     }
@@ -36092,9 +36834,11 @@
                         "x-laravel-rules": [
                             "required",
                             "array",
-                            "min:1"
+                            "min:1",
+                            "max:8"
                         ],
                         "minItems": 1,
+                        "maxItems": 8,
                         "items": {
                             "type": "integer",
                             "x-laravel-rules": [
@@ -36153,7 +36897,8 @@
                     "table_ids": [
                         "required",
                         "array",
-                        "min:1"
+                        "min:1",
+                        "max:8"
                     ],
                     "table_ids.*": [
                         "integer",
@@ -37379,6 +38124,8 @@
                     "description",
                     "img_url",
                     "is_available",
+                    "is_combo",
+                    "is_best_seller",
                     "price",
                     "preorder",
                     "created_at",
@@ -37412,6 +38159,35 @@
                     },
                     "is_available": {
                         "type": "boolean"
+                    },
+                    "is_combo": {
+                        "type": "boolean"
+                    },
+                    "is_best_seller": {
+                        "type": "boolean"
+                    },
+                    "compare_at_price_amount": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "serving_size": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "combo_items_json": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "combo_components": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                            "$ref": "#/components/schemas/CustomerMenuItemComboComponent"
+                        }
                     },
                     "price": {
                         "$ref": "#/components/schemas/CustomerMenuItemPrice"
@@ -37455,6 +38231,43 @@
                     },
                     "created_at": "2026-04-01T08:00:00Z",
                     "updated_at": "2026-04-05T09:00:00Z"
+                }
+            },
+            "CustomerMenuItemComboComponent": {
+                "type": "object",
+                "required": [
+                    "component_item_id",
+                    "name",
+                    "quantity",
+                    "is_optional",
+                    "additional_price"
+                ],
+                "properties": {
+                    "component_item_id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "quantity": {
+                        "type": "integer"
+                    },
+                    "is_optional": {
+                        "type": "boolean"
+                    },
+                    "additional_price": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "additionalProperties": false,
+                "example": {
+                    "component_item_id": 101,
+                    "name": "Coca Cola",
+                    "quantity": 1,
+                    "is_optional": false,
+                    "additional_price": null
                 }
             },
             "CustomerMenuItemEnvelope": {
@@ -48799,6 +49612,33 @@
                 },
                 "additionalProperties": false
             },
+            "RestaurantProfileCollectionEnvelope": {
+                "type": "object",
+                "required": [
+                    "data"
+                ],
+                "properties": {
+                    "data": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RestaurantProfile"
+                        }
+                    },
+                    "meta": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "action"
+                        ],
+                        "additionalProperties": false
+                    }
+                },
+                "additionalProperties": false
+            },
             "RestaurantProfileEnvelope": {
                 "type": "object",
                 "required": [
@@ -56846,6 +57686,56 @@
                         ],
                         "maxLength": 255
                     },
+                    "is_combo": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    "serving_size": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
+                    "combo_components": {
+                        "type": "array",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
+                        ],
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "component_item_id": {
+                                    "type": "integer",
+                                    "x-laravel-rules": [
+                                        "required_with:combo_components",
+                                        "integer",
+                                        "exists:menu_items,item_id"
+                                    ]
+                                },
+                                "quantity": {
+                                    "type": "integer",
+                                    "x-laravel-rules": [
+                                        "required_with:combo_components",
+                                        "integer",
+                                        "min:1"
+                                    ],
+                                    "minimum": 1
+                                }
+                            },
+                            "required": [],
+                            "additionalProperties": false
+                        }
+                    },
                     "is_available": {
                         "type": "boolean",
                         "x-laravel-rules": [
@@ -56855,8 +57745,9 @@
                     },
                     "is_preorder_enabled": {
                         "type": "boolean",
+                        "nullable": true,
                         "x-laravel-rules": [
-                            "sometimes",
+                            "nullable",
                             "boolean"
                         ]
                     },
@@ -56864,21 +57755,36 @@
                         "type": "integer",
                         "nullable": true,
                         "x-laravel-rules": [
-                            "sometimes",
                             "nullable",
-                            "integer",
-                            "min:1"
-                        ],
-                        "minimum": 1
-                    },
-                    "preorder_cutoff_minutes": {
-                        "type": "integer",
-                        "x-laravel-rules": [
-                            "sometimes",
                             "integer",
                             "min:0"
                         ],
                         "minimum": 0
+                    },
+                    "preorder_cutoff_minutes": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:0"
+                        ],
+                        "minimum": 0
+                    },
+                    "modifier_group_ids": {
+                        "type": "array",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
+                        ],
+                        "items": {
+                            "type": "integer",
+                            "x-laravel-rules": [
+                                "integer",
+                                "exists:menu_modifier_groups,group_id"
+                            ]
+                        }
                     }
                 },
                 "required": [
@@ -56917,24 +57823,54 @@
                         "string",
                         "max:255"
                     ],
+                    "is_combo": [
+                        "nullable",
+                        "boolean"
+                    ],
+                    "serving_size": [
+                        "nullable",
+                        "integer",
+                        "min:1"
+                    ],
+                    "combo_components": [
+                        "nullable",
+                        "array"
+                    ],
+                    "combo_components.*.component_item_id": [
+                        "required_with:combo_components",
+                        "integer",
+                        "exists:menu_items,item_id"
+                    ],
+                    "combo_components.*.quantity": [
+                        "required_with:combo_components",
+                        "integer",
+                        "min:1"
+                    ],
                     "is_available": [
                         "sometimes",
                         "boolean"
                     ],
                     "is_preorder_enabled": [
-                        "sometimes",
+                        "nullable",
                         "boolean"
                     ],
                     "preorder_quota_per_day": [
-                        "sometimes",
                         "nullable",
                         "integer",
-                        "min:1"
+                        "min:0"
                     ],
                     "preorder_cutoff_minutes": [
-                        "sometimes",
+                        "nullable",
                         "integer",
                         "min:0"
+                    ],
+                    "modifier_group_ids": [
+                        "nullable",
+                        "array"
+                    ],
+                    "modifier_group_ids.*": [
+                        "integer",
+                        "exists:menu_modifier_groups,group_id"
                     ]
                 }
             },
@@ -58457,6 +59393,56 @@
                         ],
                         "maxLength": 255
                     },
+                    "is_combo": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    "serving_size": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:1"
+                        ],
+                        "minimum": 1
+                    },
+                    "combo_components": {
+                        "type": "array",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
+                        ],
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "component_item_id": {
+                                    "type": "integer",
+                                    "x-laravel-rules": [
+                                        "required_with:combo_components",
+                                        "integer",
+                                        "exists:menu_items,item_id"
+                                    ]
+                                },
+                                "quantity": {
+                                    "type": "integer",
+                                    "x-laravel-rules": [
+                                        "required_with:combo_components",
+                                        "integer",
+                                        "min:1"
+                                    ],
+                                    "minimum": 1
+                                }
+                            },
+                            "required": [],
+                            "additionalProperties": false
+                        }
+                    },
                     "is_available": {
                         "type": "boolean",
                         "x-laravel-rules": [
@@ -58466,8 +59452,9 @@
                     },
                     "is_preorder_enabled": {
                         "type": "boolean",
+                        "nullable": true,
                         "x-laravel-rules": [
-                            "sometimes",
+                            "nullable",
                             "boolean"
                         ]
                     },
@@ -58475,21 +59462,36 @@
                         "type": "integer",
                         "nullable": true,
                         "x-laravel-rules": [
-                            "sometimes",
                             "nullable",
-                            "integer",
-                            "min:1"
-                        ],
-                        "minimum": 1
-                    },
-                    "preorder_cutoff_minutes": {
-                        "type": "integer",
-                        "x-laravel-rules": [
-                            "sometimes",
                             "integer",
                             "min:0"
                         ],
                         "minimum": 0
+                    },
+                    "preorder_cutoff_minutes": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer",
+                            "min:0"
+                        ],
+                        "minimum": 0
+                    },
+                    "modifier_group_ids": {
+                        "type": "array",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
+                        ],
+                        "items": {
+                            "type": "integer",
+                            "x-laravel-rules": [
+                                "integer",
+                                "exists:menu_modifier_groups,group_id"
+                            ]
+                        }
                     }
                 },
                 "required": [
@@ -58528,24 +59530,117 @@
                         "string",
                         "max:255"
                     ],
+                    "is_combo": [
+                        "nullable",
+                        "boolean"
+                    ],
+                    "serving_size": [
+                        "nullable",
+                        "integer",
+                        "min:1"
+                    ],
+                    "combo_components": [
+                        "nullable",
+                        "array"
+                    ],
+                    "combo_components.*.component_item_id": [
+                        "required_with:combo_components",
+                        "integer",
+                        "exists:menu_items,item_id"
+                    ],
+                    "combo_components.*.quantity": [
+                        "required_with:combo_components",
+                        "integer",
+                        "min:1"
+                    ],
                     "is_available": [
                         "sometimes",
                         "boolean"
                     ],
                     "is_preorder_enabled": [
-                        "sometimes",
+                        "nullable",
                         "boolean"
                     ],
                     "preorder_quota_per_day": [
-                        "sometimes",
                         "nullable",
                         "integer",
-                        "min:1"
+                        "min:0"
                     ],
                     "preorder_cutoff_minutes": [
-                        "sometimes",
+                        "nullable",
                         "integer",
                         "min:0"
+                    ],
+                    "modifier_group_ids": [
+                        "nullable",
+                        "array"
+                    ],
+                    "modifier_group_ids.*": [
+                        "integer",
+                        "exists:menu_modifier_groups,group_id"
+                    ]
+                }
+            },
+            "UpdateOrderItemComponentSwapRequest": {
+                "type": "object",
+                "properties": {
+                    "new_item_id": {
+                        "type": "integer",
+                        "x-laravel-rules": [
+                            "required",
+                            "integer",
+                            "exists:menu_items,item_id"
+                        ]
+                    },
+                    "unit_price": {
+                        "type": "number",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "numeric",
+                            "min:0"
+                        ],
+                        "minimum": 0
+                    },
+                    "order_row_version": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer"
+                        ]
+                    },
+                    "row_version": {
+                        "type": "integer",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "integer"
+                        ]
+                    }
+                },
+                "required": [
+                    "new_item_id"
+                ],
+                "additionalProperties": false,
+                "x-laravel-rules": {
+                    "new_item_id": [
+                        "required",
+                        "integer",
+                        "exists:menu_items,item_id"
+                    ],
+                    "unit_price": [
+                        "nullable",
+                        "numeric",
+                        "min:0"
+                    ],
+                    "order_row_version": [
+                        "nullable",
+                        "integer"
+                    ],
+                    "row_version": [
+                        "nullable",
+                        "integer"
                     ]
                 }
             },

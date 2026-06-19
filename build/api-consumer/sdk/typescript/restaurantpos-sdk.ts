@@ -1026,10 +1026,24 @@ export type CustomerMenuItem = {
   description: (string) | null;
   img_url: (string) | null;
   is_available: boolean;
+  is_combo: boolean;
+  is_best_seller: boolean;
+  compare_at_price_amount?: (string) | null;
+  serving_size?: (number) | null;
+  combo_items_json?: (Array<Record<string, unknown>>) | null;
+  combo_components?: (Array<CustomerMenuItemComboComponent>) | null;
   price: CustomerMenuItemPrice;
   preorder: CustomerMenuItemPreorderPolicy;
   created_at: (string) | null;
   updated_at: (string) | null;
+};
+
+export type CustomerMenuItemComboComponent = {
+  component_item_id: number;
+  name: (string) | null;
+  quantity: number;
+  is_optional: boolean;
+  additional_price: (string) | null;
 };
 
 export type CustomerMenuItemEnvelope = {
@@ -3103,6 +3117,13 @@ export type RestaurantProfile = {
 };
 };
 
+export type RestaurantProfileCollectionEnvelope = {
+  data: Array<RestaurantProfile>;
+  meta?: {
+  action: string;
+};
+};
+
 export type RestaurantProfileEnvelope = {
   data: RestaurantProfile;
   meta?: {
@@ -4597,10 +4618,17 @@ export type StoreMenuItemRequest = {
   name: string;
   description?: (string) | null;
   img_url?: (string) | null;
+  is_combo?: (boolean) | null;
+  serving_size?: (number) | null;
+  combo_components?: (Array<{
+  component_item_id?: number;
+  quantity?: number;
+}>) | null;
   is_available?: boolean;
-  is_preorder_enabled?: boolean;
+  is_preorder_enabled?: (boolean) | null;
   preorder_quota_per_day?: (number) | null;
-  preorder_cutoff_minutes?: number;
+  preorder_cutoff_minutes?: (number) | null;
+  modifier_group_ids?: (Array<number>) | null;
 };
 
 export type StoreVoucherRequest = {
@@ -4863,6 +4891,19 @@ export class RestaurantPosClient {
     return this.request<RestaurantProfileEnvelope>(
       'GET',
       '/api/v1/restaurant/profile',
+      'none',
+      false,
+      false,
+      undefined,
+      undefined,
+      options,
+    );
+  }
+
+  async getV1restaurantbranches(options: RequestOptions = {}): Promise<RestaurantProfileCollectionEnvelope> {
+    return this.request<RestaurantProfileCollectionEnvelope>(
+      'GET',
+      '/api/v1/restaurant/branches',
       'none',
       false,
       false,

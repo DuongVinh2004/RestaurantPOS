@@ -1439,6 +1439,7 @@ CREATE TABLE `roles` (
   UNIQUE KEY `uq_roles__role_name` (`role_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+INSERT IGNORE INTO `roles` (`role_id`, `role_name`) VALUES (1, 'Admin'), (2, 'Staff'), (3, 'Customer'), (4, 'Server'), (5, 'Waiter'), (6, 'Cashier'), (7, 'Kitchen'), (8, 'Manager');
 DROP TABLE IF EXISTS `settings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
@@ -2606,4 +2607,72 @@ CREATE TABLE `preorder_items` (
   KEY `fk_preorder_items__menu_item_id__menu_items` (`menu_item_id`),
   CONSTRAINT `fk_preorder_items__preorder_id__preorders` FOREIGN KEY (`preorder_id`) REFERENCES `preorders` (`preorder_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+DROP TABLE IF EXISTS `menu_modifier_groups`;
+CREATE TABLE `menu_modifier_groups` (
+  `group_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `min_selections` int unsigned NOT NULL DEFAULT '0',
+  `max_selections` int unsigned NOT NULL DEFAULT '1',
+  `is_active` tinyint unsigned NOT NULL DEFAULT '1',
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`group_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `menu_modifiers`;
+CREATE TABLE `menu_modifiers` (
+  `modifier_id` int unsigned NOT NULL AUTO_INCREMENT,
+  `group_id` int unsigned NOT NULL,
+  `name` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
+  `description` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `price_adjustment` decimal(12,2) NOT NULL DEFAULT '0.00',
+  `is_active` tinyint unsigned NOT NULL DEFAULT '1',
+  `sort_order` int unsigned NOT NULL DEFAULT '0',
+  `row_version` bigint unsigned NOT NULL DEFAULT '1',
+  `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`modifier_id`),
+  KEY `fk_menu_modifiers__group_id__groups` (`group_id`),
+  CONSTRAINT `fk_menu_modifiers__group_id__groups` FOREIGN KEY (`group_id`) REFERENCES `menu_modifier_groups` (`group_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `menu_item_modifier_groups`;
+CREATE TABLE `menu_item_modifier_groups` (
+  `item_id` int unsigned NOT NULL,
+  `group_id` int unsigned NOT NULL,
+  `sort_order` int unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`item_id`,`group_id`),
+  KEY `fk_menu_item_modifier_groups__group_id__groups` (`group_id`),
+  CONSTRAINT `fk_menu_item_modifier_groups__item_id__items` FOREIGN KEY (`item_id`) REFERENCES `menu_items` (`item_id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_menu_item_modifier_groups__group_id__groups` FOREIGN KEY (`group_id`) REFERENCES `menu_modifier_groups` (`group_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_menu_modifier_groups__bi_row_version` BEFORE INSERT ON `menu_modifier_groups` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_menu_modifier_groups__bu_row_version` BEFORE UPDATE ON `menu_modifier_groups` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = GREATEST(OLD.`row_version` + 1, COALESCE(NEW.`row_version`, 0));
+END */;;
+DELIMITER ;
+
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_menu_modifiers__bi_row_version` BEFORE INSERT ON `menu_modifiers` FOR EACH ROW BEGIN
+    IF NEW.`row_version` IS NULL OR NEW.`row_version` = 0 THEN
+        SET NEW.`row_version` = 1;
+    END IF;
+END */;;
+DELIMITER ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50003 TRIGGER `trg_menu_modifiers__bu_row_version` BEFORE UPDATE ON `menu_modifiers` FOR EACH ROW BEGIN
+    SET NEW.`row_version` = GREATEST(OLD.`row_version` + 1, COALESCE(NEW.`row_version`, 0));
+END */;;
+DELIMITER ;
+
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;

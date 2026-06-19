@@ -216,8 +216,8 @@ class StaffCheckoutCrossPathReleaseGuardTest extends TestCase
             'user_id' => $this->createUser(['role_name' => 'Customer']),
             'status' => ReservationStatus::Reserved->value,
             'checked_in_at' => $this->nowUtc()->copy()->subMinutes(10),
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
             'row_version' => 1,
@@ -284,8 +284,8 @@ class StaffCheckoutCrossPathReleaseGuardTest extends TestCase
             'user_id' => $customerId,
             'status' => $status,
             'checked_in_at' => $checkedIn ? $this->nowUtc()->copy()->subMinutes(15) : null,
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'bill_currency' => 'VND',
             'row_version' => 1,
@@ -310,8 +310,8 @@ class StaffCheckoutCrossPathReleaseGuardTest extends TestCase
 
         $voucherId = $this->createVoucher([
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
-            'min_spend' => '0.00',
+            'discount_value' => '50000',
+            'min_spend' => '0',
         ]);
         $userVoucherId = $this->assignVoucher([
             'user_id' => $customerId,

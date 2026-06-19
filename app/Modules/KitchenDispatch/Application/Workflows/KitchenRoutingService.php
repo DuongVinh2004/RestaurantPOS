@@ -1023,4 +1023,59 @@ class KitchenRoutingService
             field: 'feature_flag',
         );
     }
+
+    /**
+     * @param list<int> $itemIds
+     * @return array<int, array{estimatedMinutes: int, confidence: string, reason: string}>
+     */
+    public function calculateEtaForItems(array $itemIds): array
+    {
+        if ($itemIds === []) {
+            return [];
+        }
+
+        $stats = DB::table('kitchen_order_item_tickets')
+            ->select('item_id', DB::raw('COUNT(*) as ticket_count'), DB::raw('AVG(TIMESTAMPDIFF(MINUTE, first_dispatched_at, ready_at)) as avg_minutes'))
+            ->whereIn('item_id', $itemIds)
+            ->whereNotNull('ready_at')
+            ->whereNotNull('first_dispatched_at')
+            ->whereIn('ticket_status', [KitchenTicketStatus::Ready->value, KitchenTicketStatus::Completed->value])
+            ->groupBy('item_id')
+            ->get();
+
+        $etaMap = [];
+
+        foreach ($stats as $stat) {
+            $itemId = (int) $stat->item_id;
+            $count = (int) $stat->ticket_count;
+            $avgMinutes = (int) round((float) $stat->avg_minutes);
+
+            if ($count > 20) {
+                $confidence = 'high';
+                $reason = 'Dựa trên lượng lớn dữ liệu thực tế';
+            } elseif ($count >= 5) {
+                $confidence = 'medium';
+                $reason = 'Dữ liệu thực tế trung bình';
+            } else {
+                $confidence = 'low';
+                $reason = 'Chưa đủ dữ liệu, dùng dự đoán tạm';
+                // Fallback minimum value just in case
+                if ($avgMinutes < 1) {
+                    $avgMinutes = 12;
+                }
+            }
+
+            if ($avgMinutes < 1) {
+                $avgMinutes = 1;
+            }
+
+            $etaMap[$itemId] = [
+                'estimatedMinutes' => $avgMinutes,
+                'confidence' => $confidence,
+                'reason' => $reason,
+            ];
+        }
+
+        return $etaMap;
+    }
 }

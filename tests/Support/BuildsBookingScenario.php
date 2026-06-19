@@ -118,7 +118,12 @@ trait BuildsBookingScenario
             'notification_outbox',
             'menu_categories',
             'menu_items',
+            'menu_item_combo_components',
+            'user_favorite_menu_items',
             'menu_item_prices',
+            'menu_modifier_groups',
+            'menu_modifiers',
+            'menu_item_modifier_groups',
             'table_templates',
             'ingredients',
             'menu_item_recipes',
@@ -538,6 +543,10 @@ trait BuildsBookingScenario
                 $table->string('name');
                 $table->string('description')->nullable();
                 $table->string('img_url')->nullable();
+                $table->boolean('is_combo')->default(false);
+                $table->unsignedInteger('serving_size')->nullable();
+                $table->boolean('is_best_seller')->default(false);
+                $table->decimal('compare_at_price_amount', 12, 2)->nullable();
                 $table->boolean('is_available')->default(true);
                 $table->boolean('is_preorder_enabled')->default(false);
                 $table->unsignedInteger('preorder_quota_per_day')->nullable();
@@ -565,6 +574,41 @@ trait BuildsBookingScenario
             });
         }
 
+        if (Schema::hasTable('menu_items') && ! Schema::hasColumn('menu_items', 'is_combo')) {
+            Schema::table('menu_items', function (Blueprint $table): void {
+                $table->boolean('is_combo')->default(false);
+                $table->unsignedInteger('serving_size')->nullable();
+                $table->boolean('is_best_seller')->default(false);
+                $table->decimal('compare_at_price_amount', 12, 2)->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('menu_item_combo_components')) {
+            Schema::create('menu_item_combo_components', function (Blueprint $table): void {
+                $table->increments('id');
+                $table->unsignedInteger('combo_item_id');
+                $table->unsignedInteger('component_item_id');
+                $table->integer('quantity')->default(1);
+                $table->boolean('is_optional')->default(false);
+                $table->decimal('additional_price', 12, 2)->default(0);
+                $table->integer('sort_order')->default(0);
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+                $table->unique(['combo_item_id', 'component_item_id'], 'uq_menu_item_combo_components');
+            });
+        }
+
+        if (! Schema::hasTable('user_favorite_menu_items')) {
+            Schema::create('user_favorite_menu_items', function (Blueprint $table): void {
+                $table->increments('id');
+                $table->unsignedInteger('user_id');
+                $table->unsignedInteger('item_id');
+                $table->dateTime('created_at')->nullable();
+                $table->dateTime('updated_at')->nullable();
+                $table->unique(['user_id', 'item_id'], 'uq_user_favorite_menu_items');
+            });
+        }
+
         if (! Schema::hasTable('menu_item_prices')) {
             Schema::create('menu_item_prices', function (Blueprint $table): void {
                 $table->increments('price_id');
@@ -573,6 +617,36 @@ trait BuildsBookingScenario
                 $table->string('currency', 10)->default('VND');
                 $table->dateTime('effective_from');
                 $table->dateTime('effective_to')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('menu_modifier_groups')) {
+            Schema::create('menu_modifier_groups', function (Blueprint $table): void {
+                $table->increments('group_id');
+                $table->string('name');
+                $table->string('description')->nullable();
+                $table->integer('min_selections')->default(0);
+                $table->integer('max_selections')->default(1);
+                $table->boolean('is_active')->default(true);
+            });
+        }
+
+        if (! Schema::hasTable('menu_modifiers')) {
+            Schema::create('menu_modifiers', function (Blueprint $table): void {
+                $table->increments('modifier_id');
+                $table->unsignedInteger('group_id');
+                $table->string('name');
+                $table->decimal('price_delta', 12, 2)->default(0);
+                $table->boolean('is_active')->default(true);
+            });
+        }
+
+        if (! Schema::hasTable('menu_item_modifier_groups')) {
+            Schema::create('menu_item_modifier_groups', function (Blueprint $table): void {
+                $table->unsignedInteger('item_id');
+                $table->unsignedInteger('group_id');
+                $table->integer('sort_order')->default(0);
+                $table->primary(['item_id', 'group_id']);
             });
         }
 
@@ -1102,6 +1176,7 @@ trait BuildsBookingScenario
                 $table->increments('order_item_id');
                 $table->unsignedInteger('order_id');
                 $table->unsignedInteger('item_id');
+                $table->unsignedInteger('parent_order_item_id')->nullable();
                 $table->integer('quantity')->default(1);
                 $table->decimal('unit_price', 12, 2)->default(0);
                 $table->string('currency', 10)->default('VND');
@@ -1113,6 +1188,12 @@ trait BuildsBookingScenario
                 $table->unsignedInteger('row_version')->default(1);
                 $table->dateTime('created_at')->nullable();
                 $table->dateTime('updated_at')->nullable();
+            });
+        }
+
+        if (Schema::hasTable('reservation_order_items') && ! Schema::hasColumn('reservation_order_items', 'parent_order_item_id')) {
+            Schema::table('reservation_order_items', function (Blueprint $table): void {
+                $table->unsignedInteger('parent_order_item_id')->nullable()->after('item_id');
             });
         }
 
@@ -2172,7 +2253,7 @@ SQL);
         $now = $this->nowUtc();
         $payload = array_merge([
             'item_id' => $this->createMenuItem(),
-            'price' => '100000.00',
+            'price' => '100000',
             'currency' => 'VND',
             'effective_from' => $now->copy()->subHour(),
             'effective_to' => null,
@@ -2264,10 +2345,10 @@ SQL);
             'status' => $status,
             'currency' => 'VND',
             'terminal_code' => 'POS-01',
-            'opening_float_amount' => '0.00',
-            'expected_cash_amount' => $status === 'Closed' ? '0.00' : null,
-            'actual_cash_amount' => $status === 'Closed' ? '0.00' : null,
-            'cash_discrepancy_amount' => $status === 'Closed' ? '0.00' : null,
+            'opening_float_amount' => '0',
+            'expected_cash_amount' => $status === 'Closed' ? '0' : null,
+            'actual_cash_amount' => $status === 'Closed' ? '0' : null,
+            'cash_discrepancy_amount' => $status === 'Closed' ? '0' : null,
             'opened_at' => $now,
             'closed_at' => $status === 'Closed' ? $now->copy()->addHours(8) : null,
             'opened_by' => $cashierUserId,
@@ -2458,11 +2539,11 @@ SQL);
             'cancel_reason' => null,
             'cancelled_by' => null,
             'no_show_at' => null,
-            'deposit_required_amount' => '0.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '0',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'NotRequired',
             'applied_user_voucher_id' => null,
-            'discount_amount' => '0.00',
+            'discount_amount' => '0',
             'final_bill_amount' => null,
             'bill_currency' => 'VND',
             'billed_at' => null,
@@ -2640,7 +2721,7 @@ SQL);
             'branch_id' => 1,
             'cashier_shift_id' => null,
             'refund_of_payment_id' => null,
-            'amount' => '100000.00',
+            'amount' => '100000',
             'currency' => 'VND',
             'payment_method' => 'Cash',
             'payment_provider' => 'Other',
@@ -2677,12 +2758,12 @@ SQL);
             'code' => 'VC-'.Str::upper(Str::random(8)),
             'description' => 'Test voucher',
             'discount_type' => 'Fixed',
-            'discount_value' => '50000.00',
+            'discount_value' => '50000',
             'free_item_id' => null,
             'free_item_qty' => null,
             'max_usage' => null,
             'max_usage_per_user' => null,
-            'min_spend' => '0.00',
+            'min_spend' => '0',
             'start_date' => $now->copy()->subDay(),
             'expiry_date' => $now->copy()->addDay(),
             'is_active' => 1,
@@ -2721,7 +2802,7 @@ SQL);
 
         if ((int) ($payload['is_used'] ?? 0) === 1) {
             $payload['used_date'] ??= $now;
-            $payload['used_amount'] ??= '0.00';
+            $payload['used_amount'] ??= '0';
             $payload['used_reservation_id'] ??= $this->createReservation([
                 'user_id' => (int) $payload['user_id'],
                 'status' => 'Completed',
@@ -3046,7 +3127,7 @@ SQL);
         if ($status === 'NoShow' && empty($payload['no_show_at'])) {
             throw new \InvalidArgumentException('Portable booking schema fixture violates reservations no-show timestamp contract.');
         }
-        if (! empty($payload['billed_at']) && empty($payload['final_bill_amount'])) {
+        if (! empty($payload['billed_at']) && ! isset($payload['final_bill_amount'])) {
             throw new \InvalidArgumentException('Portable booking schema fixture violates reservations billed/final-bill contract.');
         }
 
@@ -3335,8 +3416,8 @@ SQL);
         $reservationId = $this->createReservation(array_merge([
             'user_id' => $customerId,
             'status' => 'Confirmed',
-            'deposit_required_amount' => '100000.00',
-            'deposit_paid_amount' => '0.00',
+            'deposit_required_amount' => '100000',
+            'deposit_paid_amount' => '0',
             'deposit_status' => 'Pending',
             'bill_currency' => 'VND',
             'row_version' => 1,

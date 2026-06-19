@@ -124,7 +124,7 @@ function renderPanel() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <PreorderPanel reservationId={7} />
+      <PreorderPanel reservation={{ reservation_id: 7 } as any} />
     </QueryClientProvider>,
   );
 }
@@ -357,6 +357,7 @@ describe("PreorderPanel", () => {
     await user.clear(quantityInput);
     await user.type(quantityInput, "3");
     await user.click(screen.getByRole("button", { name: "Xem trước món" }));
+    expect(await screen.findByText("Bản xem trước")).toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Cập nhật món đặt trước" }));
 
     expect(await screen.findByText("Thông tin món đặt trước đã thay đổi")).toBeInTheDocument();

@@ -586,7 +586,7 @@ class StaffServiceSessionHttpFlowTest extends TestCase
         $menuItemId = $this->createMenuItem();
         $this->createMenuItemPrice([
             'item_id' => $menuItemId,
-            'price' => '90000.00',
+            'price' => '90000',
             'currency' => 'VND',
         ]);
 

@@ -57,7 +57,6 @@ Artisan::command('booking:harness:fe-contract
     {--refresh-openapi : Refresh the frozen OpenAPI artifact before generating FE artifacts}
     {--output-root= : Override the consumer artifact output root}
     {--spec-path= : Override the OpenAPI artifact path}
-    {--uat-manifest= : Generate a UAT-ready Postman environment from the provided manifest path}
     {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -68,7 +67,6 @@ Artisan::command('booking:harness:fe-contract
             outputRoot: ($value = trim((string) ($command->option('output-root') ?? ''))) !== '' ? $value : null,
             specPath: ($value = trim((string) ($command->option('spec-path') ?? ''))) !== '' ? $value : null,
             refreshOpenApi: (bool) $command->option('refresh-openapi'),
-            uatManifestPath: ($value = trim((string) ($command->option('uat-manifest') ?? ''))) !== '' ? $value : null,
         );
     } catch (Throwable $exception) {
         if ($command->option('json')) {
@@ -106,9 +104,7 @@ Artisan::command('booking:harness:fe-contract
 })->purpose('Generate and summarize the FE-facing contract artifacts for customer-web and staff-web.');
 
 Artisan::command('booking:harness:golden-flows
-    {--manifest-path= : Absolute or repo-relative UAT manifest path}
-    {--base-url= : Base API URL used when bootstrapping a fresh UAT scenario pack}
-    {--bootstrap-uat : Reset and seed the canonical UAT scenario pack before resolving flow references}
+    {--manifest-path= : Explicit JSON manifest path to read from}
     {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -117,8 +113,6 @@ Artisan::command('booking:harness:golden-flows
     try {
         $payload = app(HarnessSuiteService::class)->buildGoldenFlowReport(
             manifestPath: ($value = trim((string) ($command->option('manifest-path') ?? ''))) !== '' ? $value : null,
-            bootstrapUat: (bool) $command->option('bootstrap-uat'),
-            baseUrl: ($value = trim((string) ($command->option('base-url') ?? ''))) !== '' ? $value : null,
         );
     } catch (Throwable $exception) {
         if ($command->option('json')) {
@@ -199,9 +193,7 @@ Artisan::command('booking:harness:release-readiness
     {--package-id= : Explicit package id passed through to launch-readiness}
     {--overwrite-package : Overwrite an existing package id when launch-readiness packages artifacts}
     {--payment-sample-limit=10 : Payment sample size for launch-readiness alert evaluation}
-    {--manifest-path= : Absolute or repo-relative UAT manifest path used by the golden flow harness}
-    {--base-url= : Base API URL used when bootstrapping a fresh UAT scenario pack}
-    {--bootstrap-uat : Reset and seed the canonical UAT scenario pack before attaching golden flow context}
+    {--manifest-path= : Explicit UAT manifest path to evaluate golden flows against}
     {--json : Output machine-readable JSON}', function () {
     /** @var ConsoleCommand $command */
     // @phpstan-ignore-next-line Laravel binds the console command instance to the closure.
@@ -222,8 +214,6 @@ Artisan::command('booking:harness:release-readiness
             overwritePackage: (bool) $command->option('overwrite-package'),
             paymentSampleLimit: max(1, (int) $command->option('payment-sample-limit')),
             manifestPath: ($value = trim((string) ($command->option('manifest-path') ?? ''))) !== '' ? $value : null,
-            bootstrapUat: (bool) $command->option('bootstrap-uat'),
-            baseUrl: ($value = trim((string) ($command->option('base-url') ?? ''))) !== '' ? $value : null,
         );
     } catch (Throwable $exception) {
         if ($command->option('json')) {

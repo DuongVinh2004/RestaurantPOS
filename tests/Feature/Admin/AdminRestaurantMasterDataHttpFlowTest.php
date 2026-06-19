@@ -189,7 +189,7 @@ class AdminRestaurantMasterDataHttpFlowTest extends TestCase
                 'pos_y' => 20,
                 'status' => 'Available',
                 'description' => 'Garden booth',
-                'price' => '0.00',
+                'price' => '0',
             ]);
 
         $createResponse
