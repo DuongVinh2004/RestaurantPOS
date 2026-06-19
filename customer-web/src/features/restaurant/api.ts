@@ -9,5 +9,5 @@ export function getRestaurantProfile(): Promise<RestaurantProfile> {
 }
 
 export function getRestaurantBranches(): Promise<RestaurantProfile[]> {
-  return apiCall((client) => client.getV1RestaurantBranches()).then(unwrapData);
+  return apiCall((client) => client.getV1restaurantbranches()).then(unwrapData);
 }

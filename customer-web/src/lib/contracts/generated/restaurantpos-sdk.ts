@@ -798,9 +798,9 @@ export type CreatePurchaseOrderReceiptRequest = {
 export type CreateReservationRequest = {
   user_id?: (number) | null;
   branch_id?: (number) | null;
-  guest_name?: (string) | null;
-  guest_phone?: (string) | null;
-  guest_email?: (string) | null;
+  guest_name?: string;
+  guest_phone?: string;
+  guest_email?: string;
   start_time: string;
   end_time: string;
   guest_count: number;
@@ -4900,7 +4900,7 @@ export class RestaurantPosClient {
     );
   }
 
-  async getV1RestaurantBranches(options: RequestOptions = {}): Promise<RestaurantProfileCollectionEnvelope> {
+  async getV1restaurantbranches(options: RequestOptions = {}): Promise<RestaurantProfileCollectionEnvelope> {
     return this.request<RestaurantProfileCollectionEnvelope>(
       'GET',
       '/api/v1/restaurant/branches',
