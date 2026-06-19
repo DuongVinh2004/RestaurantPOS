@@ -113,7 +113,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             'tax_rate_percentage' => '10.000',
             'prices_include_tax' => 1,
             'taxable_amount' => '81818',
-            'tax_amount' => '8181',
+            'tax_amount' => '8182',
             'seller_name' => 'Restaurant POS',
             'seller_tax_id' => '0301234567',
             'seller_address' => '123 Nguyen Hue',
@@ -181,7 +181,7 @@ class StaffReportingReadModelsHttpFlowTest extends TestCase
             ->assertJsonPath('data.0.billed.reservation_count', 1)
             ->assertJsonPath('data.0.billed.gross_bill_amount', 100000.0)
             ->assertJsonPath('data.0.payments.net_paid_amount', 85000.0)
-            ->assertJsonPath('data.0.invoices.tax_amount', 8181.0);
+            ->assertJsonPath('data.0.invoices.tax_amount', 8182.0);
 
         $operations = $this->withHeaders($headers)
             ->getJson('/api/v1/staff/reporting/daily-operations?start_date='.$businessDay->toDateString().'&end_date='.$businessDay->toDateString());

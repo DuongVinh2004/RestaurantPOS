@@ -475,7 +475,7 @@ class StaffFinanceInvoiceAndAccountingExportHttpFlowTest extends TestCase
             'tax_rate_percentage' => '10.000',
             'prices_include_tax' => 1,
             'taxable_amount' => '109090',
-            'tax_amount' => '10909',
+            'tax_amount' => '10910',
             'seller_name' => 'Restaurant POS Test',
             'seller_tax_id' => '0301234567',
             'seller_address' => '123 Nguyen Hue',

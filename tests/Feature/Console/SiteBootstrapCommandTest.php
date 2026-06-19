@@ -19,6 +19,12 @@ class SiteBootstrapCommandTest extends TestCase
     {
         parent::setUp();
 
+        // Prevent CI environment variable injection from polluting validation tests
+        putenv('BOOTSTRAP_ADMIN_USERNAME');
+        putenv('BOOTSTRAP_STAFF_USERNAME');
+        unset($_ENV['BOOTSTRAP_ADMIN_USERNAME'], $_ENV['BOOTSTRAP_STAFF_USERNAME']);
+        unset($_SERVER['BOOTSTRAP_ADMIN_USERNAME'], $_SERVER['BOOTSTRAP_STAFF_USERNAME']);
+
         config()->set('database.default', 'sqlite');
         config()->set('database.connections.sqlite.database', ':memory:');
         config()->set('booking.multi_branch.default_branch_code', 'MAIN');
