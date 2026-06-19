@@ -491,7 +491,7 @@ class ProcurementManagementService
 
             // Pre-lock ingredients in ascending order to prevent deadlocks when multiple receipts are posted concurrently.
             $ingredientIdsToLock = collect($receiptLines)
-                ->map(fn($line) => $orderLines->get((int) $line['purchase_order_line_id']))
+                ->map(fn ($line) => $orderLines->get((int) $line['purchase_order_line_id']))
                 ->filter()
                 ->pluck('ingredient_id')
                 ->unique()
@@ -499,8 +499,8 @@ class ProcurementManagementService
                 ->values()
                 ->all();
 
-            if (!empty($ingredientIdsToLock)) {
-                \App\Modules\InventoryProcurement\Domain\Models\Ingredient::query()
+            if (! empty($ingredientIdsToLock)) {
+                Ingredient::query()
                     ->whereIn('ingredient_id', $ingredientIdsToLock)
                     ->orderBy('ingredient_id')
                     ->lockForUpdate()

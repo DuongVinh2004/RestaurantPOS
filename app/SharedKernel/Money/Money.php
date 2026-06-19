@@ -56,7 +56,7 @@ final class Money
         $fraction = $absolute % self::MINOR_FACTOR;
 
         if (self::SCALE === 0) {
-            return ($negative ? '-' : '') . $whole;
+            return ($negative ? '-' : '').$whole;
         }
 
         return ($negative ? '-' : '').$whole.'.'.str_pad((string) $fraction, self::SCALE, '0', STR_PAD_LEFT);

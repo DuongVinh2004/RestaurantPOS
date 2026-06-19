@@ -12,7 +12,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 {
     private string $root = 'storage/framework/testing/api_consumer_artifacts';
 
-
     protected function tearDown(): void
     {
         File::deleteDirectory(base_path($this->root));
@@ -21,7 +20,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 
     public function test_api_consumer_artifact_command_generates_collection_templates_sdk_and_uat_environment(): void
     {
-
 
         $exitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
@@ -86,7 +84,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
         self::assertSame('http://127.0.0.1:8000', $this->environmentValue($localEnv, 'baseUrl'));
         self::assertSame('', $this->environmentValue($localEnv, 'staffApiKey'));
         self::assertSame('', $this->environmentValue($localEnv, 'staffCsrfToken'));
-
 
         $sdk = (string) File::get($sdkPath);
         self::assertStringContainsString('export class RestaurantPosClient', $sdk);
@@ -419,7 +416,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
     public function test_api_consumer_artifact_command_preserves_existing_artifact_timestamps_for_same_inputs_when_outputs_are_current(): void
     {
 
-
         $firstExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,
             '--output-root' => $this->root,
@@ -468,7 +464,6 @@ class ApiConsumerArtifactsGenerateCommandTest extends TestCase
 
     public function test_api_consumer_artifact_command_refreshes_unchanged_artifact_timestamps_when_openapi_is_newer(): void
     {
-
 
         $firstExitCode = Artisan::call('booking:api-artifacts:generate', [
             '--json' => true,

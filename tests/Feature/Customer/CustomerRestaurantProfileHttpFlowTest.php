@@ -74,6 +74,7 @@ class CustomerRestaurantProfileHttpFlowTest extends TestCase
             ->assertJsonPath('data.current_status.is_open', true)
             ->assertJsonPath('data.current_status.timezone', 'Asia/Ho_Chi_Minh');
     }
+
     public function test_guest_can_read_public_restaurant_branches(): void
     {
         CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-04-27 10:15:00', 'Asia/Ho_Chi_Minh'));

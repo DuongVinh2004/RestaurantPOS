@@ -174,7 +174,7 @@ class MenuCatalogManagementService
                     }
                 }
                 $item->comboComponents()->delete();
-                if (!empty($componentsData)) {
+                if (! empty($componentsData)) {
                     $item->comboComponents()->insert($componentsData);
                 }
             }
@@ -236,7 +236,7 @@ class MenuCatalogManagementService
                     }
                 }
                 $item->comboComponents()->delete();
-                if (!empty($componentsData)) {
+                if (! empty($componentsData)) {
                     $item->comboComponents()->insert($componentsData);
                 }
             }
@@ -504,7 +504,7 @@ class MenuCatalogManagementService
             'img_url' => $item->img_url,
             'is_combo' => (bool) ($item->is_combo ?? false),
             'serving_size' => $item->serving_size,
-            'combo_components' => $item->relationLoaded('comboComponents') 
+            'combo_components' => $item->relationLoaded('comboComponents')
                 ? $item->comboComponents->map(function ($c) {
                     return [
                         'component_item_id' => $c->component_item_id,

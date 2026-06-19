@@ -7,6 +7,7 @@ use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Modules\Conversations\Application\Services\StaffReservationInboxService;
 use App\Modules\IdentityAccess\Application\Workflows\ReservationSessionAccessWorkflow;
+use App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService;
 use App\Modules\Reservations\Application\Services\ReservationPreorderService;
 use App\Modules\Reservations\Application\Services\ReservationService;
 use App\Modules\Reservations\Domain\Models\Reservation;
@@ -76,11 +77,11 @@ class ReservationController extends Controller
         $request->attributes->set('reservation_access_scope', $accessScope);
 
         // Auto-create VNPay session for customer deposit
-        if (!$isStaff && ($reservation->deposit_required_amount ?? 0) > 0) {
+        if (! $isStaff && ($reservation->deposit_required_amount ?? 0) > 0) {
             try {
-                /** @var \App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService $depositPaymentService */
-                $depositPaymentService = app(\App\Modules\Payments\Application\UseCases\PaymentSessions\CustomerReservationDepositPaymentService::class);
-                
+                /** @var CustomerReservationDepositPaymentService $depositPaymentService */
+                $depositPaymentService = app(CustomerReservationDepositPaymentService::class);
+
                 $paymentSessionResult = $depositPaymentService->createSession(
                     (int) $reservation->reservation_id,
                     [
@@ -91,7 +92,7 @@ class ReservationController extends Controller
                     $sessionId ?? null,
                     ''
                 );
-                
+
                 $providerPayload = $paymentSessionResult['payment_session']->provider_payload_json ?? [];
                 if (is_array($providerPayload) && isset($providerPayload['payment_url'])) {
                     $meta = $reservation->meta ?? [];

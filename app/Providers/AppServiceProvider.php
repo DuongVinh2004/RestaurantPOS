@@ -9,6 +9,7 @@ use App\Platform\ApiContract\Services\DatabaseContractInspector;
 use App\Platform\FeatureFlags\Services\FeatureFlagService;
 use App\Platform\FeatureFlags\Services\RuntimeSettingService;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use RuntimeException;
 
@@ -27,7 +28,7 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        \Illuminate\Support\Facades\Gate::define('viewPulse', function ($user = null) {
+        Gate::define('viewPulse', function ($user = null) {
             return $user !== null || app()->environment('local');
         });
 

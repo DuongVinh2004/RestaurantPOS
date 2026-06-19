@@ -1025,7 +1025,7 @@ class KitchenRoutingService
     }
 
     /**
-     * @param list<int> $itemIds
+     * @param  list<int>  $itemIds
      * @return array<int, array{estimatedMinutes: int, confidence: string, reason: string}>
      */
     public function calculateEtaForItems(array $itemIds): array

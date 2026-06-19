@@ -55,7 +55,6 @@ class ReleaseBuildService
             $issues[] = 'Web auth/session harness failed one or more error-grade checks.';
         }
 
-
         if (! ($frozenManifestSnapshot['ok'] ?? false)) {
             foreach ((array) ($frozenManifestSnapshot['issues'] ?? []) as $issue) {
                 $issues[] = (string) $issue;

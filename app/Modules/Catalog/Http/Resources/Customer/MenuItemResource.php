@@ -29,7 +29,7 @@ class MenuItemResource extends JsonResource
             'compare_at_price_amount' => $this->compare_at_price_amount !== null ? (string) $this->compare_at_price_amount : null,
             'serving_size' => $this->serving_size !== null ? (int) $this->serving_size : null,
             'combo_items_json' => $this->combo_items_json ?? null,
-            'combo_components' => $this->relationLoaded('comboComponents') 
+            'combo_components' => $this->relationLoaded('comboComponents')
                 ? $this->comboComponents->map(function ($c) {
                     return [
                         'component_item_id' => (int) $c->component_item_id,
@@ -38,7 +38,7 @@ class MenuItemResource extends JsonResource
                         'is_optional' => (bool) $c->is_optional,
                         'additional_price' => $c->additional_price !== null ? $this->money($c->additional_price) : null,
                     ];
-                })->toArray() 
+                })->toArray()
                 : null,
             'price' => [
                 'price_id' => $this->current_price_id !== null ? (int) $this->current_price_id : null,

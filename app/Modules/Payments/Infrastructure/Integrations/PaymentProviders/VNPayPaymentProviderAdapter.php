@@ -8,7 +8,6 @@ use App\Enums\PaymentSessionScope;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
@@ -33,8 +32,8 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
         $hashSecret = trim((string) ($config['hash_secret'] ?? ''));
         $returnUrl = trim((string) ($config['return_url'] ?? 'http://127.0.0.1:3000'));
 
-        $vnpUrl = $config['mode'] === 'live' 
-            ? 'https://pay.vnpayment.vn/vpcpay.html' 
+        $vnpUrl = $config['mode'] === 'live'
+            ? 'https://pay.vnpayment.vn/vpcpay.html'
             : 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
 
         $vnpParams = [
@@ -57,8 +56,8 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
         $queryParts = [];
         $hashDataParts = [];
         foreach ($vnpParams as $key => $value) {
-            $queryParts[] = urlencode($key) . '=' . urlencode((string) $value);
-            $hashDataParts[] = urlencode($key) . '=' . urlencode((string) $value);
+            $queryParts[] = urlencode($key).'='.urlencode((string) $value);
+            $hashDataParts[] = urlencode($key).'='.urlencode((string) $value);
         }
 
         $queryString = implode('&', $queryParts);
@@ -66,9 +65,9 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
 
         if ($hashSecret !== '') {
             $vnpSecureHash = hash_hmac('sha512', $hashData, $hashSecret);
-            $vnpUrl .= '?' . $queryString . '&vnp_SecureHash=' . $vnpSecureHash;
+            $vnpUrl .= '?'.$queryString.'&vnp_SecureHash='.$vnpSecureHash;
         } else {
-            $vnpUrl .= '?' . $queryString;
+            $vnpUrl .= '?'.$queryString;
         }
 
         return [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use Database\Seeders\SystemReferenceDataSeeder;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
@@ -22,7 +23,7 @@ class BookingHarnessGoldenFlowsCommandTest extends TestCase
         parent::setUp();
 
         $this->requireBookingSchema();
-        $this->seed(\Database\Seeders\SystemReferenceDataSeeder::class);
+        $this->seed(SystemReferenceDataSeeder::class);
         config()->set('staff_auth.allowed_role_ids', [1, 2]);
         $this->manifestPath = storage_path('framework/testing/harness-golden-flows.json');
 

@@ -3,8 +3,8 @@
 namespace App\Modules\Catalog\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Catalog\Domain\Models\MenuModifierGroup;
 use App\Modules\Catalog\Domain\Models\MenuModifier;
+use App\Modules\Catalog\Domain\Models\MenuModifierGroup;
 use App\Modules\Catalog\Http\Resources\Admin\MenuModifierGroupResource;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,7 +46,7 @@ class MenuModifierGroupController extends Controller
                 'is_active' => $validated['is_active'] ?? true,
             ]);
 
-            if (!empty($validated['modifiers'])) {
+            if (! empty($validated['modifiers'])) {
                 foreach ($validated['modifiers'] as $idx => $modData) {
                     $group->modifiers()->create([
                         'name' => $modData['name'],
@@ -95,7 +95,7 @@ class MenuModifierGroupController extends Controller
                 $keptIds = [];
 
                 foreach ($validated['modifiers'] as $idx => $modData) {
-                    if (!empty($modData['modifier_id']) && in_array($modData['modifier_id'], $existingIds)) {
+                    if (! empty($modData['modifier_id']) && in_array($modData['modifier_id'], $existingIds)) {
                         $modifier = MenuModifier::find($modData['modifier_id']);
                         $modifier->update([
                             'name' => $modData['name'],
@@ -124,6 +124,7 @@ class MenuModifierGroupController extends Controller
     public function destroy(MenuModifierGroup $modifierGroup)
     {
         $modifierGroup->delete();
+
         return response()->noContent();
     }
 }

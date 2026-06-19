@@ -19,21 +19,25 @@ Artisan::command('booking:uat-pack:bootstrap
 
     try {
         $result = app(UatPackService::class)->bootstrap($payload);
-    } catch (\Exception $exception) {
+    } catch (Exception $exception) {
         if ($command->option('json')) {
             $command->line(json_encode(['ok' => false, 'error' => $exception->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
             return 1;
         }
         $command->error($exception->getMessage());
+
         return 1;
     }
 
     if ($command->option('json')) {
         $command->line(json_encode(['ok' => true, 'data' => $result], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
         return 0;
     }
 
     $command->info('UAT pack bootstrapped.');
+
     return 0;
 })->purpose('Bootstrap UAT scenario pack and generate manifest');
 
@@ -45,20 +49,24 @@ Artisan::command('booking:uat-pack:reset
 
     try {
         $result = app(UatPackService::class)->reset();
-    } catch (\Exception $exception) {
+    } catch (Exception $exception) {
         if ($command->option('json')) {
             $command->line(json_encode(['ok' => false, 'error' => $exception->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
             return 1;
         }
         $command->error($exception->getMessage());
+
         return 1;
     }
 
     if ($command->option('json')) {
         $command->line(json_encode(['ok' => true, 'data' => $result], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
         return 0;
     }
 
     $command->info('UAT pack reset.');
+
     return 0;
 })->purpose('Reset UAT scenario pack data and delete manifest');

@@ -1,6 +1,6 @@
 <?php
 
-$dir = __DIR__ . '/../app/Modules';
+$dir = __DIR__.'/../app/Modules';
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
 $files = [];
 

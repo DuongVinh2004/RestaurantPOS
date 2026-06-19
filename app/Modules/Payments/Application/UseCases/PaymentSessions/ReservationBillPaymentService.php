@@ -20,6 +20,7 @@ use App\Support\ValidationExceptionFactory;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 
 class ReservationBillPaymentService
 {
@@ -73,7 +74,7 @@ class ReservationBillPaymentService
         }
 
         if ($amountMinor > $outstandingMinor) {
-            \Illuminate\Support\Facades\Log::channel('audit')->warning('bill_overpaid_by_customer_session', [
+            Log::channel('audit')->warning('bill_overpaid_by_customer_session', [
                 'reservation_id' => $reservation->reservation_id,
                 'session_id' => $session->bill_payment_session_id,
                 'amount' => $amount,

@@ -3,10 +3,12 @@
 namespace App\Modules\Catalog\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MenuModifierGroup extends Model
 {
     protected $table = 'menu_modifier_groups';
+
     protected $primaryKey = 'group_id';
 
     protected $fillable = [
@@ -25,7 +27,7 @@ class MenuModifierGroup extends Model
         'row_version' => 'integer',
     ];
 
-    public function modifiers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function modifiers(): HasMany
     {
         return $this->hasMany(MenuModifier::class, 'group_id', 'group_id')->orderBy('sort_order');
     }

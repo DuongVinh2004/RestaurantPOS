@@ -2,7 +2,8 @@
 
 $directories = ['tests', 'database'];
 
-function processDirectory($dir) {
+function processDirectory($dir)
+{
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
     $count = 0;
     foreach ($iterator as $file) {
@@ -22,12 +23,13 @@ function processDirectory($dir) {
             }
         }
     }
+
     return $count;
 }
 
 $total = 0;
 foreach ($directories as $dir) {
-    $total += processDirectory(__DIR__ . '/../' . $dir);
+    $total += processDirectory(__DIR__.'/../'.$dir);
 }
 
 echo "Modified $total files.\n";

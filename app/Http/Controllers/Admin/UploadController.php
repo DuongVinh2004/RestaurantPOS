@@ -15,7 +15,7 @@ class UploadController extends Controller
 {
     public function uploadImage(Request $request): JsonResponse
     {
-        if (!$request->hasFile('image')) {
+        if (! $request->hasFile('image')) {
             throw ValidationException::withMessages([
                 'image' => ['No image file provided.'],
             ]);
@@ -23,7 +23,7 @@ class UploadController extends Controller
 
         $file = $request->file('image');
 
-        if (!$file->isValid()) {
+        if (! $file->isValid()) {
             throw ValidationException::withMessages([
                 'image' => ['The uploaded file is not valid.'],
             ]);
@@ -38,8 +38,8 @@ class UploadController extends Controller
         // Ensure folder is safe
         $folder = preg_replace('/[^a-zA-Z0-9_-]/', '', $folder) ?: 'uploads';
 
-        $filename = Str::random(40) . '.' . $file->getClientOriginalExtension();
-        
+        $filename = Str::random(40).'.'.$file->getClientOriginalExtension();
+
         // Store in public disk
         $path = $file->storeAs($folder, $filename, 'public');
 

@@ -3,7 +3,6 @@
 namespace App\Platform\QualityAssurance;
 
 use App\Modules\IdentityAccess\Domain\Models\User;
-use App\Modules\IdentityAccess\Domain\Models\StaffApiKey;
 use App\Platform\Release\Services\SiteBootstrapService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -43,7 +42,7 @@ class UatPackService
         $staffKey = $site['staff_api_key']['plaintext_key'] ?? '';
 
         // Issue Admin API Key
-        $adminKeyPlain = 'sk_test_admin_' . Str::random(32);
+        $adminKeyPlain = 'sk_test_admin_'.Str::random(32);
         if ($adminUserId) {
             DB::table('staff_api_keys')->insert([
                 'user_id' => $adminUserId,
@@ -56,10 +55,10 @@ class UatPackService
         }
 
         // 2. Setup Customer User
-        $customerEmail = 'customer_uat_' . time() . '@example.com';
+        $customerEmail = 'customer_uat_'.time().'@example.com';
         $customerPassword = 'password';
         $customerRoleId = DB::table('roles')->where('role_name', 'Customer')->value('role_id') ?? DB::table('roles')->insertGetId(['role_name' => 'Customer', 'is_staff' => 0, 'created_at' => now(), 'updated_at' => now()]);
-        
+
         $customerId = DB::table('users')->insertGetId([
             'username' => $customerEmail,
             'full_name' => 'UAT Customer',
@@ -93,7 +92,7 @@ class UatPackService
                 'user_id' => $customerId,
                 'guest_name' => 'UAT Customer',
                 'branch_id' => $branchId,
-                'reservation_code' => strtoupper('UAT' . Str::random(5)),
+                'reservation_code' => strtoupper('UAT'.Str::random(5)),
                 'start_time' => $now->copy()->addDays($dayOffset)->setHour(19)->setMinute(0)->format('Y-m-d H:i:s'),
                 'end_time' => $now->copy()->addDays($dayOffset)->setHour(21)->setMinute(0)->format('Y-m-d H:i:s'),
                 'guest_count' => 2,
@@ -117,7 +116,7 @@ class UatPackService
                 'reservation_id' => $reservationId,
                 'row_version' => 1,
             ];
-            
+
             $dayOffset++;
         }
 
@@ -173,7 +172,7 @@ class UatPackService
             ],
             'reservations' => $reservationIds,
             'waiting_list' => [
-                'seeded_waiting_entry' => ['waiting_id' => $waitingId]
+                'seeded_waiting_entry' => ['waiting_id' => $waitingId],
             ],
             'scenarios' => [
                 'availability_hold_reservation' => [
@@ -224,7 +223,7 @@ class UatPackService
         $manifestPath = $payload['manifest_path'];
         $fullPath = base_path($manifestPath);
         $dir = dirname($fullPath);
-        if (!is_dir($dir)) {
+        if (! is_dir($dir)) {
             mkdir($dir, 0755, true);
         }
         file_put_contents($fullPath, json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
@@ -254,7 +253,7 @@ class UatPackService
             // Simple destructive cleanup for UAT only
             DB::table('users')->where('username', 'like', 'customer_uat_%')->delete();
             DB::table('users')->where('username', 'like', '%_uat@example.com')->delete();
-            
+
             $branchId = DB::table('branches')->where('branch_code', 'UAT-01')->value('branch_id');
             if ($branchId) {
                 DB::table('conversations')->where('branch_id', $branchId)->delete();
@@ -269,7 +268,7 @@ class UatPackService
         } finally {
             DB::statement('SET FOREIGN_KEY_CHECKS=1;');
         }
-        
+
         $manifestPath = base_path('storage/app/uat/scenario-pack.json');
         if (file_exists($manifestPath)) {
             unlink($manifestPath);

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class MenuModifier extends Model
 {
     protected $table = 'menu_modifiers';
+
     protected $primaryKey = 'modifier_id';
 
     protected $fillable = [

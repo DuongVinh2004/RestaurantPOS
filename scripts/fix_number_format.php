@@ -1,6 +1,6 @@
 <?php
 
-$dir = __DIR__ . '/../app/Modules';
+$dir = __DIR__.'/../app/Modules';
 $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir));
 $files = [];
 
@@ -12,7 +12,7 @@ foreach ($iterator as $file) {
 
 foreach ($files as $file) {
     $content = file_get_contents($file);
-    if (str_contains($content, "number_format(") && str_contains($content, "2, '.', ''")) {
+    if (str_contains($content, 'number_format(') && str_contains($content, "2, '.', ''")) {
         $newContent = str_replace("2, '.', ''", "0, '.', ''", $content);
         file_put_contents($file, $newContent);
         echo "Updated: $file\n";

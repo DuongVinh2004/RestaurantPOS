@@ -5,15 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature\Staff;
 
 use App\Enums\KitchenStationOutputMode;
-use App\Enums\KitchenTicketStatus;
 use App\Enums\ReservationOrderItemStatus;
-use App\Enums\ReservationOrderStatus;
-use App\Enums\ReservationOrderType;
-use App\Enums\ReservationStatus;
 use App\Modules\Catalog\Domain\Models\MenuCategory;
-use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemComboComponent;
-use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
 use App\Modules\IdentityAccess\Domain\Models\User;
 use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
@@ -29,14 +23,13 @@ use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 use Tests\Support\BuildsBookingScenario;
 use Tests\TestCase;
 
 class ComboOperationalFlowTest extends TestCase
 {
-    use DatabaseTransactions;
     use BuildsBookingScenario;
+    use DatabaseTransactions;
 
     protected function setUp(): void
     {
@@ -48,7 +41,7 @@ class ComboOperationalFlowTest extends TestCase
     {
         // 1. Setup Data: Branch, User, Reservation, Order
         $branchId = 1;
-        
+
         $userId = $this->createUser(['role_name' => 'Staff']);
         $tableId = $this->createRestaurantTable(['status' => 'Occupied']);
         $reservationId = $this->createReservation([
@@ -72,7 +65,7 @@ class ComboOperationalFlowTest extends TestCase
 
         $itemDrink = $this->createMenuItem(['category_id' => $categoryId, 'name' => 'Coke', 'code' => 'COKE']);
         $this->createMenuItemPrice(['item_id' => $itemDrink, 'price' => '20000', 'currency' => 'VND']);
-        
+
         $itemFood = $this->createMenuItem(['category_id' => $categoryId, 'name' => 'Burger', 'code' => 'BURGER']);
         $this->createMenuItemPrice(['item_id' => $itemFood, 'price' => '50000', 'currency' => 'VND']);
 
@@ -120,7 +113,7 @@ class ComboOperationalFlowTest extends TestCase
             [
                 'item_id' => $comboItem,
                 'qty' => 1,
-            ]
+            ],
         ], staffUserId: $userId, idempotencyKey: 'idem-123', expectedRowVersion: $order->row_version ?? 1);
 
         $orderItems = ReservationOrderItem::where('order_id', $order->order_id)->get();
@@ -171,7 +164,7 @@ class ComboOperationalFlowTest extends TestCase
         $movements = IngredientStockMovement::where('ingredient_id', $ingredient->ingredient_id)
             ->where('movement_type', 'StockOut')
             ->get();
-            
+
         $this->assertCount(1, $movements, 'Should deduct exactly 1 beef patty for the burger component');
         $this->assertEquals(-1, $movements->first()->quantity_delta);
 
@@ -195,11 +188,11 @@ class ComboOperationalFlowTest extends TestCase
 
         $order = ReservationOrder::find($orderId);
 
-        $category = \App\Modules\Catalog\Domain\Models\MenuCategory::create(['name' => 'Test Category']);
+        $category = MenuCategory::create(['name' => 'Test Category']);
         $categoryId = $category->category_id;
         $itemDrink = $this->createMenuItem(['category_id' => $categoryId, 'name' => 'Coke', 'code' => 'COKE']);
         $this->createMenuItemPrice(['item_id' => $itemDrink, 'price' => '20000', 'currency' => 'VND']);
-        
+
         $itemFood = $this->createMenuItem(['category_id' => $categoryId, 'name' => 'Burger', 'code' => 'BURGER']);
         $this->createMenuItemPrice(['item_id' => $itemFood, 'price' => '50000', 'currency' => 'VND']);
 
@@ -215,7 +208,7 @@ class ComboOperationalFlowTest extends TestCase
 
         $orderService = app(StaffTableOrderService::class);
         $orderService->addItems($order->order_id, [
-            ['item_id' => $comboItem, 'qty' => 1]
+            ['item_id' => $comboItem, 'qty' => 1],
         ], staffUserId: $userId, idempotencyKey: 'idem-swap-1', expectedRowVersion: $order->row_version ?? 1);
 
         $orderItems = ReservationOrderItem::where('order_id', $order->order_id)->get();

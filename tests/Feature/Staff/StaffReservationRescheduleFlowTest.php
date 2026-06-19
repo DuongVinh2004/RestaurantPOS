@@ -294,7 +294,6 @@ class StaffReservationRescheduleFlowTest extends TestCase
             'table_ids' => [$tableId],
         ]);
 
-
         $response->assertStatus(422)
             ->assertJsonPath('error_code', 'validation_error')
             ->assertJsonPath('details.errors.start_time.0', 'Requested reservation window falls outside the configured branch business hours.');

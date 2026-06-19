@@ -22,6 +22,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Sentry\Laravel\Integration;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -227,7 +228,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $exceptions->reportable(function (Throwable $e) {
             if (app()->bound('sentry')) {
-                \Sentry\Laravel\Integration::captureUnhandledException($e);
+                Integration::captureUnhandledException($e);
             }
         });
     })

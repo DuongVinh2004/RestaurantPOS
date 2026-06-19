@@ -6,6 +6,7 @@ namespace App\Modules\Catalog\Domain\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
@@ -66,7 +67,7 @@ class MenuItem extends Model
         return $this->hasMany(MenuItemComboComponent::class, 'combo_item_id', 'item_id');
     }
 
-    public function modifierGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function modifierGroups(): BelongsToMany
     {
         return $this->belongsToMany(MenuModifierGroup::class, 'menu_item_modifier_groups', 'item_id', 'group_id')
             ->withPivot('sort_order')

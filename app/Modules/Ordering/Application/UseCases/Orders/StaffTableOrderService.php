@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Ordering\Application\UseCases\Orders;
 
+use App\Enums\ReservationBillPaymentSessionStatus;
 use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationOrderType;
@@ -16,6 +17,7 @@ use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
+use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\Support\AuditEvent;
@@ -389,11 +391,11 @@ class StaffTableOrderService
             ]);
         }
 
-        $activeBillSessionsCount = \App\Modules\Payments\Domain\Models\ReservationBillPaymentSession::query()
+        $activeBillSessionsCount = ReservationBillPaymentSession::query()
             ->where('reservation_id', $reservation->reservation_id)
             ->whereIn('session_status', [
-                \App\Enums\ReservationBillPaymentSessionStatus::Created->value,
-                \App\Enums\ReservationBillPaymentSessionStatus::Pending->value,
+                ReservationBillPaymentSessionStatus::Created->value,
+                ReservationBillPaymentSessionStatus::Pending->value,
             ])
             ->count();
 

@@ -9,8 +9,8 @@ use App\Modules\BranchScheduling\Http\Controllers\Guest\RestaurantBranchControll
 use App\Modules\BranchScheduling\Http\Controllers\Guest\RestaurantProfileController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableAvailabilityController;
 use App\Modules\BranchScheduling\Http\Controllers\Guest\TableHoldController;
-use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
 use App\Modules\Catalog\Http\Controllers\Customer\FavoriteMenuItemController;
+use App\Modules\Catalog\Http\Controllers\Customer\MenuCatalogController;
 use App\Modules\Loyalty\Http\Controllers\Customer\LoyaltySummaryController;
 use App\Modules\Loyalty\Http\Controllers\Customer\ReservationLoyaltyController;
 use App\Modules\Payments\Http\Controllers\Customer\ReservationBillPaymentController;

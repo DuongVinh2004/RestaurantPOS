@@ -7,6 +7,7 @@ namespace App\Modules\Ordering\Http\Controllers\Staff;
 use App\Http\Concerns\ResolvesStaffActor;
 use App\Http\Controllers\Controller;
 use App\Modules\Ordering\Application\UseCases\OrderItems\StaffOrderItemLifecycleService;
+use App\Modules\Ordering\Http\Requests\Staff\UpdateOrderItemComponentSwapRequest;
 use App\Modules\Ordering\Http\Requests\Staff\UpdateOrderItemRequest;
 use App\Modules\Ordering\Http\Requests\Staff\UpdateOrderItemStatusRequest;
 use App\Modules\Ordering\Http\Resources\ReservationOrderResource;
@@ -61,7 +62,7 @@ class OrderItemLifecycleController extends Controller
         ]);
     }
 
-    public function swapComponent(int $order_id, int $order_item_id, \App\Modules\Ordering\Http\Requests\Staff\UpdateOrderItemComponentSwapRequest $request): JsonResponse
+    public function swapComponent(int $order_id, int $order_item_id, UpdateOrderItemComponentSwapRequest $request): JsonResponse
     {
         $order = $this->itemLifecycleService->swapComponent(
             orderId: $order_id,

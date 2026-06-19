@@ -18,13 +18,13 @@ class FavoriteMenuItemService
         return UserFavoriteMenuItem::query()
             ->where('user_id', $userId)
             ->pluck('menu_item_id')
-            ->map(fn($id) => (int)$id)
+            ->map(fn ($id) => (int) $id)
             ->all();
     }
 
     public function addFavorite(int $userId, int $menuItemId): void
     {
-        if (!MenuItem::query()->where('item_id', $menuItemId)->exists()) {
+        if (! MenuItem::query()->where('item_id', $menuItemId)->exists()) {
             throw ValidationException::withMessages([
                 'menu_item_id' => ['Menu item does not exist.'],
             ]);
@@ -49,7 +49,7 @@ class FavoriteMenuItemService
         $existingItemIds = MenuItem::query()
             ->whereIn('item_id', $menuItemIds)
             ->pluck('item_id')
-            ->map(fn($id) => (int)$id)
+            ->map(fn ($id) => (int) $id)
             ->all();
 
         foreach ($existingItemIds as $menuItemId) {

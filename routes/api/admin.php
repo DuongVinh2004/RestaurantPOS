@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\UploadController;
 use App\Http\Middleware\MetricsRequestMiddleware;
 use App\Http\Middleware\ResolveCustomerAuthMiddleware;
 use App\Http\Middleware\StaffApiKeyMiddleware;
@@ -39,7 +40,7 @@ Route::middleware([
                     config('booking.throttle_staff_window', 60).',either',
             ])
             ->group(function () {
-                Route::post('upload', [\App\Http\Controllers\Admin\UploadController::class, 'uploadImage'])
+                Route::post('upload', [UploadController::class, 'uploadImage'])
                     ->middleware('staff.capability:menu.manage');
 
                 Route::middleware('staff.capability:privacy.manage')->prefix('privacy')->group(function () {

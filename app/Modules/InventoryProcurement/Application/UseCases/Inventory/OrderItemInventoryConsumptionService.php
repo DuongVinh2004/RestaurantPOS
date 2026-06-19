@@ -6,6 +6,7 @@ namespace App\Modules\InventoryProcurement\Application\UseCases\Inventory;
 
 use App\Enums\ReservationOrderItemStatus;
 use App\Modules\Catalog\Domain\Models\MenuItemRecipe;
+use App\Modules\InventoryProcurement\Domain\Models\Ingredient;
 use App\Modules\InventoryProcurement\Domain\Models\IngredientStockMovement;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
@@ -162,11 +163,11 @@ class OrderItemInventoryConsumptionService
         // Return movements don't need assertSufficientStockForMovements preflight since they increase stock
         DB::transaction(function () use ($movementPayloads, $actorUserId): void {
             // Sort to prevent deadlocks when locking ingredients in loop
-            usort($movementPayloads, fn($a, $b) => $a['ingredient_id'] <=> $b['ingredient_id']);
-            
+            usort($movementPayloads, fn ($a, $b) => $a['ingredient_id'] <=> $b['ingredient_id']);
+
             $ingredientIdsToLock = array_unique(array_column($movementPayloads, 'ingredient_id'));
-            if (!empty($ingredientIdsToLock)) {
-                \App\Modules\InventoryProcurement\Domain\Models\Ingredient::query()
+            if (! empty($ingredientIdsToLock)) {
+                Ingredient::query()
                     ->whereIn('ingredient_id', $ingredientIdsToLock)
                     ->orderBy('ingredient_id')
                     ->lockForUpdate()

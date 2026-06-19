@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Console;
 
+use Database\Seeders\SystemReferenceDataSeeder;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
@@ -13,8 +14,6 @@ use Tests\TestCase;
 
 class SiteBootstrapCommandTest extends TestCase
 {
-
-
     protected function setUp(): void
     {
         parent::setUp();
@@ -24,7 +23,7 @@ class SiteBootstrapCommandTest extends TestCase
         putenv('BOOTSTRAP_STAFF_USERNAME');
         unset($_ENV['BOOTSTRAP_ADMIN_USERNAME'], $_ENV['BOOTSTRAP_STAFF_USERNAME']);
         unset($_SERVER['BOOTSTRAP_ADMIN_USERNAME'], $_SERVER['BOOTSTRAP_STAFF_USERNAME']);
-        
+
         // Ensure config is also cleared since it might have been loaded during app boot
         config()->set('booking.bootstrap.admin_username', null);
         config()->set('booking.bootstrap.staff_username', null);
@@ -51,7 +50,7 @@ class SiteBootstrapCommandTest extends TestCase
         DB::reconnect('sqlite');
 
         $this->createBootstrapTables();
-        $this->seed(\Database\Seeders\SystemReferenceDataSeeder::class);
+        $this->seed(SystemReferenceDataSeeder::class);
     }
 
     #[Group('booking-ops')]

@@ -4,24 +4,28 @@ declare(strict_types=1);
 
 namespace App\Modules\Ordering\Application\UseCases\OrderItems;
 
+use App\Enums\ReservationBillPaymentSessionStatus;
 use App\Enums\ReservationOrderItemStatus;
 use App\Enums\ReservationOrderStatus;
 use App\Enums\ReservationStatus;
 use App\Enums\RestaurantTableStatus;
 use App\Modules\BranchScheduling\Application\Services\ReservationBranchScopeService;
 use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
+use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Application\UseCases\Inventory\OrderItemInventoryConsumptionService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
+use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
 use App\Modules\Reservations\Application\Services\ReservationLockService;
 use App\Modules\Reservations\Domain\Models\Reservation;
 use App\SharedKernel\Money\Money;
 use App\Support\AuditEvent;
 use App\Support\Auth\StaffActorGuard;
 use App\Support\DatabaseWriteConflictMapper;
+use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -87,16 +91,16 @@ class StaffOrderItemLifecycleService
                             ]);
                         }
 
-                        /** @var \App\Modules\Catalog\Domain\Models\MenuItem $newItem */
-                        $newItem = \App\Modules\Catalog\Domain\Models\MenuItem::findOrFail($newItemId);
-                        
+                        /** @var MenuItem $newItem */
+                        $newItem = MenuItem::findOrFail($newItemId);
+
                         $oldItemId = $item->item_id;
                         $oldUnitPrice = $item->unit_price ?? 0;
                         $oldLineTotal = $item->line_total ?? 0;
 
                         $item->item_id = $newItem->item_id;
                         $item->item_name_snapshot = $newItem->name;
-                        
+
                         if ($unitPriceOverride !== null) {
                             $item->unit_price = Money::formatMinor(Money::minorUnits($unitPriceOverride, true));
                             $item->line_total = $this->lineTotalForQuantity(Money::formatMinor(Money::minorUnits($unitPriceOverride, true)), (int) $item->quantity);
@@ -124,7 +128,7 @@ class StaffOrderItemLifecycleService
                     });
                 }
             );
-        } catch (\Illuminate\Contracts\Cache\LockTimeoutException $e) {
+        } catch (LockTimeoutException $e) {
             throw ValidationException::withMessages([
                 'order_id' => 'Could not acquire lock to update order items. Please try again.',
             ]);
@@ -373,15 +377,15 @@ class StaffOrderItemLifecycleService
                             $childCurrent = $child->status instanceof ReservationOrderItemStatus
                                 ? $child->status
                                 : ReservationOrderItemStatus::from((string) $child->status);
-                            
+
                             if ($childCurrent !== $target) {
                                 // For children, we also enforce the policy to ensure valid state transitions
                                 ReservationOrderItemStatusTransitionPolicy::assertTransitionAllowed($childCurrent, $target);
-                                
+
                                 $child->status = $target;
                                 $child->updated_by = $staffUserId;
                                 $child->save();
-                                
+
                                 $this->orderItemInventoryConsumptionService->syncInventoryForStatusChange(
                                     reservation: $order->reservation,
                                     order: $order,
@@ -521,11 +525,11 @@ class StaffOrderItemLifecycleService
             ]);
         }
 
-        $activeBillSessionsCount = \App\Modules\Payments\Domain\Models\ReservationBillPaymentSession::query()
+        $activeBillSessionsCount = ReservationBillPaymentSession::query()
             ->where('reservation_id', $reservation->reservation_id)
             ->whereIn('session_status', [
-                \App\Enums\ReservationBillPaymentSessionStatus::Created->value,
-                \App\Enums\ReservationBillPaymentSessionStatus::Pending->value,
+                ReservationBillPaymentSessionStatus::Created->value,
+                ReservationBillPaymentSessionStatus::Pending->value,
             ])
             ->count();
 
