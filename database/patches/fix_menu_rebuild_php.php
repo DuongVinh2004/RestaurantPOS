@@ -266,34 +266,27 @@ $compCount += insertComboComponents('MS-SET-CHAY', [
 echo "Combo components inserted: $compCount" . PHP_EOL;
 
 // ---------------------------------------------------------------------------
-// 6. Extra cleanup: hide any remaining old-style categories
-// (already done in step 1a/1b, this is a safety net)
-// ---------------------------------------------------------------------------
-$extraHide = DB::table('menu_categories')
-    ->where('is_deleted', 0)
-    ->whereIn('category_id', [1, 2])  // only the known old conflicting IDs
-    ->count();
-if ($extraHide > 0) {
-    DB::table('menu_categories')->whereIn('category_id', [1, 2])->update(['is_deleted' => 1]);
-    echo "Extra cleanup: hid remaining old categories" . PHP_EOL;
-}
-
-// ---------------------------------------------------------------------------
-// 7. Final counts
+// 6. Final counts
+// NOTE: Step 1a already hid old conflicting categories (id=1, id=2).
+//       Do NOT run any further cleanup on id=1 here — it is now 'Mon Chinh'.
 // ---------------------------------------------------------------------------
 $finalItems  = DB::table('menu_items')->where('is_available', 1)->count();
 $finalBS     = DB::table('menu_items')->where('is_best_seller', 1)->count();
 $finalCombo  = DB::table('menu_items')->where('is_combo', 1)->count();
 $finalComps  = DB::table('menu_item_combo_components')->count();
 $finalCats   = DB::table('menu_categories')->where('is_deleted', 0)->count();
-$finalPrices = DB::table('menu_item_prices')->whereNull('effective_to')->count();
+$finalPrices = DB::table('menu_item_prices')
+    ->join('menu_items', 'menu_item_prices.item_id', '=', 'menu_items.item_id')
+    ->where('menu_items.is_available', 1)
+    ->whereNull('menu_item_prices.effective_to')
+    ->count();
 
 echo PHP_EOL;
 echo "=== FINAL COUNTS ===" . PHP_EOL;
 echo "  Items available   : $finalItems  (expect 66)" . PHP_EOL;
 echo "  Best sellers      : $finalBS  (expect 13)" . PHP_EOL;
 echo "  Set/Combo         : $finalCombo  (expect 6)" . PHP_EOL;
-echo "  Combo components  : $finalComps  (expect 40)" . PHP_EOL;
+echo "  Combo components  : $finalComps  (expect 41)" . PHP_EOL;
 echo "  Active categories : $finalCats  (expect 8)" . PHP_EOL;
 echo "  Active prices     : $finalPrices  (expect 66)" . PHP_EOL;
 
