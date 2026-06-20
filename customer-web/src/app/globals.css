@@ -127,9 +127,11 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior-y: none;
   }
   html {
     @apply font-sans scroll-smooth;
@@ -137,5 +139,18 @@
   ::selection {
     background: color-mix(in oklch, var(--primary) 20%, white);
     color: var(--foreground);
+  }
+
+  /* Prevent iOS zoom on input focus by forcing 16px min font-size */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="url"],
+  input[type="search"],
+  textarea,
+  select {
+    @apply text-[16px];
   }
 }

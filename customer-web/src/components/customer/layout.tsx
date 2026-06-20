@@ -28,7 +28,7 @@ export function ResponsivePageShell({
   return (
     <main
       className={cn(
-        "mx-auto w-full px-4 py-7 sm:py-9",
+        "mx-auto w-full px-4 pt-7 pb-28 sm:py-9",
         size === "wide" ? "max-w-7xl" : "max-w-3xl",
         className,
       )}
@@ -146,7 +146,7 @@ export function CustomerBottomNav({
   return (
     <nav
       aria-label="Điều hướng cuối màn hình"
-      className={cn("fixed inset-x-0 bottom-0 z-30 border-t bg-background/70 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2 backdrop-blur-2xl md:hidden transition-all", className)}
+      className={cn("fixed inset-x-0 bottom-0 z-50 border-t bg-background/70 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2 backdrop-blur-2xl md:hidden transition-all", className)}
     >
       <div className="mx-auto grid max-w-[360px] grid-cols-5 items-center gap-1 rounded-full border border-black/5 dark:border-white/5 bg-background/95 p-1.5 shadow-xl backdrop-blur-xl">
         {items.map((item) => {

@@ -96,14 +96,19 @@ export function StickyBookingSummary({
   }, [expired, remainingMs]);
 
   return (
-    <aside className={cn("w-full max-w-full rounded-2xl border bg-card/95 backdrop-blur-md shadow-[var(--restaurant-shadow)] sticky bottom-[5.5rem] z-40 xl:top-20 xl:self-start", className)}>
-      <div className="flex flex-col gap-2 p-3">
-        <div className="flex items-center justify-between gap-3">
+    <aside className={cn("w-full max-w-full rounded-3xl border bg-card/95 backdrop-blur-xl shadow-2xl sticky bottom-[5.5rem] z-40 xl:top-20 xl:self-start", className)}>
+      <div className="flex flex-col gap-4 p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold leading-5 line-clamp-1">{title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
-              {items.map(i => i.value).join(" • ")}
-            </p>
+            <p className="text-base font-bold leading-tight mb-2.5 text-foreground tracking-tight">{title}</p>
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[13px] text-muted-foreground">
+              {items.map(i => (
+                <li key={i.label} className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary/40 shrink-0" />
+                  <span className="font-medium text-foreground/80">{i.value}</span>
+                </li>
+              ))}
+            </ul>
           </div>
           {countdownLabel ? (
              <div className={cn("shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border", 
