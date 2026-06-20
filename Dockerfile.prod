@@ -38,9 +38,8 @@ RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist
 # Copy toàn bộ source code
 COPY . .
 
-# Generate autoloader và chạy scripts (nếu có)
-RUN composer dump-autoload --optimize \
-    && php artisan optimize:clear
+# Generate autoloader
+RUN composer dump-autoload --optimize
 
 # Phân quyền cho Laravel
 RUN chown -R www-data:www-data /var/www/html \
