@@ -234,6 +234,12 @@ class MenuCatalogBrowser
             ->when((bool) ($filters['preorder_only'] ?? false), static function ($query): void {
                 $query->where('menu_items.is_preorder_enabled', 1);
             })
+            ->when((bool) ($filters['is_best_seller'] ?? false), static function ($query): void {
+                $query->where('menu_items.is_best_seller', 1);
+            })
+            ->when((bool) ($filters['is_combo'] ?? false), static function ($query): void {
+                $query->where('menu_items.is_combo', 1);
+            })
             ->when(($filters['q'] ?? null) !== null && trim((string) $filters['q']) !== '', static function ($query) use ($filters): void {
                 $keyword = trim((string) $filters['q']);
                 $like = '%'.str_replace(['%', '_'], ['\\%', '\\_'], $keyword).'%';
