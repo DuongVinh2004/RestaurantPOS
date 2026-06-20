@@ -96,7 +96,7 @@ export function StickyBookingSummary({
   }, [expired, remainingMs]);
 
   return (
-    <aside className={cn("w-full max-w-full rounded-lg border bg-card shadow-[var(--restaurant-shadow)] xl:sticky xl:top-20 xl:self-start", className)}>
+    <aside className={cn("w-full max-w-full rounded-lg border bg-card shadow-[var(--restaurant-shadow)] sticky bottom-[5.5rem] z-40 xl:top-20 xl:self-start", className)}>
       <div className="space-y-3 p-3">
         <div className="flex min-w-0 items-start justify-between gap-3">
           <div className="min-w-0">

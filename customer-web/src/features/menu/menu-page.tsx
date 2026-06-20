@@ -754,7 +754,7 @@ export function MenuPage() {
       </div>
 
       {featureFlags.preorder && cart.quantity > 0 && (
-        <div className="fixed bottom-6 right-6 z-40 lg:hidden">
+        <div className="fixed bottom-[5.5rem] right-4 z-40 lg:hidden">
           <Sheet open={isMobileCartOpen} onOpenChange={setIsMobileCartOpen}>
             <SheetTrigger asChild>
               <AppButton
@@ -769,8 +769,8 @@ export function MenuPage() {
               </AppButton>
             </SheetTrigger>
             <SheetContent side="bottom" className="h-[80vh] p-0 rounded-t-2xl overflow-hidden border-t border-primary/10">
-              <div className="flex flex-col h-full">
-                <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact className="flex flex-col h-full" />
+              <div className="flex-1 overflow-hidden">
+                <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact className="h-full border-0 shadow-none rounded-none" />
               </div>
             </SheetContent>
           </Sheet>

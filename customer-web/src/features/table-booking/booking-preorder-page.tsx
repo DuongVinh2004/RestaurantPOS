@@ -541,7 +541,7 @@ export function BookingPreorderPage() {
       </div>
 
       {featureFlags.preorder && (
-        <div className="fixed bottom-6 left-0 right-0 z-40 lg:hidden px-4 flex justify-between gap-4">
+        <div className="fixed bottom-[5.5rem] left-0 right-0 z-40 lg:hidden px-4 flex justify-between gap-4">
           <Sheet open={isMobileCartOpen} onOpenChange={setIsMobileCartOpen}>
             <SheetTrigger asChild>
               <AppButton

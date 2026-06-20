@@ -69,37 +69,8 @@ export function LoginPage() {
   };
 
   return (
-    <main className="mx-auto grid min-h-[calc(100svh-4.5rem)] w-full max-w-6xl items-center gap-8 px-4 py-8 md:grid-cols-[minmax(0,1fr)_430px]">
-      <section className="space-y-6">
-        <div className="space-y-4">
-          <h1 className="max-w-xl text-4xl font-bold leading-tight tracking-normal sm:text-5xl">Tiếp tục lượt ghé của bạn.</h1>
-          <p className="max-w-md text-base leading-7 text-muted-foreground">
-            Đăng nhập để xem lịch sử đặt bàn, đặt cọc, hóa đơn và thông tin tài khoản. Bạn vẫn có thể xem trước với tư cách khách.
-          </p>
-        </div>
-        <div className="grid max-w-xl gap-3 sm:grid-cols-2">
-          <AppButton type="button" variant="outline" className="justify-between border-teal-500 text-teal-700 hover:bg-teal-50" onClick={handleContinueAsGuest}>
-            <span className="inline-flex items-center gap-2">
-              <UserRound className="h-4 w-4" />
-              Tiếp tục với tư cách khách
-            </span>
-            <ArrowRight className="h-4 w-4" />
-          </AppButton>
-          <AppButton asChild variant="outline" className="justify-between">
-            <Link href="/menu">
-              Xem thực đơn trước
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          </AppButton>
-        </div>
-        <div className="grid max-w-xl gap-3 sm:grid-cols-3">
-          <AuthSignal icon={CalendarCheck2} title="Lịch đặt" description="Theo dõi lượt ghé hiện có." />
-          <AuthSignal icon={ReceiptText} title="Hóa đơn" description="Xem trạng thái khi nhà hàng sẵn sàng." />
-          <AuthSignal icon={ShieldCheck} title="Phiên khách" description="Giữ thao tác tự phục vụ rõ ràng." />
-        </div>
-      </section>
-
-      <AppCard className="p-5 sm:p-6">
+    <main className="mx-auto grid min-h-[calc(100svh-4.5rem)] w-full max-w-5xl items-start gap-8 px-4 py-8 md:grid-cols-[400px_minmax(0,1fr)]">
+      <AppCard className="p-5 sm:p-6 order-1">
         <div className="mb-5">
           <h2 className="text-xl font-bold">Đăng nhập</h2>
           <p className="mt-1 text-sm text-muted-foreground">Dùng email, số điện thoại hoặc mã khách hàng.</p>
@@ -146,24 +117,34 @@ export function LoginPage() {
             </Link>
           </p>
       </AppCard>
+
+      <section className="space-y-6 order-2 mt-4 md:mt-0">
+        <div className="space-y-4">
+          <h1 className="max-w-xl text-3xl font-bold leading-tight tracking-normal sm:text-4xl">Lượt ghé của bạn.</h1>
+          <p className="max-w-md text-base leading-7 text-muted-foreground">
+            Đăng nhập để quản lý đặt bàn, đặt cọc và hóa đơn. Bạn cũng có thể tiếp tục với tư cách khách.
+          </p>
+        </div>
+        <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+          <AppButton type="button" variant="outline" className="justify-between border-teal-500 text-teal-700 hover:bg-teal-50" onClick={handleContinueAsGuest}>
+            <span className="inline-flex items-center gap-2">
+              <UserRound className="h-4 w-4" />
+              Tiếp tục khách
+            </span>
+            <ArrowRight className="h-4 w-4" />
+          </AppButton>
+          <AppButton asChild variant="outline" className="justify-between">
+            <Link href="/menu">
+              Xem thực đơn
+              <ArrowRight className="h-4 w-4" />
+            </Link>
+          </AppButton>
+        </div>
+      </section>
+
+
     </main>
   );
 }
 
-function AuthSignal({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: LucideIcon;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="min-h-28 rounded-lg border bg-card p-3">
-      <Icon className="h-4 w-4 text-primary" />
-      <p className="mt-3 text-sm font-semibold">{title}</p>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
-    </div>
-  );
-}
+
