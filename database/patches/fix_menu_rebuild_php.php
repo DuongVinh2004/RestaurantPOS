@@ -3,38 +3,65 @@
  * Fix: Re-insert all 66 menu items using pure PHP (no TEMPORARY TABLE).
  * Safe to run multiple times (updateOrInsert = upsert by code).
  * Run via: php artisan tinker --execute="require 'database/patches/fix_menu_rebuild_php.php';"
+ *
+ * Root cause of original failure:
+ * TiDB utf8mb4_unicode_ci is accent+case insensitive, so the SQL patch's
+ * UPDATE is_deleted=1 WHERE name IN ('Khai vi','Mon chinh',...) accidentally
+ * deleted the newly inserted clean-name categories.
+ * This script re-activates them by known category_id.
  */
 
 use Illuminate\Support\Facades\DB;
 
-echo "=== Menu Rebuild Fix (PHP) ===" . PHP_EOL;
+echo "=== Menu Rebuild Fix (PHP) v2 ===" . PHP_EOL;
 
 // ---------------------------------------------------------------------------
-// 1. Load category ID map (name → category_id, active only)
+// 1a. Hide old conflicting categories (Vietnamese diacritics → clean names)
+// ---------------------------------------------------------------------------
+// id=2: 'Đồ Uống' → replaced by id=9 'Do Uong'
+// id=1: 'Món Chính' → replaced by id=1 renamed to 'Mon Chinh'
+DB::table('menu_categories')->where('category_id', 2)->update(['is_deleted' => 1]);
+echo "  Hidden: Đồ Uống (id=2)" . PHP_EOL;
+
+// ---------------------------------------------------------------------------
+// 1b. Re-activate needed categories by known ID (bypass UNIQUE key issue)
+// The SQL patch accidentally set is_deleted=1 on these via accent-insensitive
+// WHERE name IN ('Khai vi','Mon chinh','Rau & chay','Trang miem','Do uong')
+// ---------------------------------------------------------------------------
+$reactivations = [
+    1 => ['name' => 'Mon Chinh',  'sort_order' => 30],  // was 'Món Chính'
+    3 => ['name' => 'Khai Vi',    'sort_order' => 10],
+    7 => ['name' => 'Rau & Chay', 'sort_order' => 50],
+    8 => ['name' => 'Trang Miem', 'sort_order' => 60],
+    9 => ['name' => 'Do Uong',    'sort_order' => 70],
+];
+foreach ($reactivations as $id => $meta) {
+    $rows = DB::table('menu_categories')->where('category_id', $id)->update([
+        'name'       => $meta['name'],
+        'is_deleted' => 0,
+        'sort_order' => $meta['sort_order'],
+    ]);
+    echo ($rows ? '  RE-ACTIVATED' : '  NOT FOUND') . ": {$meta['name']} (id=$id)" . PHP_EOL;
+}
+
+// ---------------------------------------------------------------------------
+// 1c. Load final category ID map
 // ---------------------------------------------------------------------------
 $catMap = DB::table('menu_categories')
     ->where('is_deleted', 0)
     ->pluck('category_id', 'name')
     ->toArray();
 
-echo "Active categories (" . count($catMap) . "):" . PHP_EOL;
+echo PHP_EOL . "Active categories (" . count($catMap) . "):" . PHP_EOL;
 foreach ($catMap as $name => $id) {
     echo "  $id | $name" . PHP_EOL;
 }
 
-// Ensure 'Mon Chinh' exists (might be missing if old 'Món Chính' conflicted)
-$needed = ['Khai Vi','Canh & Sup','Mon Chinh','Com & Mi','Rau & Chay','Trang Miem','Do Uong','Set & Combo'];
-foreach ($needed as $catName) {
-    if (!isset($catMap[$catName])) {
-        $id = DB::table('menu_categories')->insertGetId([
-            'name'        => $catName,
-            'description' => $catName,
-            'sort_order'  => array_search($catName, $needed) * 10 + 10,
-            'is_deleted'  => 0,
-        ]);
-        $catMap[$catName] = $id;
-        echo "  Created category: $catName → $id" . PHP_EOL;
-    }
+// Sanity check
+$missing = array_diff(['Khai Vi','Canh & Sup','Mon Chinh','Com & Mi','Rau & Chay','Trang Miem','Do Uong','Set & Combo'], array_keys($catMap));
+if (!empty($missing)) {
+    echo PHP_EOL . '  ⚠️ MISSING categories: ' . implode(', ', $missing) . PHP_EOL;
+    exit(1);
 }
 
 // ---------------------------------------------------------------------------
@@ -239,17 +266,16 @@ $compCount += insertComboComponents('MS-SET-CHAY', [
 echo "Combo components inserted: $compCount" . PHP_EOL;
 
 // ---------------------------------------------------------------------------
-// 6. Hide old categories with Vietnamese diacritics
+// 6. Extra cleanup: hide any remaining old-style categories
+// (already done in step 1a/1b, this is a safety net)
 // ---------------------------------------------------------------------------
-$hiddenCats = DB::table('menu_categories')
+$extraHide = DB::table('menu_categories')
     ->where('is_deleted', 0)
-    ->whereIn('name', ['Món Chính', 'Đồ Uống', 'Mon chinh', 'Do uong', 'Com & bun/pho', 'Rau & chay', 'Trang miem', 'Combo', 'Khai vi', 'Khai Vo'])
-    ->pluck('name');
-if ($hiddenCats->count() > 0) {
-    DB::table('menu_categories')
-        ->whereIn('name', $hiddenCats->toArray())
-        ->update(['is_deleted' => 1]);
-    echo "Hidden old categories: " . implode(', ', $hiddenCats->toArray()) . PHP_EOL;
+    ->whereIn('category_id', [1, 2])  // only the known old conflicting IDs
+    ->count();
+if ($extraHide > 0) {
+    DB::table('menu_categories')->whereIn('category_id', [1, 2])->update(['is_deleted' => 1]);
+    echo "Extra cleanup: hid remaining old categories" . PHP_EOL;
 }
 
 // ---------------------------------------------------------------------------
