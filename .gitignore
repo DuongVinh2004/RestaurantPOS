@@ -88,3 +88,5 @@ test_proc.php
 *.old
 *.orig
 *.rej
+
+.vercel

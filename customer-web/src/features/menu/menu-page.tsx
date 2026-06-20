@@ -709,11 +709,11 @@ export function MenuPage() {
                     {/* Buttons */}
                     <div className="grid gap-2 grid-cols-2 pt-2">
                       {featureFlags.menuItemDetail ? (
-                        <AppButton asChild variant="outline" size="sm" className="min-h-9 text-xs rounded-lg">
+                        <AppButton asChild variant="outline" size="sm" className="min-h-10 text-xs rounded-full">
                           <Link href={`/menu/${item.item_id}`}>Chi tiết</Link>
                         </AppButton>
                       ) : (
-                        <AppButton type="button" variant="outline" size="sm" className="min-h-9 text-xs rounded-lg" disabled>
+                        <AppButton type="button" variant="outline" size="sm" className="min-h-10 text-xs rounded-full" disabled>
                           Chi tiết
                         </AppButton>
                       )}
@@ -721,15 +721,15 @@ export function MenuPage() {
                         <AppButton 
                           type="button" 
                           size="sm" 
-                          className="min-h-9 text-xs rounded-lg" 
+                          className="min-h-10 text-xs rounded-full bg-primary/10 text-primary hover:bg-primary/20 shadow-none border-0" 
                           disabled={!canPreorder} 
                           onClick={() => addToCart(item)}
                         >
-                          <ShoppingBag className="h-3.5 w-3.5 mr-1" />
-                          Thêm món
+                          <Plus className="h-4 w-4 mr-1" />
+                          Thêm
                         </AppButton>
                       ) : (
-                        <AppButton asChild size="sm" className="min-h-9 text-xs rounded-lg">
+                        <AppButton asChild size="sm" className="min-h-10 text-xs rounded-full bg-primary/10 text-primary hover:bg-primary/20 shadow-none border-0">
                           <Link href="/booking">
                             <CalendarDays className="h-3.5 w-3.5 mr-1" />
                             Đặt bàn
@@ -768,9 +768,9 @@ export function MenuPage() {
                 </span>
               </AppButton>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[80vh] p-0 rounded-t-2xl overflow-hidden border-t border-primary/10">
-              <div className="flex-1 overflow-hidden">
-                <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact className="h-full border-0 shadow-none rounded-none" />
+            <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0 rounded-t-3xl overflow-hidden border-t border-primary/10">
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact className="flex-1 border-0 shadow-none rounded-none flex flex-col min-h-0" />
               </div>
             </SheetContent>
           </Sheet>

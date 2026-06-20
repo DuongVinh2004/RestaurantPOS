@@ -50,8 +50,8 @@ export function AppButton({ className, size = "lg", ...props }: ComponentProps<t
     <Button
       size={size}
       className={cn(
-        "min-h-11 rounded-lg font-semibold shadow-none",
-        iconOnly ? "min-w-11 p-0" : "px-4",
+        "min-h-12 rounded-full font-semibold shadow-none transition-transform active:scale-[0.98]",
+        iconOnly ? "min-w-12 p-0" : "px-5",
         className,
       )}
       {...props}
@@ -60,11 +60,11 @@ export function AppButton({ className, size = "lg", ...props }: ComponentProps<t
 }
 
 export function AppCard({ className, ...props }: ComponentProps<typeof Card>) {
-  return <Card className={cn("rounded-lg border bg-card shadow-[var(--restaurant-shadow)]", className)} {...props} />;
+  return <Card className={cn("rounded-2xl border-0 shadow-sm ring-1 ring-black/5 dark:ring-white/5 bg-card overflow-hidden", className)} {...props} />;
 }
 
 export function AppBadge({ className, variant = "outline", ...props }: ComponentProps<typeof Badge>) {
-  return <Badge variant={variant} className={cn("rounded-md px-2 py-1", className)} {...props} />;
+  return <Badge variant={variant} className={cn("rounded-md px-2 py-1 font-medium", className)} {...props} />;
 }
 
 export function AppInput({
@@ -81,16 +81,16 @@ export function AppInput({
 
   return (
     <div className="space-y-2">
-      {label ? <Label htmlFor={inputId}>{label}</Label> : null}
+      {label ? <Label htmlFor={inputId} className="text-sm font-medium ml-1">{label}</Label> : null}
       <Input
         id={inputId}
         aria-describedby={helperText || error ? descriptionId : undefined}
         aria-invalid={Boolean(error) || undefined}
-        className={cn("min-h-11 rounded-lg", className)}
+        className={cn("min-h-12 rounded-xl bg-muted/40 border-transparent focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-none px-4", error && "border-destructive/50 focus:border-destructive focus:ring-destructive/20", className)}
         {...props}
       />
       {helperText || error ? (
-        <p id={descriptionId} className={cn("text-sm", error ? "text-destructive" : "text-muted-foreground")}>
+        <p id={descriptionId} className={cn("text-[13px] ml-1", error ? "text-destructive font-medium" : "text-muted-foreground")}>
           {error ?? helperText}
         </p>
       ) : null}
@@ -128,26 +128,26 @@ export function AppSelect({
 
   return (
     <div className="space-y-2">
-      {label ? <Label htmlFor={selectId}>{label}</Label> : null}
+      {label ? <Label htmlFor={selectId} className="text-sm font-medium ml-1">{label}</Label> : null}
       <Select value={value} onValueChange={onValueChange} disabled={disabled}>
         <SelectTrigger
           id={selectId}
-          className="min-h-11 w-full rounded-lg"
+          className={cn("min-h-12 w-full rounded-xl bg-muted/40 border-transparent focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-none px-4", error && "border-destructive/50 focus:border-destructive focus:ring-destructive/20")}
           aria-describedby={helperText || error ? descriptionId : undefined}
           aria-invalid={Boolean(error) || undefined}
         >
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="rounded-xl shadow-lg border-black/5">
           {options.map((option) => (
-            <SelectItem key={option.value} value={option.value} disabled={option.disabled}>
+            <SelectItem key={option.value} value={option.value} disabled={option.disabled} className="rounded-lg">
               {option.label}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
       {helperText || error ? (
-        <p id={descriptionId} className={cn("text-sm", error ? "text-destructive" : "text-muted-foreground")}>
+        <p id={descriptionId} className={cn("text-[13px] ml-1", error ? "text-destructive font-medium" : "text-muted-foreground")}>
           {error ?? helperText}
         </p>
       ) : null}
@@ -169,12 +169,12 @@ export function AppTextarea({
 
   return (
     <div className="space-y-2">
-      {label ? <Label htmlFor={textareaId}>{label}</Label> : null}
+      {label ? <Label htmlFor={textareaId} className="text-sm font-medium ml-1">{label}</Label> : null}
       <Textarea
         id={textareaId}
         aria-describedby={helperText || error ? descriptionId : undefined}
         aria-invalid={Boolean(error) || undefined}
-        className={cn("min-h-28 rounded-lg", className)}
+        className={cn("min-h-28 rounded-xl bg-muted/40 border-transparent focus:bg-background focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-none p-4", error && "border-destructive/50 focus:border-destructive focus:ring-destructive/20", className)}
         {...props}
       />
       {helperText || error ? (

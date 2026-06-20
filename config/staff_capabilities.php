@@ -34,10 +34,23 @@ return [
     ],
 
     'role_id_capabilities' => [
+        1 => ['*'], // Quản trị
+        8 => ['*'], // Quản lý
+        6 => ['cashier.shift.manage', 'settlement.manage'], // Thu ngân
+        7 => ['kitchen.manage'], // Bếp
+        2 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release'], // Nhân viên
+        4 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release'], // Phục vụ
+        5 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release'], // Tiếp thực
     ],
 
     'role_capabilities' => [
         'Admin' => [
+            '*',
+        ],
+        'Quản trị' => [
+            '*',
+        ],
+        'Quản lý' => [
             '*',
         ],
         'Manager' => [
@@ -124,10 +137,23 @@ return [
     ],
 
     'role_id_branch_scopes' => [
+        1 => ['*'], // Quản trị
+        8 => ['*'], // Quản lý
+        6 => ['default'], // Thu ngân
+        7 => ['default'], // Bếp
+        2 => ['default'], // Nhân viên
+        4 => ['default'], // Phục vụ
+        5 => ['default'], // Tiếp thực
     ],
 
     'role_branch_scopes' => [
         'Admin' => [
+            '*',
+        ],
+        'Quản trị' => [
+            '*',
+        ],
+        'Quản lý' => [
             '*',
         ],
         'Manager' => [

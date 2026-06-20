@@ -795,21 +795,21 @@ export function TableBookingPage() {
           </CardHeader>
           <CardContent className="pt-6">
             <form className="space-y-4" onSubmit={form.handleSubmit(submitAvailabilitySearch)}>
-              <section className="rounded-lg border bg-background/50 p-4 shadow-sm transition-shadow hover:shadow-md">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <section className="rounded-2xl bg-muted/30 p-5 shadow-none transition-shadow hover:bg-muted/40 border border-transparent">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">1. Chọn số khách</p>
-                    <p className="text-xs text-muted-foreground">Dùng chip nhanh hoặc nhập số chính xác.</p>
+                    <p className="text-base font-bold text-foreground">1. Chọn số khách</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Dùng chip nhanh hoặc nhập số chính xác.</p>
                   </div>
-                  <Badge variant="outline" className="rounded-md bg-background">{guestCountValue ?? 0} khách</Badge>
+                  <Badge variant="outline" className="rounded-full bg-background px-3 py-1 font-semibold">{guestCountValue ?? 0} khách</Badge>
                 </div>
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-2">
                   {guestQuickOptions.map((option) => (
                     <Button
                       key={option.label}
                       type="button"
                       variant={guestCountValue === option.value ? "default" : "outline"}
-                      className={cn("min-h-10 rounded-lg transition-all", guestCountValue !== option.value && "hover:-translate-y-0.5 hover:shadow-sm")}
+                      className={cn("min-h-10 rounded-full transition-all duration-200 px-5", guestCountValue !== option.value ? "hover:-translate-y-0.5 hover:shadow-sm bg-background border-transparent shadow-sm" : "shadow-md")}
                       aria-pressed={guestCountValue === option.value}
                       onClick={() => form.setValue("guest_count", option.value, { shouldDirty: true, shouldValidate: true })}
                     >
@@ -818,16 +818,16 @@ export function TableBookingPage() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="guest_count">Số khách</Label>
-                  <Input id="guest_count" type="number" min={1} className="min-h-11 rounded-lg" data-testid="customer-party-size-input" {...form.register("guest_count", { valueAsNumber: true })} />
-                  {form.formState.errors.guest_count ? <p className="text-sm text-destructive">{form.formState.errors.guest_count.message}</p> : null}
+                  <Label htmlFor="guest_count" className="text-sm font-medium ml-1">Số khách tùy chỉnh</Label>
+                  <Input id="guest_count" type="number" min={1} className="min-h-12 rounded-xl bg-background border-transparent focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" data-testid="customer-party-size-input" {...form.register("guest_count", { valueAsNumber: true })} />
+                  {form.formState.errors.guest_count ? <p className="text-[13px] font-medium text-destructive ml-1">{form.formState.errors.guest_count.message}</p> : null}
                 </div>
               </section>
 
-              <section className="rounded-lg border bg-background/50 p-4 shadow-sm transition-shadow hover:shadow-md">
-                <div className="mb-3">
-                  <p className="text-sm font-semibold">2. Chọn ngày</p>
-                  <p className="text-xs text-muted-foreground">Giữ nguyên giờ đang chọn khi đổi ngày nhanh.</p>
+              <section className="rounded-2xl bg-muted/30 p-5 shadow-none transition-shadow hover:bg-muted/40 border border-transparent">
+                <div className="mb-4">
+                  <p className="text-base font-bold text-foreground">2. Chọn ngày</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Giữ nguyên giờ đang chọn khi đổi ngày nhanh.</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {quickDateOptions.map((option) => {
@@ -838,7 +838,7 @@ export function TableBookingPage() {
                         key={option.key}
                         type="button"
                         variant={selected ? "default" : "outline"}
-                        className={cn("min-h-10 rounded-lg transition-all", !selected && "hover:-translate-y-0.5 hover:shadow-sm")}
+                        className={cn("min-h-10 rounded-full transition-all duration-200 px-5", !selected ? "hover:-translate-y-0.5 hover:shadow-sm bg-background border-transparent shadow-sm" : "shadow-md")}
                         aria-pressed={selected}
                         onClick={() => form.setValue("start_time", option.getValue(startTimeValue), { shouldDirty: true, shouldValidate: true })}
                       >
@@ -849,17 +849,17 @@ export function TableBookingPage() {
                 </div>
               </section>
 
-              <section className="rounded-lg border bg-background/50 p-4 shadow-sm transition-shadow hover:shadow-md">
-                <div className="mb-3">
-                  <p className="text-sm font-semibold">3. Chọn giờ</p>
-                  <p className="text-xs text-muted-foreground">Có thể bấm khung giờ gợi ý hoặc nhập trực tiếp.</p>
+              <section className="rounded-2xl bg-muted/30 p-5 shadow-none transition-shadow hover:bg-muted/40 border border-transparent">
+                <div className="mb-4">
+                  <p className="text-base font-bold text-foreground">3. Chọn giờ</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Có thể bấm khung giờ gợi ý hoặc nhập trực tiếp.</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="start_time">Ngày và giờ</Label>
-                  <Input id="start_time" type="datetime-local" className="min-h-11 rounded-lg" data-testid="customer-date-input" {...form.register("start_time")} />
-                  {form.formState.errors.start_time ? <p className="text-sm text-destructive">{form.formState.errors.start_time.message}</p> : null}
+                  <Label htmlFor="start_time" className="text-sm font-medium ml-1">Ngày và giờ tùy chỉnh</Label>
+                  <Input id="start_time" type="datetime-local" className="min-h-12 rounded-xl bg-background border-transparent focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" data-testid="customer-date-input" {...form.register("start_time")} />
+                  {form.formState.errors.start_time ? <p className="text-[13px] font-medium text-destructive ml-1">{form.formState.errors.start_time.message}</p> : null}
                 </div>
-                <div className="mt-3">
+                <div className="mt-4">
                   <TimeSlotGrid
                     selectedDate={selectedDate}
                     selectedValue={startTimeValue}
@@ -868,21 +868,21 @@ export function TableBookingPage() {
                 </div>
               </section>
 
-              <section className="rounded-lg border bg-background/70 p-3">
-                <div className="mb-3 flex items-center justify-between gap-3">
+              <section className="rounded-2xl bg-muted/30 p-5 shadow-none transition-shadow hover:bg-muted/40 border border-transparent">
+                <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-sm font-semibold">4. Thời lượng dùng bữa dự kiến</p>
-                    <p className="text-xs text-muted-foreground">Mặc định 90 phút cho một lượt ghé.</p>
+                    <p className="text-base font-bold text-foreground">4. Thời lượng dùng bữa dự kiến</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Mặc định 90 phút cho một lượt ghé.</p>
                   </div>
-                  <Badge variant="outline" className="rounded-md">{durationMinutesValue ?? 0} phút</Badge>
+                  <Badge variant="outline" className="rounded-full bg-background px-3 py-1 font-semibold">{durationMinutesValue ?? 0} phút</Badge>
                 </div>
-                <div className="mb-3 flex flex-wrap gap-2">
+                <div className="mb-4 flex flex-wrap gap-2">
                   {durationQuickOptions.map((option) => (
                     <Button
                       key={option.value}
                       type="button"
                       variant={durationMinutesValue === option.value ? "default" : "outline"}
-                      className="min-h-10 rounded-lg"
+                      className={cn("min-h-10 rounded-full transition-all duration-200 px-5", durationMinutesValue !== option.value ? "hover:-translate-y-0.5 hover:shadow-sm bg-background border-transparent shadow-sm" : "shadow-md")}
                       aria-pressed={durationMinutesValue === option.value}
                       onClick={() => form.setValue("duration_minutes", option.value, { shouldDirty: true, shouldValidate: true })}
                     >
@@ -891,13 +891,13 @@ export function TableBookingPage() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration_minutes">Thời lượng dùng bữa dự kiến</Label>
-                  <Input id="duration_minutes" type="number" min={30} className="min-h-11 rounded-lg" data-testid="customer-duration-input" {...form.register("duration_minutes", { valueAsNumber: true })} />
-                  {form.formState.errors.duration_minutes ? <p className="text-sm text-destructive">{form.formState.errors.duration_minutes.message}</p> : null}
+                  <Label htmlFor="duration_minutes" className="text-sm font-medium ml-1">Thời lượng tùy chỉnh (phút)</Label>
+                  <Input id="duration_minutes" type="number" min={30} className="min-h-12 rounded-xl bg-background border-transparent focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" data-testid="customer-duration-input" {...form.register("duration_minutes", { valueAsNumber: true })} />
+                  {form.formState.errors.duration_minutes ? <p className="text-[13px] font-medium text-destructive ml-1">{form.formState.errors.duration_minutes.message}</p> : null}
                 </div>
               </section>
-              <Button type="submit" className="min-h-11 w-full rounded-lg" disabled={searchPending} data-testid="customer-search-tables-btn">
-                <Search className="mr-2 h-4 w-4" />
+              <Button type="submit" className="min-h-12 w-full rounded-full font-semibold shadow-md active:scale-[0.98] transition-all" disabled={searchPending} data-testid="customer-search-tables-btn">
+                <Search className="mr-2 h-5 w-5" />
                 {searchMutation.isPending ? "Đang tìm bàn" : "Tìm bàn"}
               </Button>
             </form>

@@ -19,9 +19,10 @@ import { customerWebRollout } from "@/lib/config/feature-flags";
 import { formatDateTime } from "@/lib/contracts/format";
 import { getLoyalty } from "./api";
 import { ProfilePreferencesPanel } from "./profile-preferences-panel";
+import { cn } from "@/lib/utils";
 
 export function AccountPage() {
-  const { profile } = useAuth();
+  const { profile, logout } = useAuth();
   const accountBenefitsRollout = customerWebRollout.accountBenefits;
   const privacyRollout = customerWebRollout.privacyRequests;
   const dataExportRollout = customerWebRollout.dataExport;
@@ -117,6 +118,18 @@ export function AccountPage() {
           </div>
 
           {privacyEnabled ? <PrivacyPanel /> : null}
+
+          {profile && (
+            <div className="mt-8">
+              <AppButton 
+                variant="destructive" 
+                className="w-full rounded-full min-h-12 text-base font-medium shadow-md"
+                onClick={() => logout({ nextPath: "/login" })}
+              >
+                Đăng xuất
+              </AppButton>
+            </div>
+          )}
         </div>
       </div>
     </ResponsivePageShell>
@@ -173,7 +186,7 @@ function UpcomingReservationsCard({
             <Link
               key={reservation.reservation_id}
               href={`/reservations/${reservation.reservation_id}`}
-              className="flex flex-col gap-3 rounded-lg border p-4 transition hover:border-primary/50 hover:bg-secondary/30 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-3 rounded-2xl border p-4 transition-all hover:border-primary/50 hover:bg-secondary/30 sm:flex-row sm:items-center sm:justify-between shadow-sm hover:shadow-md"
             >
               <div>
                 <p className="font-semibold">{reservation.reservation_code}</p>
@@ -212,9 +225,9 @@ function LoyaltyCard({
         {query.error ? <ErrorState error={query.error} title="Chưa tải được điểm thưởng" onRetry={() => query.refetch()} /> : null}
         {state ? (
           <>
-            <div className="rounded-lg bg-secondary p-4">
+            <div className="rounded-2xl bg-secondary/50 p-5">
               <p className="text-sm text-muted-foreground">Điểm hiện có</p>
-              <p className="text-3xl font-semibold">{state.totalPoints}</p>
+              <p className="text-4xl font-bold mt-1 text-primary">{state.totalPoints}</p>
               <p className="mt-2 text-sm text-muted-foreground">{state.description}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
@@ -224,25 +237,25 @@ function LoyaltyCard({
             {state.state === "empty" ? (
               <EmptyState title={state.title} description={state.transactionDescription} />
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <div>
                   <p className="font-medium">{state.transactionTitle}</p>
                   <p className="mt-1 text-sm text-muted-foreground">{state.transactionDescription}</p>
                 </div>
                 <div className="grid gap-2 text-sm">
                   {query.data?.transactions.slice(0, 5).map((transaction) => (
-                    <div key={`${transaction.txn_id}-${transaction.created_at}`} className="rounded-lg border p-3">
+                    <div key={`${transaction.txn_id}-${transaction.created_at}`} className="rounded-2xl border p-3.5 shadow-sm">
                       <div className="flex justify-between gap-3">
-                        <span>{transaction.txn_type ?? "Thay đổi điểm"}</span>
-                        <span className="font-medium">{transaction.points} điểm</span>
+                        <span className="font-medium text-foreground">{transaction.txn_type ?? "Thay đổi điểm"}</span>
+                        <span className={cn("font-bold", transaction.points > 0 ? "text-emerald-600" : "text-muted-foreground")}>{transaction.points > 0 ? "+" : ""}{transaction.points} điểm</span>
                       </div>
-                      <p className="mt-1 text-muted-foreground">{formatDateTime(transaction.created_at)}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{formatDateTime(transaction.created_at)}</p>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            <div className="rounded-lg border border-dashed bg-secondary/25 p-4 text-sm text-muted-foreground">
+            <div className="rounded-2xl border border-dashed bg-secondary/25 p-4 text-sm text-muted-foreground">
               Quyền lợi thành viên và quà sinh nhật sẽ hiển thị khi nhà hàng bổ sung cho tài khoản của bạn.
             </div>
           </>
@@ -274,9 +287,9 @@ function VoucherWalletCard({
         {query.error ? <ErrorState error={query.error} title="Chưa tải được ví voucher" onRetry={() => query.refetch()} /> : null}
         {wallet ? (
           <>
-            <div className="rounded-lg bg-secondary p-4">
+            <div className="rounded-2xl bg-secondary/50 p-5">
               <p className="text-sm text-muted-foreground">Trạng thái ví</p>
-              <p className="text-lg font-semibold">{wallet.title}</p>
+              <p className="text-xl font-bold mt-1 text-foreground">{wallet.title}</p>
               <p className="mt-2 text-sm text-muted-foreground">{wallet.description}</p>
             </div>
             {wallet.state === "empty" ? (
@@ -289,7 +302,7 @@ function VoucherWalletCard({
                   <MetricCard label="Hết hạn" value={wallet.counts.expired} />
                   <MetricCard label="Chưa dùng được" value={wallet.counts.unavailable} />
                 </div>
-                <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                <div className="rounded-2xl border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
                   <p className="font-medium text-foreground">Chỉ áp dụng ở lịch đặt</p>
                   <p className="mt-1">
                     Áp dụng hoặc gỡ mã ưu đãi trong chi tiết lịch đặt khi nhà hàng cho phép.
@@ -298,13 +311,13 @@ function VoucherWalletCard({
                 </div>
                 <div className="space-y-3">
                   {wallet.items.map((item) => (
-                    <div key={item.voucher.user_voucher_id} className="rounded-lg border p-4">
+                    <div key={item.voucher.user_voucher_id} className="rounded-2xl border p-4 shadow-sm hover:shadow-md transition-shadow">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="font-semibold">{item.voucher.voucher_code}</p>
+                          <p className="font-semibold text-primary">{item.voucher.voucher_code}</p>
                           <p className="text-sm text-muted-foreground">{item.voucher.description}</p>
                         </div>
-                        <AppBadge>{item.badgeLabel}</AppBadge>
+                        <AppBadge className="rounded-full">{item.badgeLabel}</AppBadge>
                       </div>
                       <p className="mt-3 text-sm font-medium">{item.title}</p>
                       <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
@@ -331,9 +344,9 @@ function VoucherWalletCard({
 
 function MetricCard({ label, value }: { label: string; value: number | string }) {
   return (
-    <div className="rounded-lg border p-4">
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <p className="mt-1 text-2xl font-semibold">{value}</p>
+    <div className="rounded-2xl border bg-card p-4 shadow-sm text-center sm:text-left flex flex-col justify-center">
+      <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
+      <p className="mt-1.5 text-2xl font-bold text-foreground">{value}</p>
     </div>
   );
 }

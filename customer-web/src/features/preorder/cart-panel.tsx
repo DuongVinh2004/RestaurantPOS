@@ -143,9 +143,9 @@ export function PreorderCartPanel({
         </div>
       ) : (
         <>
-          <div className={cn(compact ? "flex-1 min-h-0 overflow-y-auto flex flex-col" : "flex flex-col")}>
+          <div className={cn(compact ? "flex-1 min-h-0 overflow-y-auto" : "flex flex-col")}>
             <div
-              className={cn("divide-y", compact ? "max-h-none overflow-y-auto shrink-0 lg:overflow-visible" : "max-h-[32rem] overflow-y-auto")}
+              className={cn("divide-y", compact ? "max-h-none shrink-0" : "max-h-[32rem] overflow-y-auto")}
               aria-label="Danh sách món trong giỏ đặt trước"
             >
               {cart.items.map((item) => {

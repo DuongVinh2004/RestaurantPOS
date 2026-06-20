@@ -148,7 +148,7 @@ export function CustomerBottomNav({
       aria-label="Điều hướng cuối màn hình"
       className={cn("fixed inset-x-0 bottom-0 z-30 border-t bg-background/70 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2 backdrop-blur-2xl md:hidden transition-all", className)}
     >
-      <div className="mx-auto grid max-w-md grid-cols-5 items-end gap-1 rounded-lg border border-primary/10 bg-background/95 p-1 shadow-[var(--restaurant-shadow-hover)] backdrop-blur-md">
+      <div className="mx-auto grid max-w-[360px] grid-cols-5 items-center gap-1 rounded-full border border-black/5 dark:border-white/5 bg-background/95 p-1.5 shadow-xl backdrop-blur-xl">
         {items.map((item) => {
           const Icon = item.icon;
           const active = isActivePath(pathname, item.href);
@@ -160,13 +160,16 @@ export function CustomerBottomNav({
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 text-[11px] font-semibold transition",
-                active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                central && "min-h-16 -translate-y-2 rounded-lg",
+                "flex h-12 w-full flex-col items-center justify-center gap-0.5 rounded-full px-1 text-[10px] font-semibold transition-all duration-300",
+                central
+                  ? "bg-primary text-primary-foreground h-14 w-14 -translate-y-4 shadow-lg mx-auto"
+                  : active
+                    ? "text-primary"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
-              <Icon className="h-4 w-4" />
-              <span className="text-center leading-tight">{item.label}</span>
+              <Icon className={cn("h-5 w-5 mb-0.5", active && !central && "fill-primary/20")} />
+              {!central && <span className="text-center leading-tight truncate w-full">{item.label}</span>}
             </Link>
           );
         })}
@@ -244,8 +247,8 @@ function SessionEntry({
           </span>
         </div>
         <AppButton type="button" variant="outline" disabled={isLoggingOut} onClick={onLogout} className={cn(mobile && "w-full")}>
-          <LogOut className="h-4 w-4" />
-          {isLoggingOut ? "Đang đăng xuất" : "Đăng xuất"}
+          <LogOut className="h-4 w-4 mr-2" />
+          <span>{isLoggingOut ? "Đang đăng xuất" : "Đăng xuất"}</span>
         </AppButton>
       </div>
     );

@@ -181,21 +181,21 @@ export function HomePage() {
                 
                 {/* Branch Selection */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1 ml-1">
                     <MapPin className="h-3.5 w-3.5 text-teal-600" /> Chi nhánh
                   </label>
-                  <SelectedBranchEntry className="w-full justify-between min-h-11 border-teal-600/20 text-teal-800 hover:bg-teal-50" />
+                  <SelectedBranchEntry className="w-full justify-between min-h-12 rounded-xl border-teal-600/20 text-teal-800 hover:bg-teal-50" />
                 </div>
 
                 {/* Date Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1 ml-1">
                     <CalendarDays className="h-3.5 w-3.5 text-teal-600" /> Ngày đến
                   </label>
                   <select
                     value={dateKey}
                     onChange={(e) => setDateKey(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-teal-600/20 bg-background px-3 text-sm text-foreground outline-none transition focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+                    className="h-12 w-full rounded-xl border border-teal-600/20 bg-background px-4 text-sm font-medium text-foreground outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10"
                   >
                     <option value="today">Hôm nay</option>
                     <option value="tomorrow">Ngày mai</option>
@@ -204,13 +204,13 @@ export function HomePage() {
 
                 {/* Time Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1 ml-1">
                     <Clock3 className="h-3.5 w-3.5 text-teal-600" /> Giờ đến
                   </label>
                   <select
                     value={time}
                     onChange={(e) => setTime(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-teal-600/20 bg-background px-3 text-sm text-foreground outline-none transition focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+                    className="h-12 w-full rounded-xl border border-teal-600/20 bg-background px-4 text-sm font-medium text-foreground outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10"
                   >
                     <option value="19:00">19:00</option>
                     <option value="20:00">20:00</option>
@@ -219,13 +219,13 @@ export function HomePage() {
 
                 {/* Guest Count */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1">
+                  <label className="text-xs font-semibold uppercase tracking-wider text-teal-800 flex items-center gap-1 ml-1">
                     <UsersRound className="h-3.5 w-3.5 text-teal-600" /> Số khách
                   </label>
                   <select
                     value={guestCount}
                     onChange={(e) => setGuestCount(e.target.value)}
-                    className="h-11 w-full rounded-lg border border-teal-600/20 bg-background px-3 text-sm text-foreground outline-none transition focus:border-teal-600 focus:ring-1 focus:ring-teal-600"
+                    className="h-12 w-full rounded-xl border border-teal-600/20 bg-background px-4 text-sm font-medium text-foreground outline-none transition focus:border-teal-600 focus:ring-4 focus:ring-teal-600/10"
                   >
                     <option value="2">2 người</option>
                     <option value="4">4 người</option>

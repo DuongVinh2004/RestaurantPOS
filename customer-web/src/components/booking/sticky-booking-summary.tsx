@@ -96,51 +96,33 @@ export function StickyBookingSummary({
   }, [expired, remainingMs]);
 
   return (
-    <aside className={cn("w-full max-w-full rounded-lg border bg-card shadow-[var(--restaurant-shadow)] sticky bottom-[5.5rem] z-40 xl:top-20 xl:self-start", className)}>
-      <div className="space-y-3 p-3">
-        <div className="flex min-w-0 items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold leading-5">{title}</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">Tóm tắt trước khi giữ chỗ.</p>
+    <aside className={cn("w-full max-w-full rounded-2xl border bg-card/95 backdrop-blur-md shadow-[var(--restaurant-shadow)] sticky bottom-[5.5rem] z-40 xl:top-20 xl:self-start", className)}>
+      <div className="flex flex-col gap-2 p-3">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold leading-5 line-clamp-1">{title}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground line-clamp-1">
+              {items.map(i => i.value).join(" • ")}
+            </p>
           </div>
-          {holdStatusLabel ? (
-            <Badge variant={expired ? "destructive" : nearlyExpired ? "outline" : "default"} className="shrink-0 rounded-md px-2 py-1 text-xs">
+          {countdownLabel ? (
+             <div className={cn("shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium border", 
+               expired ? "border-destructive/40 bg-destructive/10 text-destructive" : 
+               nearlyExpired ? "border-amber-200 bg-amber-50 text-amber-800" : 
+               "border-emerald-200 bg-emerald-50 text-emerald-800"
+             )}>
+               <Clock3 className="h-3 w-3" />
+               <span>{countdownLabel}</span>
+             </div>
+          ) : holdStatusLabel ? (
+            <Badge variant={expired ? "destructive" : nearlyExpired ? "outline" : "default"} className="shrink-0 rounded-full px-2 py-0.5 text-[10px]">
               {holdStatusLabel}
             </Badge>
           ) : null}
         </div>
 
-        <dl className="grid min-w-0 grid-cols-2 gap-2">
-          {items.map((item) => <SummaryRow key={item.label} label={item.label} value={item.value} />)}
-          {holdCode ? (
-            <SummaryRow label="Mã giữ bàn" value={holdCode} valueClassName="font-mono text-xs" />
-          ) : null}
-        </dl>
-
-        {countdownLabel ? (
-          <div
-            className={cn(
-              "flex items-center gap-2 rounded-md border px-2.5 py-2 text-sm",
-              expired && "border-destructive/40 bg-destructive/10 text-destructive",
-              nearlyExpired && !expired && "border-amber-200 bg-amber-50 text-amber-800",
-              !expired && !nearlyExpired && "border-emerald-200 bg-emerald-50 text-emerald-800",
-            )}
-            aria-live="polite"
-          >
-            {expired || nearlyExpired ? <AlertTriangle className="h-4 w-4 shrink-0" /> : <Clock3 className="h-4 w-4 shrink-0" />}
-            <div className="min-w-0">
-              <p className="truncate font-medium">{countdownLabel}</p>
-              <p className="truncate text-xs opacity-85">
-                {expired ? "Bàn giữ đã hết hạn." : nearlyExpired ? "Sắp hết thời gian giữ bàn." : "Bàn đang được giữ tạm thời."}
-              </p>
-            </div>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="border-t bg-secondary/30 p-3">
         {primaryAction ?? (
-          <Button type="button" className="min-h-10 w-full rounded-lg" disabled={primaryActionDisabled || expired} onClick={onPrimaryAction}>
+          <Button type="button" className="min-h-12 w-full rounded-full shadow-lg" disabled={primaryActionDisabled || expired} onClick={onPrimaryAction}>
             {expired ? "Tìm bàn khác" : primaryActionLabel}
           </Button>
         )}

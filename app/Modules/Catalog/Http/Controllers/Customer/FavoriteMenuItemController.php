@@ -19,7 +19,7 @@ class FavoriteMenuItemController extends Controller
     public function index(Request $request): JsonResponse
     {
         $actor = RequestActorContext::fromRequest($request);
-        $userId = $actor->resolveCustomerUser()?->user_id;
+        $userId = $actor->customerUserId();
 
         if ($userId === null) {
             return response()->json(['data' => []]);
@@ -35,7 +35,7 @@ class FavoriteMenuItemController extends Controller
     public function store(Request $request): JsonResponse
     {
         $actor = RequestActorContext::fromRequest($request);
-        $userId = $actor->resolveCustomerUser()?->user_id;
+        $userId = $actor->customerUserId();
 
         if ($userId === null) {
             return response()->json(['message' => 'Unauthorized'], 401);
@@ -55,7 +55,7 @@ class FavoriteMenuItemController extends Controller
     public function destroy(int $menuItemId, Request $request): JsonResponse
     {
         $actor = RequestActorContext::fromRequest($request);
-        $userId = $actor->resolveCustomerUser()?->user_id;
+        $userId = $actor->customerUserId();
 
         if ($userId === null) {
             return response()->json(['message' => 'Unauthorized'], 401);
@@ -71,7 +71,7 @@ class FavoriteMenuItemController extends Controller
     public function sync(Request $request): JsonResponse
     {
         $actor = RequestActorContext::fromRequest($request);
-        $userId = $actor->resolveCustomerUser()?->user_id;
+        $userId = $actor->customerUserId();
 
         if ($userId === null) {
             return response()->json(['message' => 'Unauthorized'], 401);

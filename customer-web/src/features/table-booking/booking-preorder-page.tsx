@@ -554,8 +554,10 @@ export function BookingPreorderPage() {
                 </span>
               </AppButton>
             </SheetTrigger>
-            <SheetContent side="bottom" className="h-[80vh] p-0 rounded-t-2xl overflow-hidden border-t border-primary/10">
-              <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact className="flex flex-col h-full" />
+            <SheetContent side="bottom" className="h-[85vh] flex flex-col p-0 rounded-t-3xl overflow-hidden border-t border-primary/10">
+              <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                <PreorderCartPanel branchId={selectedBranch?.branchId ?? null} branchName={selectedBranch?.branchName ?? null} compact className="flex-1 flex flex-col min-h-0" />
+              </div>
             </SheetContent>
           </Sheet>
 

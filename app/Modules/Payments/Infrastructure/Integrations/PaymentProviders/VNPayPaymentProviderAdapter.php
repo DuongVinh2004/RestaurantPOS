@@ -42,6 +42,7 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
             'vnp_Amount' => $amount * 100, // VNPay amount is multiplied by 100
             'vnp_Command' => 'pay',
             'vnp_CreateDate' => Carbon::now('UTC')->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
+            'vnp_ExpireDate' => Carbon::now('UTC')->addMinutes(15)->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
             'vnp_CurrCode' => 'VND',
             'vnp_IpAddr' => request()->ip() === '::1' ? '127.0.0.1' : (request()->ip() ?? '127.0.0.1'),
             'vnp_Locale' => 'vn',
@@ -57,7 +58,7 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
         $hashDataParts = [];
         foreach ($vnpParams as $key => $value) {
             $queryParts[] = urlencode($key).'='.urlencode((string) $value);
-            $hashDataParts[] = urlencode($key).'='.urlencode((string) $value);
+            $hashDataParts[] = rawurlencode($key).'='.rawurlencode((string) $value);
         }
 
         $queryString = implode('&', $queryParts);
