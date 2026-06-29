@@ -403,7 +403,7 @@ class AdminInventoryFoundationHttpFlowTest extends TestCase
             'unit_code' => 'g',
         ]);
 
-        $response = $this->getJson('/api/v1/menu/items?service_time='.urlencode($serviceTime->toIso8601String()));
+        $response = $this->getJson('/api/v1/menu/items?service_time='.urlencode($serviceTime->toIso8601String()).'&category_id='.$categoryId);
 
         $response->assertOk();
 

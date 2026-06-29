@@ -108,7 +108,7 @@ class ApiListingQueryStandardTest extends TestCase
 
         $staffId = $this->createUser(['role_name' => 'Staff']);
         $headers = $this->staffAuthHeaders($staffId, 'staff-query-board');
-        $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TB-01', 'zone' => 'Main', 'status' => 'Available']);
+        $tableId = $this->createRestaurantTableWithSeats(4, ['table_code' => 'TB-01', 'zone' => 'Main-Standard-Listing', 'status' => 'Available']);
         $reservationId = $this->createReservation([
             'reservation_code' => 'TB-RSV-001',
             'status' => 'Confirmed',
@@ -127,12 +127,12 @@ class ApiListingQueryStandardTest extends TestCase
             ->assertJsonPath('meta.filters.lane_by', 'zone');
 
         $board = $this->withHeaders($headers)
-            ->getJson('/api/v1/staff/tables/board?filter[zone]=Main');
+            ->getJson('/api/v1/staff/tables/board?filter[zone]=Main-Standard-Listing');
 
         $board->assertOk()
             ->assertJsonPath('meta.pagination.mode', 'none')
             ->assertJsonPath('meta.query_contract.pagination.supported', false)
-            ->assertJsonPath('meta.filters.zone', 'Main')
+            ->assertJsonPath('meta.filters.zone', 'Main-Standard-Listing')
             ->assertJsonPath('data.0.table_id', $tableId);
     }
 
