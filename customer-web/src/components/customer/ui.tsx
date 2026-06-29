@@ -194,15 +194,18 @@ export function EmptyState({
   title,
   description,
   action,
+  icon,
   className,
 }: {
   title: string;
   description: string;
   action?: ReactNode;
+  icon?: ReactNode;
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-lg border border-dashed bg-secondary/45 p-6 text-center", className)}>
+    <div className={cn("rounded-lg border border-dashed bg-secondary/45 p-6 text-center flex flex-col items-center", className)}>
+      {icon ? <div className="mb-4 text-muted-foreground/60">{icon}</div> : null}
       <h3 className="text-base font-semibold">{title}</h3>
       <p className="mx-auto mt-2 max-w-sm text-sm text-muted-foreground">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
@@ -425,7 +428,7 @@ export function BottomSheet({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       {trigger ? <SheetTrigger asChild>{trigger}</SheetTrigger> : null}
-      <SheetContent side="bottom" className="max-h-[85svh] rounded-t-lg">
+      <SheetContent side="bottom" className="max-h-[85svh] rounded-t-lg pb-[calc(env(safe-area-inset-bottom)+1.5rem)]">
         <SheetHeader className="text-left">
           <SheetTitle>{title}</SheetTitle>
           {description ? <SheetDescription>{description}</SheetDescription> : null}

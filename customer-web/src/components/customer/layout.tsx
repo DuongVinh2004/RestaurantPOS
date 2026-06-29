@@ -146,9 +146,9 @@ export function CustomerBottomNav({
   return (
     <nav
       aria-label="Điều hướng cuối màn hình"
-      className={cn("fixed inset-x-0 bottom-0 z-50 border-t bg-background/70 px-3 pb-[calc(env(safe-area-inset-bottom)+0.65rem)] pt-2 backdrop-blur-2xl md:hidden transition-all", className)}
+      className={cn("fixed inset-x-0 bottom-0 z-50 border-t bg-background/70 px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-2 backdrop-blur-2xl md:hidden transition-all", className)}
     >
-      <div className="mx-auto grid max-w-[360px] grid-cols-5 items-center gap-1 rounded-full border border-black/5 dark:border-white/5 bg-background/95 p-1.5 shadow-xl backdrop-blur-xl">
+      <div className="mx-auto grid max-w-[360px] grid-cols-5 items-center gap-1 rounded-full border border-black/5 dark:border-white/5 bg-background/95 p-1.5 shadow-2xl backdrop-blur-xl">
         {items.map((item) => {
           const Icon = item.icon;
           const active = isActivePath(pathname, item.href);

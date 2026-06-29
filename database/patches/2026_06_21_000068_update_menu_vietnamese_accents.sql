@@ -4,6 +4,9 @@
 SET NAMES utf8mb4;
 
 -- 1. CATEGORIES
+-- Remove old categories from 000064 to prevent unique constraint violations during update
+DELETE FROM `menu_categories` WHERE `name` IN ('Khai vị', 'Món chính', 'Cơm & bún/phở', 'Rau & chay', 'Tráng miệng', 'Đồ uống', 'Combo');
+
 UPDATE `menu_categories` SET `name` = 'Khai Vị', `description` = 'Món khai vị nhẹ, để chia sẻ - mở đầu hoàn hảo tại Mộc Sen.' WHERE `name` = 'Khai Vi';
 UPDATE `menu_categories` SET `name` = 'Canh & Súp', `description` = 'Canh dân dã và súp sánh mịn - không thể thiếu trong bữa Việt.' WHERE `name` = 'Canh & Sup';
 UPDATE `menu_categories` SET `name` = 'Món Chính', `description` = 'Tinh hoa ẩm thực Việt từ bếp Mộc Sen.' WHERE `name` = 'Mon Chinh';

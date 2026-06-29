@@ -115,12 +115,13 @@ export function PreorderCartPanel({
       {quantity === 0 ? (
         <div className={cn("space-y-4 p-4 sm:p-5", compact ? "lg:overflow-y-auto" : undefined)}>
           <EmptyState
+            icon={<ShoppingBag className="h-12 w-12" />}
             title="Giỏ món đặt trước đang trống"
             description="Thêm món còn phục vụ từ thực đơn. Nhà bếp chỉ nhận món đặt trước sau khi có lịch đặt."
             action={
               <AppButton asChild variant="outline">
                 <Link href="/menu">
-                  <Utensils className="h-4 w-4" />
+                  <Utensils className="h-4 w-4 mr-2" />
                   Chọn món từ thực đơn
                 </Link>
               </AppButton>
@@ -281,8 +282,8 @@ export function PreorderCartPanel({
                 <PriceText amount={subtotal.amount} currency={subtotal.currency} className="text-xl" />
               </div>
               <p className="text-right text-sm text-muted-foreground">
-                {submitItems.length} món có thể gửi
-                <span className="block">{availableQuantity} phần</span>
+                <span className="font-medium">{submitItems.length}</span> món có thể gửi
+                <span className="block font-medium">{availableQuantity} phần</span>
               </p>
             </div>
              <div className="flex gap-2">
