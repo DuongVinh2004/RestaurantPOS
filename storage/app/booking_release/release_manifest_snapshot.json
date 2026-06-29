@@ -211,11 +211,11 @@
             "path": "storage/app/booking_release/release_manifest_snapshot.json",
             "exists": true,
             "optional": false,
-            "sha256": "8ebbf89eabfb624b42ba60e9a808118911f772dcc49e97db2faa972e8e8d3ebe",
+            "sha256": "83382bc4a8134d9b688f257cf9c98b243b34463110248ba9ec182c14198a376d",
             "bytes": 18425,
             "line_count": 362,
-            "modified_epoch": 1781862936,
-            "modified_at_utc": "2026-06-19T09:55:36+00:00",
+            "modified_epoch": 1781866262,
+            "modified_at_utc": "2026-06-19T10:51:02+00:00",
             "required_fragment_count": 3,
             "missing_fragments": []
         }
@@ -286,6 +286,8 @@
             "2026_05_14_000064_moc_sen_story_data_pack.sql",
             "2026_06_02_000065_canonical_roles_data.sql",
             "2026_06_14_000066_menu_combo_and_favorites.sql",
+            "2026_06_20_000067_professional_menu_rebuild.sql",
+            "2026_06_21_000068_update_menu_vietnamese_accents.sql",
             "wave2-batch1-qr-bill.sql",
             "wave2-batch3-preorders.sql"
         ],
@@ -349,11 +351,11 @@
             "2026_06_14_000066_menu_combo_and_favorites.sql"
         ],
         "missing": [],
-        "count": 66,
+        "count": 68,
         "required_count": 57
     },
     "meta": {
-        "generated_at_utc": "2026-06-19T10:51:02+00:00"
+        "generated_at_utc": "2026-06-28T14:22:24+00:00"
     },
     "definition_path": "config/booking_release.php",
     "definition_sha256": "ee3507bac8ca49e5fdd3a302ff1e18a69839b0040346b9d04ee29aad1cdfd675",

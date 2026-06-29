@@ -28,6 +28,15 @@ use PHPUnit\Framework\Assert;
 
 trait BuildsBookingScenario
 {
+    protected function setUpBuildsBookingScenario(): void
+    {
+        // In tests, ID generation can drift (e.g. DatabaseTransactions).
+        // Clear hardcoded role_id mappings so we always fallback to role_name resolution
+        // for tests that build booking scenarios.
+        config()->set('staff_capabilities.role_id_capabilities', []);
+        config()->set('staff_capabilities.role_id_branch_scopes', []);
+    }
+
     protected function requireBookingSchema(): void
     {
         config()->set('cache.stores.redis', [
