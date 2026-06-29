@@ -130,11 +130,11 @@ describe('AdminSettingsPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Chi nhánh và thiết lập')).toBeInTheDocument();
+    expect(await screen.findByText('Cấu hình')).toBeInTheDocument();
     expect(await screen.findByText('Main branch')).toBeInTheDocument();
+    
+    fireEvent.click(screen.getByRole('tab', { name: 'Bàn & Khu vực' }));
     expect((await screen.findAllByText('T-11')).length).toBeGreaterThan(0);
-    expect(screen.getByText('Tuyến bếp')).toBeInTheDocument();
-    expect(apiMocks.listAdminBranches).toHaveBeenCalledWith({ q: undefined, is_active: true });
     expect(apiMocks.listAdminRestaurantTables).toHaveBeenCalledWith({
       q: undefined,
       status: undefined,
@@ -143,7 +143,13 @@ describe('AdminSettingsPage', () => {
       branch_id: 1,
     });
 
-    fireEvent.click(screen.getByText('Annex'));
+    fireEvent.click(screen.getByRole('tab', { name: 'Bếp & Tuyến món' }));
+    expect(await screen.findByText('Tạo trạm bếp')).toBeInTheDocument();
+    
+    expect(apiMocks.listAdminBranches).toHaveBeenCalledWith({ q: undefined, is_active: true });
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Chi nhánh' }));
+    fireEvent.click(await screen.findByText('Annex'));
 
     await waitFor(() => expect(screen.getByText('Bảo trì')).toBeInTheDocument());
     expect(screen.getByText('Chưa cấu hình giờ mở cửa')).toBeInTheDocument();

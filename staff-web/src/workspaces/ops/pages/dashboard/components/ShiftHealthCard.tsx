@@ -12,28 +12,33 @@ export function ShiftHealthCard({
   onOpen: (path: string) => void;
 }) {
   return (
-    <Card className="staff-dashboard-card staff-dashboard-health-card">
-      <div className="staff-dashboard-health-shell">
-        <div className="staff-dashboard-health-copy">
-          <div className="staff-dashboard-health-title-row">
-            <span className={`staff-dashboard-health-status staff-dashboard-health-status-${health.statusTone}`}>
-              <ShieldCheck size={15} strokeWidth={2.1} />
-              {health.statusLabel}
-            </span>
-            <Typography.Text type="secondary">Cập nhật {lastUpdatedLabel}</Typography.Text>
-          </div>
-
-          <Typography.Title level={3}>{health.title}</Typography.Title>
-          <Typography.Paragraph type="secondary" className="staff-dashboard-card-description">
-            {health.summary}
-          </Typography.Paragraph>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', width: '100%', background: 'transparent' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <span className={`staff-dashboard-health-status staff-dashboard-health-status-${health.statusTone}`} style={{ margin: 0, padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>
+          <ShieldCheck size={14} strokeWidth={2.1} style={{ marginRight: '4px' }} />
+          {health.statusLabel}
+        </span>
+        
+        <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
+          {health.metrics.map((metric) => (
+             <div key={`${health.title}-${metric.label}`}>
+               <span style={{ color: '#6b7280', marginRight: '4px', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.5px' }}>{metric.label}:</span>
+               <span style={{ fontWeight: 600 }}>{metric.value}</span>
+             </div>
+          ))}
         </div>
+      </div>
 
-        <div className="staff-dashboard-health-actions">
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+        <Typography.Text type="secondary" style={{ fontSize: '11px' }}>
+          Cập nhật {lastUpdatedLabel}
+        </Typography.Text>
+        <div style={{ display: 'flex', gap: '8px' }}>
           {health.actions.map((action) => (
             <Button
               key={`${health.title}-${action.path}`}
               type={action.tone === 'primary' ? 'primary' : 'default'}
+              size="small"
               onClick={() => onOpen(action.path)}
             >
               {action.label}
@@ -41,21 +46,6 @@ export function ShiftHealthCard({
           ))}
         </div>
       </div>
-
-      <div className="staff-dashboard-health-metrics">
-        {health.metrics.map((metric) => (
-          <div
-            key={`${health.title}-${metric.label}`}
-            className={`staff-dashboard-metric-card staff-dashboard-metric-card-${metric.tone ?? 'default'}`}
-          >
-            <span className="staff-dashboard-metric-label">{metric.label}</span>
-            <span className="staff-dashboard-metric-value">{metric.value}</span>
-            {metric.hint ? (
-              <span className="staff-dashboard-metric-hint">{metric.hint}</span>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </Card>
+    </div>
   );
 }

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { App as AntdApp } from 'antd';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -93,9 +93,11 @@ describe('AdminInventoryPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Kho và mua hàng')).toBeInTheDocument();
+    expect(await screen.findByText('Kho & Mua hàng')).toBeInTheDocument();
+    expect(await screen.findByText(/nguyên liệu hết tồn/i)).toBeInTheDocument();
+    
+    fireEvent.click(screen.getByRole('tab', { name: 'Đơn mua hàng' }));
     expect(await screen.findByText('PO-9')).toBeInTheDocument();
-    expect(screen.getByText('Nguyên liệu hết tồn')).toBeInTheDocument();
 
     await waitFor(() => expect(apiMocks.listAdminPurchaseOrders).toHaveBeenCalledWith({
       q: undefined,

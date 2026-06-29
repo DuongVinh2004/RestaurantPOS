@@ -121,6 +121,9 @@ describe('AuditTrailPage', () => {
     }));
 
     expect((await screen.findAllByText('Chi nhánh #3')).length).toBeGreaterThan(0);
+    const eventRow = await screen.findByText('payment.refunded');
+    fireEvent.click(eventRow);
+    
     await waitFor(() => expect(document.body.textContent ?? '').toContain('req-branch-3'));
   });
 

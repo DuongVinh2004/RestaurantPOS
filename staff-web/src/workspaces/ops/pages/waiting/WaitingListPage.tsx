@@ -14,6 +14,7 @@ import {
   Statistic,
   Table,
   Typography,
+  Segmented,
 } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
@@ -38,8 +39,9 @@ import { buildJourneySearch } from '../../../../app/router/journey';
 import { staffRoutePaths } from '../../../../app/router/workspace-paths';
 import { type StatusTone, waitingTone } from '../../../../shared/status/status';
 import { translateUiCode } from '../../../../shared/utils/translation';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
+import { WaitingCreateModal, type CreateWaitingValues } from './WaitingCreateModal';
+import { WaitingDetailDrawer, type NotifyWaitingValues, type SeatWaitingValues, type CancelWaitingValues, waitingResponseTone } from './WaitingDetailDrawer';
 import { toast } from '../../../../shared/ui/feedback/toast';
 import {
   ApiStateBlock,
@@ -54,29 +56,6 @@ import { useFlowStore } from '../../../../app/store/flow-store';
 import { useConfirmAction } from '../../../../shared/hooks/useConfirmAction';
 import { useJourneyContext } from '../../../../app/router/useJourneyContext';
 
-type CreateWaitingValues = {
-  guest_name: string;
-  phone?: string;
-  guest_count: number;
-  user_id?: number;
-  priority?: number;
-  notes?: string;
-};
-
-type NotifyWaitingValues = {
-  table_id?: number;
-  hold_minutes?: number;
-};
-
-type SeatWaitingValues = {
-  user_id?: number;
-  service_minutes?: number;
-  notes?: string;
-};
-
-type CancelWaitingValues = {
-  cancel_reason?: string;
-};
 
 type WaitingStatusFilter = 'all' | 'Waiting' | 'Notified' | 'Seated' | 'Cancelled';
 type QueueMode = 'active' | 'all';
@@ -95,6 +74,9 @@ const queueModeOptions = [
 ] satisfies Array<{ value: QueueMode; label: string }>;
 
 export function WaitingListPage() {
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
@@ -474,78 +456,63 @@ export function WaitingListPage() {
     }
   }
 
+  
+  useEffect(() => {
+    if (selectedWaitingId !== null) {
+      setDetailDrawerOpen(true);
+    } else {
+      setDetailDrawerOpen(false);
+    }
+  }, [selectedWaitingId]);
+
   const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeader
-        eyebrow="Danh sách chờ"
-        title="Hàng chờ phục vụ"
-        description="Xử lý hàng chờ theo lượt ưu tiên, báo khách đúng bàn và đẩy sang luồng phục vụ khi đã sẵn sàng."
-        context={(
-          <>
-            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Theo phạm vi mặc định'} tone="default" />
-            <StatusChip label={`${waitingListQuery.data?.meta?.summary.ready_to_seat_count ?? 0} sẵn sàng vào bàn`} tone={(waitingListQuery.data?.meta?.summary.ready_to_seat_count ?? 0) > 0 ? 'warning' : 'success'} />
-            <StatusChip label={selectedEntry ? `Đang xem #${selectedEntry.waiting_id}` : 'Chưa khóa lượt chờ'} tone={selectedEntry ? 'processing' : 'warning'} />
-          </>
-        )}
-        extra={(
-          <>
-            <Select
-              aria-label="Lọc trạng thái hàng chờ"
-              style={{ width: 160 }}
-              value={statusFilter}
-              options={waitingStatusOptions}
-              onChange={(value) => setStatusFilter(value)}
-            />
-            <Select
-              aria-label="Lọc phạm vi hàng chờ"
-              style={{ width: 140 }}
-              value={queueMode}
-              options={queueModeOptions}
-              onChange={(value) => setQueueMode(value)}
-            />
-            <Input.Search
-              allowClear
-              aria-label="Tìm hàng chờ"
-              placeholder="Khách hoặc số điện thoại…"
-              style={{ width: 220 }}
-              value={searchDraft}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setSearchDraft(nextValue);
-
-                if (nextValue === '') {
-                  setSearchTerm('');
-                }
-              }}
-              onSearch={(value) => {
-                const normalizedValue = value.trim();
-                setSearchDraft(value);
-                setSearchTerm(normalizedValue);
-              }}
-            />
-            <Button onClick={() => waitingListQuery.refetch()} loading={waitingListQuery.isFetching}>
-              Làm mới hàng chờ
+    <div className="staff-workspace-fluid staff-workspace-flex-column" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Hàng chờ phục vụ</Typography.Title>
+          <Segmented
+            options={waitingStatusOptions}
+            value={statusFilter}
+            onChange={(value) => setStatusFilter(value as any)}
+          />
+          <Select
+            aria-label="Lọc phạm vi hàng chờ"
+            style={{ width: 140 }}
+            value={queueMode}
+            options={queueModeOptions}
+            onChange={(value) => setQueueMode(value)}
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Input
+            allowClear
+            aria-label="Tìm hàng chờ"
+            placeholder="Khách hoặc số điện thoại…"
+            style={{ width: 220 }}
+            value={searchDraft}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setSearchDraft(nextValue);
+              if (nextValue === '') {
+                setSearchTerm('');
+              }
+            }}
+            onPressEnter={(e) => {
+              const normalizedValue = e.currentTarget.value.trim();
+              setSearchDraft(e.currentTarget.value);
+              setSearchTerm(normalizedValue);
+            }}
+          />
+          <Button onClick={() => waitingListQuery.refetch()} loading={waitingListQuery.isFetching}>
+            Làm mới
+          </Button>
+          {session && can(session, 'waiting_list.manage') ? (
+            <Button type="primary" onClick={() => setCreateModalOpen(true)}>
+              Thêm lượt chờ
             </Button>
-          </>
-        )}
-      />
-
-      <Card size="small">
-        <Space wrap>
-          <Button type={statusFilter === 'Waiting' && queueMode === 'active' ? 'primary' : 'default'} onClick={() => { setStatusFilter('Waiting'); setQueueMode('active'); }}>
-            Chờ vào bàn
-          </Button>
-          <Button type={statusFilter === 'Notified' ? 'primary' : 'default'} onClick={() => { setStatusFilter('Notified'); setQueueMode('active'); }}>
-            Đã báo khách
-          </Button>
-          <Button type={queueMode === 'all' ? 'primary' : 'default'} onClick={() => { setStatusFilter('all'); setQueueMode('all'); }}>
-            Toàn bộ hàng chờ
-          </Button>
-          <Button onClick={() => { setStatusFilter('all'); setQueueMode('active'); setSearchDraft(''); setSearchTerm(''); }}>
-            Xóa preset
-          </Button>
-        </Space>
-      </Card>
+          ) : null}
+        </div>
+      </div>
 
       <Row gutter={[16, 16]}>
         <Col xs={24} md={6}>
@@ -570,7 +537,7 @@ export function WaitingListPage() {
         </Col>
       </Row>
 
-      <Card title="Danh sách chờ">
+      <Card bodyStyle={{ padding: 0 }} bordered={false} style={{ overflow: 'hidden' }}>
         {waitingListQuery.isLoading ? <InlineLoading tip="Đang tải danh sách chờ..." /> : null}
         {waitingListQuery.error ? (
           <ApiStateBlock
@@ -638,261 +605,62 @@ export function WaitingListPage() {
           />
         ) : null}
       </Card>
-    </Space>
+      
+      {changesQuery.error && (
+        <ApiStateBlock
+          error={changesQuery.error}
+          fallback="Không thể tải luồng thay đổi của danh sách chờ."
+          onRetry={() => {
+            void changesQuery.refetch();
+          }}
+        />
+      )}
+    </div>
   );
 
-  const notifySupported = selectedEntry?.status === 'Waiting';
-  const seatSupported = !!selectedEntry?.invite_lifecycle.can_staff_seat_now;
-  const advanceSupported = !!selectedEntry?.orchestration.advance_queue.supported;
-  const selectedReleasedTable = selectedEntry?.orchestration.released_table ?? null;
-  const boardReturnSearch = canonicalBoardContext || explicitBoardJourneyTableId
-    ? buildJourneySearch({
-      source: 'board',
-      tableId: canonicalBoardContext?.tableId ?? explicitBoardJourneyTableId ?? undefined,
-      tableIds: canonicalBoardContext?.tableIds,
-    })
-    : '';
-
-  const side = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="Thêm lượt chờ">
-        <Form<CreateWaitingValues>
-          form={createForm}
-          layout="vertical"
-          initialValues={{ guest_count: 2, priority: 0 }}
-          onFinish={(values) => createMutation.mutate(values)}
-        >
-          <Form.Item name="guest_name" label="Tên khách" rules={[{ required: true, message: 'Nhập tên khách.' }]}>
-            <Input autoComplete="name" placeholder="Tên khách đang chờ…" />
-          </Form.Item>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="phone" label="Số điện thoại">
-                <Input autoComplete="tel" inputMode="tel" placeholder="090…" type="tel" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="guest_count" label="Số khách" rules={[{ required: true, message: 'Nhập số khách.' }]}>
-                <InputNumber min={1} max={30} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Row gutter={12}>
-            <Col span={12}>
-              <Form.Item name="user_id" label="Mã khách hàng liên kết">
-                <InputNumber min={1} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="priority" label="Mức ưu tiên">
-                <InputNumber min={-999} max={999} style={{ width: '100%' }} />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="notes" label="Ghi chú">
-            <Input.TextArea autoComplete="off" rows={3} placeholder="Ghi chú tiếp đón nếu cần…" />
-          </Form.Item>
-          <InlineState
-            tone="info"
-            eyebrow="Ngữ cảnh chi nhánh"
-            title={`Đang dùng ngữ cảnh chi nhánh ${branchId ?? session?.startup.default_branch?.branch_id ?? 'mặc định'} từ shell nhân viên.`}
-            description="Lượt chờ mới sẽ được tạo theo branch context đang neo ở shell để dữ liệu list, board và đơn hàng tiếp theo luôn khớp nhau."
-            className="staff-inline-note"
-          />
-          <Button type="primary" htmlType="submit" loading={createMutation.isPending} block>
-            Thêm lượt chờ
-          </Button>
-        </Form>
-      </Card>
-
-      <Card title="Lượt chờ đang chọn">
-        {!selectedEntry ? (
-          <EmptyBlock
-            title="Chưa chọn lượt chờ"
-            description="Chọn một dòng hàng chờ để xem điều phối, trạng thái báo khách và mức sẵn sàng vào bàn."
-          />
-        ) : (
-          <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-            <Descriptions bordered size="small" column={1}>
-              <Descriptions.Item label="Khách">
-                {selectedEntry.guest_name ?? `Lượt chờ #${selectedEntry.waiting_id}`}
-              </Descriptions.Item>
-              <Descriptions.Item label="Trạng thái">
-                <Space>
-                  <StatusChip label={selectedEntry.status} tone={waitingTone(selectedEntry.status)} />
-                  <StatusChip label={selectedEntry.current_response_state} tone={waitingResponseTone(selectedEntry.current_response_state)} />
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="Cửa sổ mời khách">
-                {selectedEntry.invite_window.is_active
-                  ? `Còn ${selectedEntry.invite_window.seconds_remaining}s`
-                  : selectedEntry.invite_window.is_expired
-                    ? 'Đã hết hạn'
-                    : 'Chưa kích hoạt'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Hành động gợi ý">
-                {translateUiCode(selectedEntry.orchestration.recommended_action)}
-              </Descriptions.Item>
-              <Descriptions.Item label="Bàn vừa được nhả">
-                {selectedReleasedTable?.table_code ?? 'Không áp dụng'}
-              </Descriptions.Item>
-              <Descriptions.Item label="Phiên bản dòng">
-                {selectedEntry.row_version}
-              </Descriptions.Item>
-            </Descriptions>
-
-            {notifySupported ? (
-              <Card size="small" title="Báo khách">
-                <Form<NotifyWaitingValues> form={notifyForm} layout="vertical" onFinish={(values) => notifyMutation.mutate(values)}>
-                  {boardAccess && availableTableOptions.length > 0 ? (
-                    <Form.Item
-                      name="table_id"
-                      label="Bàn còn trống"
-                      rules={[{ required: true, message: 'Chọn bàn để giữ chỗ khi báo khách.' }]}
-                    >
-                      <Select
-                        showSearch
-                        optionFilterProp="label"
-                        placeholder="Chọn một bàn còn trống"
-                        options={availableTableOptions}
-                      />
-                    </Form.Item>
-                  ) : (
-                    <>
-                      <BranchPolicyState
-                        title="Không lấy được gợi ý từ sơ đồ bàn"
-                        description="Phiên hiện tại không đọc được sơ đồ bàn hoặc chưa có bàn phù hợp. Hãy nhập thủ công mã bàn để giữ chỗ khi báo khách."
-                        className="staff-inline-note"
-                      />
-                      <Form.Item
-                        name="table_id"
-                        label="Mã bàn"
-                        rules={[{ required: true, message: 'Nhập mã bàn.' }]}
-                      >
-                        <InputNumber min={1} style={{ width: '100%' }} />
-                      </Form.Item>
-                    </>
-                  )}
-                  <Form.Item name="hold_minutes" label="Số phút giữ chỗ">
-                    <InputNumber min={1} max={60} style={{ width: '100%' }} />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" loading={notifyMutation.isPending} block>
-                    Báo khách hiện tại
-                  </Button>
-                </Form>
-              </Card>
-            ) : null}
-
-            {advanceSupported ? (
-              <Card size="small" title="Đẩy hàng chờ">
-                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-                  <Typography.Text type="secondary">
-                    Gợi ý kết quả: {translateUiCode(selectedEntry.orchestration.advance_queue.resulting_action)}
-                  </Typography.Text>
-                  {selectedEntry.orchestration.advance_queue.next_candidate ? (
-                    <InlineState
-                      tone="info"
-                      eyebrow="Ứng viên kế tiếp"
-                      title={`Ứng viên kế tiếp: ${selectedEntry.orchestration.advance_queue.next_candidate.guest_name ?? selectedEntry.orchestration.advance_queue.next_candidate.waiting_id}`}
-                      description={`Độ lệch chỗ ngồi ${selectedEntry.orchestration.advance_queue.next_candidate.capacity_fit.seat_delta}`}
-                      className="staff-inline-note"
-                    />
-                  ) : null}
-                  <Button
-                    onClick={() => void handleAdvanceQueue()}
-                    disabled={!selectedEntry.orchestration.advance_queue.can_apply_now}
-                    loading={advanceMutation.isPending}
-                    block
-                  >
-                    Đẩy hàng chờ
-                  </Button>
-                </Space>
-              </Card>
-            ) : null}
-
-            {seatSupported ? (
-              <Card size="small" title="Xếp bàn và mở đơn hàng">
-                {!selectedEntry.user_id ? (
-                  <InlineState
-                    tone="warning"
-                    eyebrow="Điều kiện vào bàn"
-                    title="Cần có mã khách hàng trước khi xếp bàn"
-                    description="Lượt chờ này chưa liên kết khách hàng. Hãy nhập mã khách hàng tại đây trước khi chuyển lượt chờ thành đặt bàn."
-                    className="staff-inline-note"
-                  />
-                ) : null}
-                <Form<SeatWaitingValues> form={seatForm} layout="vertical" onFinish={(values) => seatMutation.mutate(values)}>
-                  {!selectedEntry.user_id ? (
-                    <Form.Item
-                      name="user_id"
-                      label="Mã khách hàng"
-                      rules={[{ required: true, message: 'Nhập mã khách hàng liên kết.' }]}
-                    >
-                      <InputNumber min={1} style={{ width: '100%' }} />
-                    </Form.Item>
-                  ) : null}
-                  <Form.Item name="service_minutes" label="Số phút phục vụ">
-                    <InputNumber min={30} max={480} style={{ width: '100%' }} />
-                  </Form.Item>
-                  <Form.Item name="notes" label="Ghi chú xếp bàn">
-                    <Input.TextArea autoComplete="off" rows={3} placeholder="Ghi chú xếp bàn nếu cần…" />
-                  </Form.Item>
-                  <Button type="primary" htmlType="submit" loading={seatMutation.isPending} block>
-                    Xếp bàn và mở đơn hàng
-                  </Button>
-                </Form>
-              </Card>
-            ) : null}
-
-            <Card size="small" title="Hủy lượt chờ">
-              <Form<CancelWaitingValues> form={cancelForm} layout="vertical" onFinish={handleCancel}>
-                <Form.Item name="cancel_reason" label="Lý do hủy">
-                  <Input.TextArea autoComplete="off" rows={2} placeholder="Lý do hủy nếu cần…" />
-                </Form.Item>
-                <Button danger htmlType="submit" loading={cancelMutation.isPending} block>
-                  Hủy lượt chờ
-                </Button>
-              </Form>
-            </Card>
-          </Space>
-        )}
-      </Card>
-
-      <Card title="Đồng bộ hàng chờ">
-        {changesQuery.isLoading ? (
-          <InlineLoading tip="Đang đọc thay đổi của danh sách chờ..." />
-        ) : changesQuery.error ? (
-          <ApiStateBlock
-            error={changesQuery.error}
-            fallback="Không thể tải luồng thay đổi của danh sách chờ."
-            onRetry={() => {
-              void changesQuery.refetch();
-            }}
-          />
-        ) : (
-          <Space orientation="vertical" size={8}>
-            <Typography.Text type="secondary">
-              Phiên bản realtime v{changesQuery.data?.data.current_version ?? waitingListQuery.data?.meta?.realtime.current_version ?? 0}
-            </Typography.Text>
-            <Typography.Text type="secondary">
-              Sự kiện: {changesQuery.data?.data.events.length ?? 0}
-            </Typography.Text>
-          </Space>
-        )}
-      </Card>
-
-      <Card title="Bước chuyển tiếp tiếp theo" className="staff-workspace-next-card">
-        <Button
-          block
-          onClick={() => navigate(boardReturnSearch ? `${staffRoutePaths.ops.tables}?${boardReturnSearch}` : staffRoutePaths.ops.tables)}
-        >
-          Quay lại sơ đồ bàn
-        </Button>
-      </Card>
-    </Space>
+  return (
+    <>
+      <div data-testid="waiting-list-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%' }}>
+        {main}
+      </div>
+      <WaitingCreateModal
+        open={createModalOpen}
+        form={createForm}
+        submitting={createMutation.isPending}
+        branchId={branchId}
+        defaultBranchId={session?.startup.default_branch?.branch_id}
+        onCancel={() => setCreateModalOpen(false)}
+        onSubmit={(values) => {
+          createMutation.mutate(values);
+          setCreateModalOpen(false);
+        }}
+      />
+      <WaitingDetailDrawer
+        open={detailDrawerOpen}
+        selectedEntry={selectedEntry}
+        notifySupported={true}
+        seatSupported={true}
+        advanceSupported={true}
+        selectedReleasedTable={null}
+        boardAccess={boardAccess}
+        availableTableOptions={availableTableOptions}
+        notifyForm={notifyForm}
+        seatForm={seatForm}
+        cancelForm={cancelForm}
+        busy={notifyMutation.isPending || seatMutation.isPending || cancelMutation.isPending || advanceMutation.isPending}
+        onClose={() => {
+          setDetailDrawerOpen(false);
+          setSelectedWaitingId(null);
+          setSearchParams(setWaitingListFocus(searchParams, null));
+        }}
+        onNotify={(values) => notifyMutation.mutate(values)}
+        onSeat={(values) => seatMutation.mutate(values)}
+        onCancel={(values) => handleCancel(values)}
+        onAdvanceQueue={() => handleAdvanceQueue()}
+      />
+    </>
   );
 
-  return <SplitWorkspace main={main} side={side} />;
 }
 
 function toWaitingListSearchFilters(searchTerm: string): { guest_name?: string; phone?: string } {
@@ -928,21 +696,6 @@ function setWaitingListFocus(search: string | URLSearchParams, waitingId: number
 
   params.delete('focus');
   return params;
-}
-
-function waitingResponseTone(status: string | null | undefined): StatusTone {
-  switch ((status ?? '').toLowerCase()) {
-    case 'arrival_confirmed':
-    case 'accepted':
-      return 'success';
-    case 'pending':
-      return 'processing';
-    case 'declined':
-    case 'invite_expired':
-      return 'warning';
-    default:
-      return 'default';
-  }
 }
 
 function getCanonicalWaitingTableContext(entry: StaffWaitingListEntry | null): { tableId: number; tableIds: Array<number> } | null {

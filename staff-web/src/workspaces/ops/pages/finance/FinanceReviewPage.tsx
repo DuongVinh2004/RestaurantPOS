@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { Button, Card, Descriptions, Input, Select, Space, Statistic, Table, Tag, Typography } from 'antd';
@@ -35,8 +35,8 @@ import { formatApiError } from '../../../../shared/api/errors';
 import { can } from '../../../../shared/auth/capabilities';
 import { formatDateTime, formatMoney } from '../../../../shared/utils/format';
 import { translateUiCode } from '../../../../shared/utils/translation';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
+import { Drawer } from 'antd';
 import { toast } from '../../../../shared/ui/feedback/toast';
 import { ApiStateBlock, ConflictState, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
@@ -58,6 +58,7 @@ const blockedBenefitsRoutes = [
 export function FinanceReviewPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const queryClient = useQueryClient();
   const journey = useJourneyContext();
   const session = useAuthStore((state) => state.session);
@@ -128,6 +129,7 @@ export function FinanceReviewPage() {
   const canIssueInvoice = Boolean(session && can(session, 'settlement.manage') && canIssueInvoiceForRow(detailQuery.data?.data.summary ?? selectedRow));
 
   const selectReservation = (reservationId: number) => {
+    setDetailDrawerOpen(true);
     setSearchParams(
       buildFinanceReviewSearch(searchParams, {
         ...urlState,
@@ -149,44 +151,88 @@ export function FinanceReviewPage() {
     );
   };
 
+  
   const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeader
-        eyebrow="Đối soát tài chính"
-        title="Đối soát và hóa đơn"
-        description="Kiểm tra trạng thái chốt bill, chứng từ thanh toán và phát hành hóa đơn qua staff SDK contract."
-        context={(
-          <>
-            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chi nhánh mặc định'} tone="processing" variant="severity" />
-            <StatusChip label={selectedReservationId ? `Đặt bàn #${selectedReservationId}` : 'Chưa chọn đặt bàn'} tone={selectedReservationId ? 'processing' : 'warning'} />
-            <StatusChip label={journey.orderId ? `Đơn #${journey.orderId}` : 'Chưa có ngữ cảnh đơn'} tone={journey.orderId ? 'processing' : 'warning'} />
-          </>
-        )}
-      />
+    <div className="staff-workspace-fluid staff-workspace-flex-column" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Đối soát tài chính</Typography.Title>
+          <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chi nhánh mặc định'} tone="processing" variant="severity" />
+          <StatusChip label={selectedReservationId ? `Đặt bàn #${selectedReservationId}` : 'Chưa chọn đặt bàn'} tone={selectedReservationId ? 'processing' : 'warning'} />
+          <StatusChip label={journey.orderId ? `Đơn #${journey.orderId}` : 'Chưa có ngữ cảnh đơn'} tone={journey.orderId ? 'processing' : 'warning'} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Button
+            disabled={!selectedReservationId}
+            onClick={() => navigate(`${staffRoutePaths.ops.reservations}?${buildOperatorJourneySearch(journey, {
+              source: 'reservation',
+              reservationId: selectedReservationId ?? undefined,
+              reservationRowVersion: selectedRow?.reservation.row_version ?? journey.reservationRowVersion ?? undefined,
+            })}`)}
+          >
+            Mở đặt bàn
+          </Button>
+          <Button
+            disabled={!canOpenCheckout}
+            onClick={() => navigate(`${staffRoutePaths.ops.checkout}?${buildOperatorJourneySearch(journey, {
+              source: 'checkout',
+            })}`)}
+          >
+            Mở thanh toán
+          </Button>
+          <Button
+            disabled={!canOpenRefund}
+            onClick={() => navigate(`${staffRoutePaths.ops.refunds}?${buildOperatorJourneySearch(journey, {
+              source: 'refund',
+              reservationId: selectedReservationId ?? undefined,
+            })}`)}
+          >
+            Mở hoàn tiền
+          </Button>
+          <Button
+            disabled={!canOpenCashierShift}
+            onClick={() => navigate(`${staffRoutePaths.ops.cashierShift}?${buildOperatorJourneySearch(journey, {
+              source: journey.source ?? 'audit',
+            })}`)}
+          >
+            Mở ca thu ngân
+          </Button>
+        </div>
+      </div>
 
-      <Card size="small">
-        <Space wrap>
-          <Input.Search
-            aria-label="Mã đặt bàn"
-            allowClear
-            placeholder="Mã đặt bàn"
-            defaultValue={urlState.reservationCode}
-            onSearch={(value) => updateFilters({ reservationCode: value })}
-            style={{ width: 220 }}
-          />
-          <Select
-            aria-label="Lọc chênh lệch"
-            value={urlState.hasDiscrepancy}
-            onChange={(value) => updateFilters({ hasDiscrepancy: value })}
-            options={[
-              { value: 'all', label: 'Tất cả dòng' },
-              { value: 'yes', label: 'Chỉ có chênh lệch' },
-              { value: 'no', label: 'Không chênh lệch' },
-            ]}
-            style={{ width: 180 }}
-          />
-          <Button onClick={() => void reconciliationQuery.refetch()}>Làm mới</Button>
-        </Space>
+      <Card size="small" bodyStyle={{ padding: '8px 16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+          <Space wrap>
+            <Input.Search
+              aria-label="Mã đặt bàn"
+              allowClear
+              placeholder="Mã đặt bàn"
+              defaultValue={urlState.reservationCode}
+              onSearch={(value) => updateFilters({ reservationCode: value })}
+              style={{ width: 220 }}
+            />
+            <Select
+              aria-label="Lọc chênh lệch"
+              value={urlState.hasDiscrepancy}
+              onChange={(value) => updateFilters({ hasDiscrepancy: value })}
+              options={[
+                { value: 'all', label: 'Tất cả dòng' },
+                { value: 'yes', label: 'Chỉ có chênh lệch' },
+                { value: 'no', label: 'Không chênh lệch' },
+              ]}
+              style={{ width: 180 }}
+            />
+            <Button onClick={() => void reconciliationQuery.refetch()}>Làm mới</Button>
+          </Space>
+          <Space wrap size={16}>
+            <Statistic title="Dòng đối soát" value={rows.length} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="Có chênh lệch" value={summary.discrepancyCount} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="Còn thiếu" value={formatMoney(summary.outstandingAmount, currencyForRow(selectedRow))} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="Hoàn quá tiền" value={formatMoney(summary.overRefundAmount, currencyForRow(selectedRow))} valueStyle={{ fontSize: 16 }} />
+            <Statistic title="Đã quyết toán" value={summary.fullySettledCount} valueStyle={{ fontSize: 16 }} />
+          </Space>
+        </div>
       </Card>
 
       {dateRangeError ? (
@@ -195,14 +241,6 @@ export function FinanceReviewPage() {
           description={dateRangeError}
         />
       ) : null}
-
-      <Space wrap size={12}>
-        <Statistic title="Dòng đối soát" value={rows.length} />
-        <Statistic title="Có chênh lệch" value={summary.discrepancyCount} />
-        <Statistic title="Còn thiếu" value={formatMoney(summary.outstandingAmount, currencyForRow(selectedRow))} />
-        <Statistic title="Hoàn quá tiền" value={formatMoney(summary.overRefundAmount, currencyForRow(selectedRow))} />
-        <Statistic title="Đã quyết toán" value={summary.fullySettledCount} />
-      </Space>
 
       {reconciliationQuery.isLoading ? <InlineLoading tip="Đang tải đối soát tài chính..." /> : null}
       {reconciliationQuery.error ? (
@@ -214,79 +252,49 @@ export function FinanceReviewPage() {
       ) : null}
 
       {!reconciliationQuery.isLoading && !reconciliationQuery.error ? (
-        <Table
-          rowKey={(row) => row.reservation.reservation_id}
-          columns={financeColumns(selectReservation)}
-          dataSource={rows}
-          pagination={{
-            current: urlState.page,
-            pageSize: perPage,
-            total: reconciliationQuery.data?.meta?.total ?? rows.length,
-            onChange: (page) => setSearchParams(buildFinanceReviewSearch(searchParams, { ...urlState, page }), { replace: false }),
-          }}
-          onRow={(row) => ({
-            onClick: () => selectReservation(row.reservation.reservation_id),
-          })}
-          rowClassName={(row) => (row.reservation.reservation_id === selectedReservationId ? 'staff-table-row-selected' : '')}
-          locale={{ emptyText: <EmptyBlock title="Chưa có dòng đối soát" description="Không có đặt bàn nào khớp bộ lọc tài chính hiện tại." /> }}
-        />
+        <Card bodyStyle={{ padding: 0 }} bordered={false} style={{ overflow: 'hidden' }}>
+          <Table
+            rowKey={(row) => row.reservation.reservation_id}
+            columns={financeColumns(selectReservation)}
+            dataSource={rows}
+            pagination={{
+              current: urlState.page,
+              pageSize: perPage,
+              total: reconciliationQuery.data?.meta?.total ?? rows.length,
+              onChange: (page) => setSearchParams(buildFinanceReviewSearch(searchParams, { ...urlState, page }), { replace: false }),
+            }}
+            onRow={(row) => ({
+              onClick: () => selectReservation(row.reservation.reservation_id),
+            })}
+            rowClassName={(row) => (row.reservation.reservation_id === selectedReservationId ? 'staff-row-selected' : '')}
+            locale={{ emptyText: <EmptyBlock title="Chưa có dòng đối soát" description="Không có đặt bàn nào khớp bộ lọc tài chính hiện tại." /> }}
+          />
+        </Card>
       ) : null}
-
-      <Space wrap>
-        <Button
-          disabled={!selectedReservationId}
-          onClick={() => navigate(`${staffRoutePaths.ops.reservations}?${buildOperatorJourneySearch(journey, {
-            source: 'reservation',
-            reservationId: selectedReservationId ?? undefined,
-            reservationRowVersion: selectedRow?.reservation.row_version ?? journey.reservationRowVersion ?? undefined,
-          })}`)}
-        >
-          Mở đặt bàn
-        </Button>
-        <Button
-          disabled={!canOpenCheckout}
-          onClick={() => navigate(`${staffRoutePaths.ops.checkout}?${buildOperatorJourneySearch(journey, {
-            source: 'checkout',
-          })}`)}
-        >
-          Mở thanh toán
-        </Button>
-        <Button
-          disabled={!canOpenRefund}
-          onClick={() => navigate(`${staffRoutePaths.ops.refunds}?${buildOperatorJourneySearch(journey, {
-            source: 'refund',
-            reservationId: selectedReservationId ?? undefined,
-          })}`)}
-        >
-          Mở hoàn tiền
-        </Button>
-        <Button
-          disabled={!canOpenCashierShift}
-          onClick={() => navigate(`${staffRoutePaths.ops.cashierShift}?${buildOperatorJourneySearch(journey, {
-            source: journey.source ?? 'audit',
-          })}`)}
-        >
-          Mở ca thu ngân
-        </Button>
-      </Space>
-    </Space>
-  );
-
-  const side = (
-    <FinanceDetailPanel
-      selectedReservationId={selectedReservationId}
-      selectedRow={selectedRow}
-      detailQuery={detailQuery}
-      invoiceQuery={invoiceQuery}
-      canIssueInvoice={canIssueInvoice}
-      isIssuing={issueInvoiceMutation.isPending}
-      onIssueInvoice={() => issueInvoiceMutation.mutate()}
-    />
+    </div>
   );
 
   return (
-    <div data-testid="finance-review-page">
-      <SplitWorkspace main={main} side={side} />
+    <div data-testid="finance-review-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%' }}>
+      {main}
+      <Drawer
+        title="Chi tiết dòng đối soát"
+        placement="right"
+        width={480}
+        onClose={() => setDetailDrawerOpen(false)}
+        open={detailDrawerOpen}
+        destroyOnClose
+      >
+        <FinanceDetailPanel
+          selectedReservationId={selectedReservationId}
+          selectedRow={selectedRow}
+          detailQuery={detailQuery}
+          invoiceQuery={invoiceQuery}
+          canIssueInvoice={canIssueInvoice}
+          isIssuing={issueInvoiceMutation.isPending}
+          onIssueInvoice={() => issueInvoiceMutation.mutate()}
+        />
+      </Drawer>
     </div>
   );
 }

@@ -37,8 +37,8 @@ import { formatDateTime, formatRelativeAge, humanizeCode } from '../../../../sha
 import { buildJourneySearch } from '../../../../app/router/journey';
 import { staffRoutePaths } from '../../../../app/router/workspace-paths';
 import { conversationTone } from '../../../../shared/status/status';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
+import { Drawer } from 'antd';
 import { toast } from '../../../../shared/ui/feedback/toast';
 import {
   ApiStateBlock,
@@ -161,6 +161,7 @@ export function ConversationInboxPage() {
   const [linkCustomerUserIdDraft, setLinkCustomerUserIdDraft] = useState('');
   const [linkNotesDraft, setLinkNotesDraft] = useState('');
   const [selectedConversationIds, setSelectedConversationIds] = useState<Array<string>>([]);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const currentStaffUserId = session?.user?.user_id ?? null;
   const canManageConversation = can(session, 'conversation.manage');
 
@@ -203,6 +204,14 @@ export function ConversationInboxPage() {
     setLinkWaitingListIdDraft('');
     setLinkCustomerUserIdDraft('');
     setLinkNotesDraft('');
+  }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (selectedConversationId) {
+      setDetailDrawerOpen(true);
+    } else {
+      setDetailDrawerOpen(false);
+    }
   }, [selectedConversationId]);
 
   const updateUrlState = useCallback((
@@ -653,82 +662,69 @@ export function ConversationInboxPage() {
     })}`);
   }
 
+  
   const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-conversation-page">
-      <PageHeader
-        className="staff-conversation-page-header"
-        eyebrow="Hộp thư hội thoại"
-        title="Inbox xử lý hội thoại"
-        description="Giữ rõ ownership, liên kết nghiệp vụ và bước trả lời kế tiếp để không bỏ sót khách đang chờ."
-        context={(
-          <>
-            <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Toàn bộ phạm vi được cấp'} tone="default" variant="freshness" />
-            <StatusChip label={`${summaryStats.unassigned} chưa phân công`} tone={summaryStats.unassigned > 0 ? 'warning' : 'success'} variant="severity" />
-            <StatusChip label={selectedConversationId ? `Đang mở ${selectedConversationId}` : 'Chưa khóa hội thoại'} tone={selectedConversationId ? 'processing' : 'warning'} variant="entity" />
-          </>
-        )}
-        extra={(
-          <>
-            <Select
-              aria-label="Lọc theo trạng thái hội thoại"
-              style={{ width: 150 }}
-              value={statusFilter}
-              options={statusOptions}
-              onChange={(value) => updateUrlState({ status: value, page: 1, conversationId: null })}
-            />
-            <Select
-              aria-label="Lọc theo trạng thái phân công"
-              style={{ width: 160 }}
-              value={assignmentFilter}
-              options={assignmentOptions}
-              onChange={(value) => updateUrlState({ assignment: value, page: 1, conversationId: null })}
-            />
-            <Select
-              aria-label="Lọc theo workflow hội thoại"
-              style={{ width: 170 }}
-              value={workflowStateFilter}
-              options={workflowOptions}
-              onChange={(value) => updateUrlState({ workflowState: value, page: 1, conversationId: null })}
-            />
-            <Select
-              aria-label="Lọc theo hàng chờ vận hành"
-              style={{ width: 190 }}
-              value={inboxViewFilter}
-              options={inboxViewOptions}
-              onChange={(value) => updateUrlState({ inboxView: value, page: 1, conversationId: null })}
-            />
-            <Select
-              aria-label="Lọc theo kênh hội thoại"
-              style={{ width: 150 }}
-              value={channelFilter}
-              options={channelOptions}
-              onChange={(value) => updateUrlState({ channel: value, page: 1, conversationId: null })}
-            />
-            <Input.Search
-              aria-label="Tìm kiếm trong hộp thư hội thoại"
-              allowClear
-              value={searchDraft}
-              placeholder="Khách, đặt bàn, số điện thoại…"
-              style={{ width: 260 }}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setSearchDraft(nextValue);
-                if (nextValue === '') {
-                  updateUrlState({ q: '', page: 1, conversationId: null });
-                }
-              }}
-              onSearch={(value) => {
-                const nextValue = value.trim();
-                setSearchDraft(value);
-                updateUrlState({ q: nextValue, page: 1, conversationId: null });
-              }}
-            />
-            <Button onClick={() => inboxQuery.refetch()} loading={inboxQuery.isFetching}>Làm mới hộp thư</Button>
-          </>
-        )}
-      />
+    <div className="staff-workspace-fluid staff-workspace-flex-column" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Hộp thư hội thoại</Typography.Title>
+          <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Toàn bộ phạm vi được cấp'} tone="default" variant="freshness" />
+          <StatusChip label={`${summaryStats.unassigned} chưa phân công`} tone={summaryStats.unassigned > 0 ? 'warning' : 'success'} variant="severity" />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Select
+            aria-label="Lọc theo trạng thái hội thoại"
+            style={{ width: 140 }}
+            value={statusFilter}
+            options={statusOptions}
+            onChange={(value) => updateUrlState({ status: value, page: 1, conversationId: null })}
+          />
+          <Select
+            aria-label="Lọc theo trạng thái phân công"
+            style={{ width: 150 }}
+            value={assignmentFilter}
+            options={assignmentOptions}
+            onChange={(value) => updateUrlState({ assignment: value, page: 1, conversationId: null })}
+          />
+          <Select
+            aria-label="Lọc theo workflow hội thoại"
+            style={{ width: 150 }}
+            value={workflowStateFilter}
+            options={workflowOptions}
+            onChange={(value) => updateUrlState({ workflowState: value, page: 1, conversationId: null })}
+          />
+          <Select
+            aria-label="Lọc theo kênh hội thoại"
+            style={{ width: 130 }}
+            value={channelFilter}
+            options={channelOptions}
+            onChange={(value) => updateUrlState({ channel: value, page: 1, conversationId: null })}
+          />
+          <Input.Search
+            aria-label="Tìm kiếm trong hộp thư hội thoại"
+            allowClear
+            value={searchDraft}
+            placeholder="Khách, đặt bàn, SĐT..."
+            style={{ width: 220 }}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setSearchDraft(nextValue);
+              if (nextValue === '') {
+                updateUrlState({ q: '', page: 1, conversationId: null });
+              }
+            }}
+            onSearch={(value) => {
+              const nextValue = value.trim();
+              setSearchDraft(value);
+              updateUrlState({ q: nextValue, page: 1, conversationId: null });
+            }}
+          />
+          <Button onClick={() => inboxQuery.refetch()} loading={inboxQuery.isFetching}>Làm mới</Button>
+        </div>
+      </div>
 
-      <Card size="small" className="staff-conversation-preset-card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <Space wrap>
           <Button
             type={inboxViewFilter === 'unassigned' ? 'primary' : 'default'}
@@ -758,7 +754,14 @@ export function ConversationInboxPage() {
             Xóa preset
           </Button>
         </Space>
-      </Card>
+        
+        <Space wrap size={16}>
+          <Statistic title="Tổng số" value={summaryStats.total} valueStyle={{ fontSize: 16 }} />
+          <Statistic title="Đã phân công" value={summaryStats.assigned} valueStyle={{ fontSize: 16 }} />
+          <Statistic title="Chưa phân công" value={summaryStats.unassigned} valueStyle={{ fontSize: 16 }} />
+          <Statistic title="Của tôi" value={summaryStats.mine} valueStyle={{ fontSize: 16 }} />
+        </Space>
+      </div>
 
       <InlineState
         tone={branchId ? 'info' : 'warning'}
@@ -799,34 +802,7 @@ export function ConversationInboxPage() {
         />
       ) : null}
 
-      <Row gutter={[16, 16]} className="staff-conversation-summary-grid">
-        <Col xs={24} md={6}>
-          <Card className="staff-conversation-summary-card">
-            <Statistic title="Tổng số" value={summaryStats.total} />
-          </Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card className={`staff-conversation-summary-card ${assignmentFilter === 'assigned' ? 'staff-conversation-summary-card-active' : ''}`}>
-            <Statistic title="Đã phân công" value={summaryStats.assigned} />
-          </Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card className={`staff-conversation-summary-card ${assignmentFilter === 'unassigned' ? 'staff-conversation-summary-card-active' : ''}`}>
-            <Statistic title="Chưa phân công" value={summaryStats.unassigned} />
-          </Card>
-        </Col>
-        <Col xs={24} md={6}>
-          <Card className={`staff-conversation-summary-card ${assignmentFilter === 'mine' ? 'staff-conversation-summary-card-active' : ''}`}>
-            <Statistic title="Của tôi" value={summaryStats.mine} />
-          </Card>
-        </Col>
-      </Row>
-
-      <Card
-        title="Hàng chờ hội thoại"
-        extra={activeConversationId ? `Đang mở ${activeConversationId}` : 'Chưa khóa hội thoại'}
-        className="staff-conversation-inbox-card"
-      >
+      <Card bodyStyle={{ padding: 0 }} bordered={false} style={{ overflow: 'hidden' }}>
         {inboxQuery.isLoading ? <InlineLoading tip="Đang tải hộp thư hội thoại..." /> : null}
         {inboxQuery.error ? (
           <ApiStateBlock
@@ -850,7 +826,7 @@ export function ConversationInboxPage() {
               onChange: (keys) => setSelectedConversationIds(keys.map((key) => String(key))),
             }}
             rowClassName={(entry) => (entry.conversation_id === selectedConversationId ? 'staff-row-selected staff-conversation-row-selected' : '')}
-            onRow={(entry) => ({ onClick: () => updateUrlState({ conversationId: entry.conversation_id }) })}
+            onRow={(entry) => ({ onClick: () => { updateUrlState({ conversationId: entry.conversation_id }); setDetailDrawerOpen(true); } })}
             pagination={{
               current: inboxQuery.data?.meta?.current_page ?? page,
               pageSize: inboxQuery.data?.meta?.per_page ?? pageSize,
@@ -902,11 +878,11 @@ export function ConversationInboxPage() {
           />
         ) : null}
       </Card>
-    </Space>
+    </div>
   );
 
   const side = (
-    <Card title="Chi tiết hội thoại" className="staff-conversation-detail-card">
+    <div className="staff-conversation-detail-wrapper" style={{ height: '100%', overflowY: 'auto', padding: '0 16px' }}>
       {!activeConversationId ? (
         <EmptyBlock title="Chưa chọn hội thoại" description="Chọn một hội thoại trong danh sách để khóa ngữ cảnh chi tiết, lịch sử phân công và các thao tác nội bộ." />
       ) : detailQuery.isLoading ? (
@@ -940,19 +916,11 @@ export function ConversationInboxPage() {
             )}
           </Space>
 
-          <InlineState
-            tone="info"
-            eyebrow="Cách dùng luồng hội thoại"
-            className="staff-conversation-linkage-alert"
-            title="Ownership, liên kết nghiệp vụ và phản hồi ra ngoài được tách riêng"
-            description="Nhận xử lý và trả hàng chờ chỉ thay đổi ownership. Mở đặt bàn hoặc khách chờ chỉ điều hướng sang luồng liên quan. Phản hồi ra ngoài luôn phụ thuộc vào capability trong detail envelope của chính hội thoại này."
-          />
-
           <div className="staff-action-row staff-conversation-detail-actions">
             {canTakeOver ? <Button type="primary" onClick={() => void handleTakeOver()} loading={takeOverMutation.isPending}>Nhận xử lý</Button> : null}
             {canUnassign ? <Button danger onClick={() => void handleUnassign()} loading={unassignMutation.isPending}>Trả về hàng chờ</Button> : null}
             {linkedReservationId && can(session, 'reservation.manage') ? <Button onClick={openLinkedReservation}>Mở đặt bàn</Button> : null}
-            {linkedWaitingListId && can(session, 'waiting_list.manage') ? <Button onClick={() => navigate(buildConversationWaitingListPath(linkedWaitingListId))}>Mở danh sách chờ</Button> : null}
+            {linkedWaitingListId && can(session, 'waiting_list.manage') ? <Button onClick={() => navigate(buildConversationWaitingListPath(linkedWaitingListId))}>Mở danh chờ</Button> : null}
           </div>
 
           <div className="staff-conversation-ops-panel">
@@ -964,10 +932,10 @@ export function ConversationInboxPage() {
               <Input
                 aria-label="Staff user id nhận hội thoại"
                 inputMode="numeric"
-                placeholder="Staff user id"
+                placeholder="Staff id"
                 value={assignAgentIdDraft}
                 onChange={(event) => setAssignAgentIdDraft(event.target.value)}
-                style={{ width: 160 }}
+                style={{ width: 100 }}
                 disabled={!canManageConversation || !canAssign}
               />
               <Input
@@ -975,7 +943,7 @@ export function ConversationInboxPage() {
                 placeholder="Ghi chú phân công"
                 value={assignNotesDraft}
                 onChange={(event) => setAssignNotesDraft(event.target.value)}
-                style={{ width: 260 }}
+                style={{ width: 180 }}
                 disabled={!canManageConversation || !canAssign}
               />
               <Button
@@ -992,7 +960,7 @@ export function ConversationInboxPage() {
           <div className="staff-conversation-ops-panel">
             <Typography.Text strong>Workflow hội thoại</Typography.Text>
             <Typography.Text type="secondary">
-              Chỉ hiển thị các target backend đang cho phép và luôn gửi kèm expected_workflow_state hiện tại để bắt stale state.
+              Gửi kèm expected_workflow_state hiện tại để bắt stale state.
             </Typography.Text>
             <Space wrap align="start">
               <Select<WorkflowWriteState>
@@ -1000,7 +968,7 @@ export function ConversationInboxPage() {
                 value={workflowStateDraft}
                 options={workflowTargetOptions}
                 onChange={(value) => setWorkflowStateDraft(value)}
-                style={{ width: 180 }}
+                style={{ width: 140 }}
                 disabled={!canManageConversation || !canUpdateWorkflowState}
               />
               <Input
@@ -1008,7 +976,7 @@ export function ConversationInboxPage() {
                 placeholder="Lý do nếu có"
                 value={workflowReasonDraft}
                 onChange={(event) => setWorkflowReasonDraft(event.target.value)}
-                style={{ width: 280 }}
+                style={{ width: 180 }}
                 disabled={!canManageConversation || !canUpdateWorkflowState}
               />
               <Button
@@ -1017,13 +985,8 @@ export function ConversationInboxPage() {
                 loading={workflowMutation.isPending}
                 disabled={!canManageConversation || !canUpdateWorkflowState}
               >
-                Cập nhật workflow
+                Cập nhật
               </Button>
-              <StatusChip
-                label={`Hiện tại: ${humanizeCode(currentWorkflowState ?? detailConversation.workflow.state)}`}
-                tone="processing"
-                variant="freshness"
-              />
             </Space>
           </div>
 
@@ -1039,7 +1002,7 @@ export function ConversationInboxPage() {
                 placeholder="Reservation id"
                 value={linkReservationIdDraft}
                 onChange={(event) => setLinkReservationIdDraft(event.target.value)}
-                style={{ width: 150 }}
+                style={{ width: 120 }}
                 disabled={!canManageConversation || !canLink}
               />
               <Input
@@ -1048,24 +1011,7 @@ export function ConversationInboxPage() {
                 placeholder="Waiting-list id"
                 value={linkWaitingListIdDraft}
                 onChange={(event) => setLinkWaitingListIdDraft(event.target.value)}
-                style={{ width: 150 }}
-                disabled={!canManageConversation || !canLink}
-              />
-              <Input
-                aria-label="Customer user id cần liên kết"
-                inputMode="numeric"
-                placeholder="Customer user id"
-                value={linkCustomerUserIdDraft}
-                onChange={(event) => setLinkCustomerUserIdDraft(event.target.value)}
-                style={{ width: 160 }}
-                disabled={!canManageConversation || !canLink}
-              />
-              <Input
-                aria-label="Ghi chú liên kết hội thoại"
-                placeholder="Ghi chú liên kết"
-                value={linkNotesDraft}
-                onChange={(event) => setLinkNotesDraft(event.target.value)}
-                style={{ width: 240 }}
+                style={{ width: 120 }}
                 disabled={!canManageConversation || !canLink}
               />
               <Button
@@ -1084,6 +1030,8 @@ export function ConversationInboxPage() {
               >
                 Liên kết
               </Button>
+            </Space>
+            <Space wrap style={{ marginTop: 8 }}>
               {linkedReservationId ? (
                 <Button
                   danger
@@ -1109,27 +1057,11 @@ export function ConversationInboxPage() {
 
           <Descriptions bordered size="small" column={1} className="staff-conversation-linkage-grid">
             <Descriptions.Item label="Khách">{conversationCustomerLabel(detailConversation)}</Descriptions.Item>
-            <Descriptions.Item label="Người đang phụ trách">{assignmentAgentLabel(currentAssignment)}</Descriptions.Item>
-            <Descriptions.Item label="Liên kết đặt bàn">{linkedReservationCode ?? (linkedReservationId ? `Đặt bàn #${linkedReservationId}` : 'Chưa liên kết')}</Descriptions.Item>
-            <Descriptions.Item label="Liên kết khách chờ">{linkedWaitingListLabel ?? (linkedWaitingListId ? `Khách chờ #${linkedWaitingListId}` : 'Chưa liên kết')}</Descriptions.Item>
-            <Descriptions.Item label="Hoạt động gần nhất">{formatDateTime(detailConversation.latest_activity_at ?? detailConversation.created_at)}</Descriptions.Item>
-            <Descriptions.Item label="Số lượng">
-              <Space wrap size={8}>
-                <StatusChip label={`${detailConversation.counts.messages} tin nhắn`} variant="count" />
-                <StatusChip label={`${detailConversation.counts.internal_notes} ghi chú`} tone="warning" variant="count" />
-                <StatusChip label={`${detailConversation.counts.events} sự kiện`} tone="processing" variant="count" />
-                <StatusChip label={`${detailConversation.counts.analyses} phân tích`} tone="success" variant="count" />
-              </Space>
-            </Descriptions.Item>
+            <Descriptions.Item label="Phụ trách">{assignmentAgentLabel(currentAssignment)}</Descriptions.Item>
+            <Descriptions.Item label="Đặt bàn">{linkedReservationCode ?? (linkedReservationId ? `Đặt bàn #${linkedReservationId}` : 'Chưa liên kết')}</Descriptions.Item>
+            <Descriptions.Item label="Khách chờ">{linkedWaitingListLabel ?? (linkedWaitingListId ? `Khách chờ #${linkedWaitingListId}` : 'Chưa liên kết')}</Descriptions.Item>
+            <Descriptions.Item label="Hoạt động mới">{formatDateTime(detailConversation.latest_activity_at ?? detailConversation.created_at)}</Descriptions.Item>
           </Descriptions>
-
-          <InlineState
-            tone={replyState.canSend ? 'success' : 'warning'}
-            eyebrow="Phản hồi ra ngoài"
-            className="staff-conversation-outbound-alert"
-            title={replyState.canSend ? 'Luồng phản hồi ra ngoài đang sẵn sàng cho hội thoại này.' : 'Phản hồi ra ngoài đang bị khóa.'}
-            description={describeOutboundReplyState(replyState)}
-          />
 
           <Tabs
             className="staff-conversation-detail-tabs"
@@ -1144,23 +1076,36 @@ export function ConversationInboxPage() {
 
           <div className="staff-conversation-composer staff-conversation-composer-note">
             <Typography.Text strong>Thêm ghi chú nội bộ</Typography.Text>
-            <Typography.Text type="secondary">{noteCapabilityHelpText()}</Typography.Text>
-            <Input.TextArea value={noteDraft} rows={4} placeholder="Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn." onChange={(event) => setNoteDraft(event.target.value)} disabled={!canAddInternalNote} />
+            <Input.TextArea value={noteDraft} rows={2} placeholder="Ghi chú cho bàn giao, rủi ro thời gian..." onChange={(event) => setNoteDraft(event.target.value)} disabled={!canAddInternalNote} />
             <Button type="primary" onClick={() => void handleAddNote()} disabled={!canAddInternalNote || noteDraft.trim() === ''} loading={addNoteMutation.isPending}>Thêm ghi chú</Button>
           </div>
 
           <div className="staff-conversation-composer staff-conversation-composer-reply">
             <Typography.Text strong>Xếp hàng phản hồi ra ngoài</Typography.Text>
-            <Typography.Text type="secondary">Thao tác này tuân theo capability của chính hội thoại đang mở, không chỉ dựa vào quyền phiên đăng nhập.</Typography.Text>
-            <Input.TextArea value={replyDraft} rows={4} placeholder="Nội dung phản hồi cần gửi cho khách khi kênh hiện tại cho phép." onChange={(event) => setReplyDraft(event.target.value)} disabled={!replyState.canSend} />
+            <Input.TextArea value={replyDraft} rows={3} placeholder="Nội dung phản hồi cần gửi cho khách..." onChange={(event) => setReplyDraft(event.target.value)} disabled={!replyState.canSend} />
             <Button type="primary" onClick={() => void handleReply()} disabled={!replyState.canSend || replyDraft.trim() === ''} loading={replyMutation.isPending}>Xếp hàng phản hồi</Button>
           </div>
         </Space>
       ) : null}
-    </Card>
+    </div>
   );
 
-  return <SplitWorkspace main={main} side={side} variant="balanced" className="staff-conversation-workspace" />;
+  return (
+    <div data-testid="conversation-inbox-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%' }}>
+      {main}
+      <Drawer
+        title="Chi tiết Hội thoại"
+        placement="right"
+        width={580}
+        onClose={() => setDetailDrawerOpen(false)}
+        open={detailDrawerOpen}
+        destroyOnClose={false}
+      >
+        {side}
+      </Drawer>
+    </div>
+  );
+
 }
 
 function parsePositiveInteger(value: string): number | null {

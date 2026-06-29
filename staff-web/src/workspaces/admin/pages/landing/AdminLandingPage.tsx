@@ -12,7 +12,7 @@ import {
 } from '../../../../domains/admin/admin-workspace';
 import { listAdminBranches, listAdminPurchaseOrders } from '../../../../shared/api/staff-api';
 import { can } from '../../../../shared/auth/capabilities';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
+
 import { InlineState } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 
@@ -42,33 +42,30 @@ export function AdminLandingPage() {
     staleTime: 60_000,
   });
 
+  
   return (
-    <div className="staff-admin-workspace">
-      <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-        <PageHeader
-          eyebrow="Quản trị"
-          title="Trung tâm quản trị"
-          description="Quản lý cấu hình nhà hàng, danh mục, kho, báo cáo và dữ liệu kiểm soát mà không lẫn với màn vận hành trực tiếp."
-          context={(
-            <>
-              <StatusChip label={`${summary.enabledCount}/${summary.domainCount} phân hệ có quyền`} tone="processing" />
-              <StatusChip label={`${summary.liveCount} màn đang dùng`} tone="success" />
-              <StatusChip label={`${summary.importExportCount} luồng nhập/xuất`} tone="default" />
-              <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chưa chọn chi nhánh'} tone={branchId ? 'processing' : 'warning'} />
-            </>
-          )}
-          extra={(
-            <Space wrap>
-              {quickLinks.slice(0, 4).map((card) => (
-                <Button key={card.key} type={card.key === quickLinks[0]?.key ? 'primary' : 'default'} onClick={() => navigate(card.actionPath ?? '/admin')}>
-                  {card.title}
-                </Button>
-              ))}
-            </Space>
-          )}
-        />
+    <div className="staff-workspace-fluid staff-workspace-flex-column" data-testid="admin-landing-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Trung tâm quản trị</Typography.Title>
+          <StatusChip label={`${summary.enabledCount}/${summary.domainCount} phân hệ có quyền`} tone="processing" />
+          <StatusChip label={`${summary.liveCount} màn đang dùng`} tone="success" />
+          <StatusChip label={`${summary.importExportCount} luồng nhập/xuất`} tone="default" />
+          <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chưa chọn chi nhánh'} tone={branchId ? 'processing' : 'warning'} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          {quickLinks.slice(0, 4).map((card) => (
+            <Button key={card.key} type={card.key === quickLinks[0]?.key ? 'primary' : 'default'} onClick={() => navigate(card.actionPath ?? '/admin')}>
+              {card.title}
+            </Button>
+          ))}
+        </div>
+      </div>
 
-        <Row gutter={[16, 16]}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
+<Row gutter={[16, 16]}>
           <Col xs={24} md={6}>
             <Card className="staff-admin-summary-card">
               <Statistic title="Phân hệ có quyền" value={summary.enabledCount} />
@@ -159,7 +156,7 @@ export function AdminLandingPage() {
             </div>
           </section>
         ))}
-      </Space>
+            </div>
     </div>
   );
 }

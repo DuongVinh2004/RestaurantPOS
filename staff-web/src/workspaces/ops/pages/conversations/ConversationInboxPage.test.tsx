@@ -88,7 +88,7 @@ describe('ConversationInboxPage', () => {
     });
 
     fireEvent.change(screen.getByLabelText('Lý do cập nhật workflow'), { target: { value: 'Đã kiểm tra thread' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật workflow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
 
     await waitFor(() => {
       expect(apiMocks.updateConversationWorkflowState).toHaveBeenCalledWith('conv-001', {
@@ -99,7 +99,6 @@ describe('ConversationInboxPage', () => {
     });
 
     fireEvent.change(screen.getByLabelText('Reservation id cần liên kết'), { target: { value: '91' } });
-    fireEvent.change(screen.getByLabelText('Ghi chú liên kết hội thoại'), { target: { value: 'Khách hỏi đổi giờ' } });
     fireEvent.click(screen.getByRole('button', { name: 'Liên kết' }));
 
     await waitFor(() => {
@@ -107,7 +106,7 @@ describe('ConversationInboxPage', () => {
         reservation_id: 91,
         waiting_list_id: null,
         customer_user_id: null,
-        notes: 'Khách hỏi đổi giờ',
+        notes: null,
       });
     });
   }, 30_000);
@@ -175,7 +174,7 @@ describe('ConversationInboxPage', () => {
     expect(await screen.findByText('Phân công rõ nhân viên')).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Lý do cập nhật workflow'), { target: { value: 'Chuyển qua chờ khách' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật workflow' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật' }));
 
     await waitFor(() => {
       expect(apiMocks.updateConversationWorkflowState).toHaveBeenCalledWith('conv-001', {
@@ -229,7 +228,7 @@ describe('ConversationInboxPage', () => {
     expect(screen.getByLabelText('Staff user id nhận hội thoại')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Phân công' })).toBeDisabled();
     expect(screen.getByLabelText('Reservation id cần liên kết')).toBeDisabled();
-    expect(screen.getByPlaceholderText('Ghi chú cho bàn giao, rủi ro thời gian hoặc theo dõi đặt bàn.')).toBeDisabled();
+    expect(screen.getByPlaceholderText('Ghi chú cho bàn giao, rủi ro thời gian...')).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Thêm ghi chú' })).toBeDisabled();
   });
 });

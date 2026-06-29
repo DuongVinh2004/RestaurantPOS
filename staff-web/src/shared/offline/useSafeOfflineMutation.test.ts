@@ -42,7 +42,7 @@ describe('useSafeOfflineMutation', () => {
 
     const result = await mutationOpts.mutationFn('test_vars');
     expect(result).toBe('success');
-    expect(originalMutationFn).toHaveBeenCalledWith('test_vars');
+    expect(originalMutationFn).toHaveBeenCalledWith('test_vars', undefined);
     expect(enqueueMock).not.toHaveBeenCalled();
   });
 

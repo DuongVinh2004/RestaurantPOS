@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Button, Typography } from 'antd';
+import { RefreshCcw } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   buildBoardWindow,
@@ -46,6 +48,7 @@ import { DashboardTopBar } from './components/DashboardTopBar';
 import { KpiCard } from './components/KpiCard';
 import { ShiftHealthCard } from './components/ShiftHealthCard';
 import { UrgentAlertCard } from './components/UrgentAlertCard';
+import { DashboardCharts } from './components/DashboardCharts';
 import { buildInventoryQuery, buildOperationsQuery, buildSalesQuery } from '../../../../domains/reporting/reporting-hub';
 
 export function DashboardPage() {
@@ -274,19 +277,30 @@ export function DashboardPage() {
 
   return (
     <div className="staff-dashboard-page">
-      <section className="staff-dashboard-secondary-grid" style={{ marginBottom: '24px' }}>
-        <ShiftHealthCard
-          health={shiftHealth}
-          lastUpdatedLabel={lastUpdatedLabel}
-          onOpen={navigate}
-        />
-      </section>
-
-      <DashboardTopBar
-        focus={focus}
-        onRefresh={handleRefreshAll}
-        refreshing={isRefreshing}
-      />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', padding: '12px 16px', background: '#ffffff', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', flex: 1 }}>
+          <Typography.Title level={5} style={{ margin: 0, whiteSpace: 'nowrap' }}>
+            {focus.title}
+          </Typography.Title>
+          <div style={{ width: '1px', height: '24px', background: '#e5e7eb' }}></div>
+          <div style={{ flex: 1 }}>
+            <ShiftHealthCard
+              health={shiftHealth}
+              lastUpdatedLabel={lastUpdatedLabel}
+              onOpen={navigate}
+            />
+          </div>
+        </div>
+        <Button 
+          icon={<RefreshCcw size={14} />} 
+          size="small" 
+          loading={isRefreshing} 
+          onClick={() => void handleRefreshAll()}
+          style={{ marginLeft: '16px' }}
+        >
+          Làm mới
+        </Button>
+      </div>
 
       {freshnessTone === 'warning' ? (
         <div className="staff-dashboard-freshness-banner">
@@ -299,6 +313,12 @@ export function DashboardPage() {
         </div>
       ) : null}
 
+      <section className="staff-dashboard-charts-section" style={{ marginBottom: '24px' }}>
+        <DashboardCharts 
+          tableBoard={tableBoardQuery.data ?? null} 
+          kitchenStations={kitchenStationsQuery.data ?? null}
+        />
+      </section>
 
       <section className="staff-dashboard-alert-section">
         <div className="staff-dashboard-alert-strip">

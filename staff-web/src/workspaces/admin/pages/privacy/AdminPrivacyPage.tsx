@@ -1,4 +1,4 @@
-import { Button, Card, Col, Input, Row, Select, Space, Statistic, Typography, Pagination } from 'antd';
+import { Button, Card, Col, Input, Row, Select, Space, Statistic, Typography, Pagination, Drawer } from 'antd';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -8,8 +8,7 @@ import {
 } from '../../../../shared/api/staff-api';
 import { formatApiError } from '../../../../shared/api/errors';
 import { formatDateTime, humanizeCode } from '../../../../shared/utils/format';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
@@ -36,6 +35,7 @@ export function AdminPrivacyPage() {
     notes: '',
   });
   const [exportUserId, setExportUserId] = useState('');
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [lastReviewResult, setLastReviewResult] = useState<RecordRow | null>(null);
   const [lastExport, setLastExport] = useState<RecordRow | Array<RecordRow> | null>(null);
 
@@ -89,116 +89,127 @@ export function AdminPrivacyPage() {
     onError: (error) => toast.error(formatApiError(error, 'Chưa export được dữ liệu khách hàng.')),
   });
 
-  const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeader
-        eyebrow="Admin privacy"
-        title="Rà soát dữ liệu khách"
-        description="Xử lý yêu cầu privacy theo dry-run/commit và xuất dữ liệu khách bằng route admin hiện có."
-        extra={<Button onClick={() => requestsQuery.refetch()} loading={requestsQuery.isFetching}>Làm mới yêu cầu</Button>}
-      />
+  
+  return (
+    <div className="staff-workspace-fluid staff-workspace-flex-column" data-testid="admin-privacy-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <span className="staff-eyebrow" style={{ fontSize: '14px', fontWeight: 600 }}>Admin privacy</span>
+          <StatusChip label={`${requests.length} Yêu cầu`} tone="processing" />
+          <StatusChip label={`${pendingCount} Đang chờ`} tone="warning" />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Button onClick={() => requestsQuery.refetch()} loading={requestsQuery.isFetching}>Làm mới</Button>
+          <Button type="primary" onClick={() => setDetailDrawerOpen(true)}>Review & Export</Button>
+        </div>
+      </div>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={8}><Card><Statistic title="Yêu cầu" value={requests.length} /></Card></Col>
-        <Col xs={24} md={8}><Card><Statistic title="Đang chờ" value={pendingCount} /></Card></Col>
-        <Col xs={24} md={8}><Card><Statistic title="Bộ lọc user" value={positiveInteger(filters.userId) ?? 0} /></Card></Col>
-      </Row>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, overflowY: 'auto' }}>
+        <Card title="Danh sách yêu cầu privacy" className="staff-workspace-table-card">
+          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+            <Space wrap>
+              <Select
+                aria-label="Lọc trạng thái privacy"
+                value={filters.status}
+                options={requestStatusOptions}
+                onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
+                style={{ width: 180 }}
+              />
+              <Input.Search
+                aria-label="Lọc theo customer user id"
+                inputMode="numeric"
+                allowClear
+                value={filters.userId}
+                placeholder="Customer user id"
+                onChange={(event) => setFilters((current) => ({ ...current, userId: event.target.value }))}
+                onSearch={(value) => setFilters((current) => ({ ...current, userId: value.trim() }))}
+                style={{ width: 220 }}
+              />
+            </Space>
 
-      <Card title="Danh sách yêu cầu privacy">
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-          <Space wrap>
-            <Select
-              aria-label="Lọc trạng thái privacy"
-              value={filters.status}
-              options={requestStatusOptions}
-              onChange={(value) => setFilters((current) => ({ ...current, status: value }))}
-              style={{ width: 180 }}
-            />
-            <Input.Search
-              aria-label="Lọc theo customer user id"
-              inputMode="numeric"
-              allowClear
-              value={filters.userId}
-              placeholder="Customer user id"
-              onChange={(event) => setFilters((current) => ({ ...current, userId: event.target.value }))}
-              onSearch={(value) => setFilters((current) => ({ ...current, userId: value.trim() }))}
-              style={{ width: 220 }}
-            />
+            {requestsQuery.isLoading ? <InlineLoading tip="Đang tải yêu cầu privacy..." /> : null}
+            {requestsQuery.error ? <ApiStateBlock error={requestsQuery.error} fallback="Không thể tải yêu cầu privacy." onRetry={() => requestsQuery.refetch()} /> : null}
+            {!requestsQuery.isLoading && !requestsQuery.error && requests.length === 0 ? <EmptyBlock title="Không có yêu cầu privacy" description="Backend không trả về yêu cầu nào theo bộ lọc hiện tại." /> : null}
+
+            <div className="staff-admin-surface-list">
+              {requests.map((request, index) => {
+                const requestId = rowNumber(request, 'request_id') ?? rowNumber(request, 'privacy_request_id');
+                const userId = rowNumber(request, 'user_id') ?? rowNumber(request, 'customer_user_id');
+
+                return (
+                  <button
+                    key={requestId ?? index}
+                    type="button"
+                    className="staff-admin-surface-item staff-clickable-surface"
+                    onClick={() => {
+                      setReviewForm((current) => ({ ...current, requestId: requestId ? String(requestId) : current.requestId }));
+                      setExportUserId(userId ? String(userId) : exportUserId);
+                      setDetailDrawerOpen(true);
+                    }}
+                  >
+                    <strong>{rowString(request, 'request_type') ?? `Yêu cầu #${requestId ?? index + 1}`}</strong>
+                    <Typography.Text type="secondary">
+                      {userId ? `Customer #${userId}` : 'Không có user id'} / {rowString(request, 'created_at') ? formatDateTime(rowString(request, 'created_at')) : 'Không có thời điểm tạo'}
+                    </Typography.Text>
+                    <Space wrap>
+                      <StatusChip label={humanizeCode(rowString(request, 'status') ?? 'unknown')} tone={privacyStatusTone(rowString(request, 'status'))} />
+                      {requestId ? <StatusChip label={`Request #${requestId}`} tone="default" /> : null}
+                    </Space>
+                  </button>
+                );
+              })}
+            </div>
+            {requests.length > 0 && (
+              <Pagination
+                current={filters.page}
+                pageSize={filters.perPage}
+                total={(requestsQuery.data as any)?.meta?.total ?? requests.length}
+                onChange={(page, pageSize) => setFilters((current) => ({ ...current, page, perPage: pageSize }))}
+                showSizeChanger
+                pageSizeOptions={['10', '25', '50', '100']}
+                style={{ marginTop: 16, textAlign: 'right' }}
+              />
+            )}
           </Space>
+        </Card>
+      </div>
 
-          {requestsQuery.isLoading ? <InlineLoading tip="Đang tải yêu cầu privacy..." /> : null}
-          {requestsQuery.error ? <ApiStateBlock error={requestsQuery.error} fallback="Không thể tải yêu cầu privacy." onRetry={() => requestsQuery.refetch()} /> : null}
-          {!requestsQuery.isLoading && !requestsQuery.error && requests.length === 0 ? <EmptyBlock title="Không có yêu cầu privacy" description="Backend không trả về yêu cầu nào theo bộ lọc hiện tại." /> : null}
+      <Drawer
+        title="Review & Export"
+        placement="right"
+        width={450}
+        onClose={() => setDetailDrawerOpen(false)}
+        open={detailDrawerOpen}
+        destroyOnClose={false}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <Card title="Review yêu cầu" className="staff-workspace-detail-card">
+            <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+              <Input aria-label="Privacy request id" inputMode="numeric" placeholder="Privacy request id" value={reviewForm.requestId} onChange={(event) => setReviewForm((current) => ({ ...current, requestId: event.target.value }))} />
+              <Select<PrivacyDecision> aria-label="Quyết định privacy" value={reviewForm.decision} onChange={(value) => setReviewForm((current) => ({ ...current, decision: value }))} options={[{ value: 'approve', label: 'Duyệt' }, { value: 'reject', label: 'Từ chối' }]} />
+              <Select<PrivacyReviewMode> aria-label="Chế độ review privacy" value={reviewForm.mode} onChange={(value) => setReviewForm((current) => ({ ...current, mode: value }))} options={[{ value: 'dry_run', label: 'Dry-run' }, { value: 'commit', label: 'Commit' }]} />
+              <Input.TextArea aria-label="Ghi chú review privacy" rows={4} value={reviewForm.notes} placeholder="Lý do hoặc ghi chú kiểm soát" onChange={(event) => setReviewForm((current) => ({ ...current, notes: event.target.value }))} />
+              <Button type="primary" onClick={() => reviewMutation.mutate()} loading={reviewMutation.isPending} style={{ width: '100%' }}>
+                {reviewForm.mode === 'dry_run' ? 'Chạy thử review' : 'Ghi nhận review'}
+              </Button>
+              {lastReviewResult ? <pre className="staff-json-preview" style={{ maxHeight: '200px', overflowY: 'auto' }}>{JSON.stringify(lastReviewResult, null, 2)}</pre> : <Typography.Text type="secondary">Chưa có kết quả review trong phiên này.</Typography.Text>}
+            </Space>
+          </Card>
 
-          <div className="staff-admin-surface-list">
-            {requests.map((request, index) => {
-              const requestId = rowNumber(request, 'request_id') ?? rowNumber(request, 'privacy_request_id');
-              const userId = rowNumber(request, 'user_id') ?? rowNumber(request, 'customer_user_id');
-
-              return (
-                <button
-                  key={requestId ?? index}
-                  type="button"
-                  className="staff-admin-surface-item staff-clickable-surface"
-                  onClick={() => {
-                    setReviewForm((current) => ({ ...current, requestId: requestId ? String(requestId) : current.requestId }));
-                    setExportUserId(userId ? String(userId) : exportUserId);
-                  }}
-                >
-                  <strong>{rowString(request, 'request_type') ?? `Yêu cầu #${requestId ?? index + 1}`}</strong>
-                  <Typography.Text type="secondary">
-                    {userId ? `Customer #${userId}` : 'Không có user id'} / {rowString(request, 'created_at') ? formatDateTime(rowString(request, 'created_at')) : 'Không có thời điểm tạo'}
-                  </Typography.Text>
-                  <Space wrap>
-                    <StatusChip label={humanizeCode(rowString(request, 'status') ?? 'unknown')} tone={privacyStatusTone(rowString(request, 'status'))} />
-                    {requestId ? <StatusChip label={`Request #${requestId}`} tone="default" /> : null}
-                  </Space>
-                </button>
-              );
-            })}
-          </div>
-          {requests.length > 0 && (
-            <Pagination
-              current={filters.page}
-              pageSize={filters.perPage}
-              total={(requestsQuery.data as any)?.meta?.total ?? requests.length}
-              onChange={(page, pageSize) => setFilters((current) => ({ ...current, page, perPage: pageSize }))}
-              showSizeChanger
-              pageSizeOptions={['10', '25', '50', '100']}
-              style={{ marginTop: 16, textAlign: 'right' }}
-            />
-          )}
-        </Space>
-      </Card>
-    </Space>
+          <Card title="Xuất dữ liệu khách" className="staff-workspace-detail-card">
+            <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+              <Input aria-label="Customer user id export" inputMode="numeric" placeholder="Customer user id" value={exportUserId} onChange={(event) => setExportUserId(event.target.value)} />
+              <Button onClick={() => exportMutation.mutate()} loading={exportMutation.isPending} style={{ width: '100%' }}>Export dữ liệu khách</Button>
+              {lastExport ? <pre className="staff-json-preview" style={{ maxHeight: '200px', overflowY: 'auto' }}>{JSON.stringify(lastExport, null, 2)}</pre> : <Typography.Text type="secondary">Chưa có payload export trong phiên này.</Typography.Text>}
+            </Space>
+          </Card>
+        </div>
+      </Drawer>
+    </div>
   );
 
-  const side = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card title="Review yêu cầu">
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-          <Input aria-label="Privacy request id" inputMode="numeric" placeholder="Privacy request id" value={reviewForm.requestId} onChange={(event) => setReviewForm((current) => ({ ...current, requestId: event.target.value }))} />
-          <Select<PrivacyDecision> aria-label="Quyết định privacy" value={reviewForm.decision} onChange={(value) => setReviewForm((current) => ({ ...current, decision: value }))} options={[{ value: 'approve', label: 'Duyệt' }, { value: 'reject', label: 'Từ chối' }]} />
-          <Select<PrivacyReviewMode> aria-label="Chế độ review privacy" value={reviewForm.mode} onChange={(value) => setReviewForm((current) => ({ ...current, mode: value }))} options={[{ value: 'dry_run', label: 'Dry-run' }, { value: 'commit', label: 'Commit' }]} />
-          <Input.TextArea aria-label="Ghi chú review privacy" rows={4} value={reviewForm.notes} placeholder="Lý do hoặc ghi chú kiểm soát" onChange={(event) => setReviewForm((current) => ({ ...current, notes: event.target.value }))} />
-          <Button type="primary" onClick={() => reviewMutation.mutate()} loading={reviewMutation.isPending}>
-            {reviewForm.mode === 'dry_run' ? 'Chạy thử review' : 'Ghi nhận review'}
-          </Button>
-          {lastReviewResult ? <pre className="staff-json-preview">{JSON.stringify(lastReviewResult, null, 2)}</pre> : <Typography.Text type="secondary">Chưa có kết quả review trong phiên này.</Typography.Text>}
-        </Space>
-      </Card>
-
-      <Card title="Xuất dữ liệu khách">
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-          <Input aria-label="Customer user id export" inputMode="numeric" placeholder="Customer user id" value={exportUserId} onChange={(event) => setExportUserId(event.target.value)} />
-          <Button onClick={() => exportMutation.mutate()} loading={exportMutation.isPending}>Export dữ liệu khách</Button>
-          {lastExport ? <pre className="staff-json-preview">{JSON.stringify(lastExport, null, 2)}</pre> : <Typography.Text type="secondary">Chưa có payload export trong phiên này.</Typography.Text>}
-        </Space>
-      </Card>
-    </Space>
-  );
-
-  return <SplitWorkspace main={main} side={side} variant="balanced" />;
 }
 
 function recordsFromPayload(payload: unknown): Array<RecordRow> {

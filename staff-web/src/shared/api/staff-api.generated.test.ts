@@ -18,14 +18,21 @@ import {
 } from './staff-api';
 
 const rawApiRequestOperationAllowlist = [
+  'DELETE /api/v1/admin/menu/modifier-groups/{id}',
   'GET /admin/benefits/loyalty-tiers/export',
   'GET /admin/benefits/vouchers/export',
-  'GET /admin/inventory/purchase-orders/{id}',
   'GET /admin/menu/categories/export',
   'GET /admin/menu/items/export',
   'GET /admin/menu/prices/export',
   'GET /admin/restaurant/tables/export',
   'GET /admin/settings/branches/export',
+  'GET /api/v1/admin/inventory/purchase-orders/{id}',
+  'GET /api/v1/admin/menu/modifier-groups?{id}',
+  'PATCH /api/v1/admin/inventory/ingredients/{id}',
+  'PATCH /api/v1/admin/inventory/purchase-orders/{id}',
+  'PATCH /api/v1/admin/inventory/suppliers/{id}',
+  'PATCH /api/v1/admin/menu/categories/{id}',
+  'PATCH /api/v1/admin/menu/items/{id}',
   'PATCH /reservations/{id}/status',
   'POST /admin/benefits/loyalty-tiers/import',
   'POST /admin/benefits/vouchers/import',
@@ -34,6 +41,8 @@ const rawApiRequestOperationAllowlist = [
   'POST /admin/menu/prices/import',
   'POST /admin/restaurant/tables/import',
   'POST /admin/settings/branches/import',
+  'POST /api/v1/admin/menu/modifier-groups',
+  'PUT /api/v1/admin/menu/modifier-groups/{id}',
 ];
 
 describe('staff api generated client delegates', () => {

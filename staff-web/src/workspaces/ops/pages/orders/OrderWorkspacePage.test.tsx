@@ -177,6 +177,9 @@ describe('OrderWorkspacePage', () => {
     await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.listMenuItems).toHaveBeenCalled());
 
+    const openMenuButton = await screen.findByRole('button', { name: 'Thêm món' });
+    fireEvent.click(openMenuButton);
+
     const mergeButton = await screen.findByRole('button', { name: /Cộng số lượng|Cộng SL/i }, { timeout: 10000 });
     fireEvent.click(mergeButton);
 
@@ -209,8 +212,11 @@ describe('OrderWorkspacePage', () => {
     await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.listMenuItems).toHaveBeenCalled());
 
-    const addButton = await screen.findByRole('button', { name: /Thêm món|Thêm/i }, { timeout: 10000 });
-    fireEvent.click(addButton);
+    const openMenuButton = await screen.findByRole('button', { name: 'Thêm món' });
+    fireEvent.click(openMenuButton);
+
+    const addButtons = await screen.findAllByRole('button', { name: /Thêm món|Thêm/i });
+    fireEvent.click(addButtons[addButtons.length - 1]);
 
     await waitFor(() => expect(apiMocks.addOrderItems).toHaveBeenCalledWith(56, {
       row_version: 10,
@@ -246,9 +252,13 @@ describe('OrderWorkspacePage', () => {
     await waitFor(() => expect(apiMocks.getOrderDetail).toHaveBeenCalled());
     await waitFor(() => expect(apiMocks.listMenuItems).toHaveBeenCalled());
 
+    const openMenuButton = await screen.findByRole('button', { name: 'Thêm món' });
+    fireEvent.click(openMenuButton);
+
     expect(await screen.findByText(/Đơn đã ghi nhận thanh toán\./i, {}, { timeout: 10000 })).toBeInTheDocument();
-    const addButton = await screen.findByRole('button', { name: /Thêm món|Thêm/i }, { timeout: 10000 });
-    fireEvent.click(addButton);
+
+    const addButtons = await screen.findAllByRole('button', { name: /Thêm món|Thêm/i });
+    fireEvent.click(addButtons[addButtons.length - 1]);
 
     await waitFor(() => expect(apiMocks.addOrderItems).toHaveBeenCalledWith(56, {
       row_version: 10,
@@ -372,8 +382,8 @@ describe('OrderWorkspacePage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Lưu thay đổi dòng món' }, { timeout: 10000 }));
 
     expect(await screen.findByText('Bạn chưa có quyền thực hiện thao tác này')).toBeInTheDocument();
-    expect(screen.getByText(/order\.manage/i)).toBeInTheDocument();
-    expect(screen.getByText(/req-order-forbidden/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/order\.manage/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/req-order-forbidden/i).length).toBeGreaterThan(0);
   });
 
   it('recovers the current active order when an order-item mutation reports the route order is stale', async () => {

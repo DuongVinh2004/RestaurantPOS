@@ -5,6 +5,7 @@ describe('table board url helpers', () => {
   it('reads the active zone from the url', () => {
     expect(readTableBoardUrlState('?zone=Garden')).toEqual({
       zone: 'Garden',
+      status: '',
     });
   });
 

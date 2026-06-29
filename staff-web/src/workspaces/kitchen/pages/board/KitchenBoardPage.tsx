@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
-import { Button } from 'antd';
+import { Button, Drawer } from 'antd';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { KitchenOrderItemTicket, KitchenStation } from '../../../../shared/api/sdk';
@@ -76,6 +76,7 @@ export function KitchenBoardPage() {
   const isOnline = useOnlineStatus();
   const [showChangeFeed, setShowChangeFeed] = useState(true);
   const [lockedTicketAction, setLockedTicketAction] = useState<KitchenTicketAction | null>(null);
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
   const [mutationFeedback, setMutationFeedback] = useState(createIdleMutationFeedback);
   const ticketActionLockRef = useRef(false);
   const lastAppliedKitchenChangeVersionRef = useRef<number | null>(null);
@@ -129,6 +130,12 @@ export function KitchenBoardPage() {
   useEffect(() => {
     lastAppliedKitchenChangeVersionRef.current = null;
   }, [branchId]);
+
+  useEffect(() => {
+    if (selectedTicketId || journey.orderId) {
+      setDetailDrawerOpen(true);
+    }
+  }, [selectedTicketId, journey.orderId]);
 
   const updateKitchenSearch = useCallback((
     patch: Partial<typeof kitchenUrlState>,
@@ -473,42 +480,39 @@ export function KitchenBoardPage() {
     },
   });
 
+  
   return (
-    <div className="staff-kitchen-board-page" data-testid="kitchen-board-page">
-      <section className="staff-kitchen-board-head" aria-label="Ngữ cảnh bảng phiếu bếp">
-        <div className="staff-kitchen-board-title">
-          <span className="staff-eyebrow">Line bếp</span>
-          <h2>Bảng phiếu bếp</h2>
-          <p>Theo dõi món theo ba trạng thái rõ ràng: chờ làm, đang làm và sẵn sàng mang ra bàn.</p>
-        </div>
-
-        <div className="staff-kitchen-board-toolbar">
+    <div className="staff-workspace-fluid staff-workspace-flex-column" data-testid="kitchen-board-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <span className="staff-eyebrow" style={{ fontSize: '14px', fontWeight: 600 }}>Line bếp</span>
           <StatusChip label={branchId ? `Chi nhánh #${branchId}` : 'Chưa chọn chi nhánh'} tone={branchId ? 'processing' : 'warning'} />
           <StatusChip label={selectedStation ? kitchenStationDisplayName(selectedStation) : 'Chưa chọn trạm'} tone={selectedStation ? 'processing' : 'warning'} />
           <StatusChip label={`${ticketSummary.all} phiếu`} tone="default" />
           <StatusChip label={realtimeSummary.label} tone={realtimeSummary.tone} />
-          <div className="staff-toolbar-select-wrap">
-            <select
-              aria-label="Lọc phiếu bếp theo trạng thái"
-              className="staff-toolbar-select"
-              value={ticketStatus}
-              onChange={handleTicketStatusChange}
-            >
-              {kitchenTicketStatusOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <select
+            aria-label="Lọc phiếu bếp theo trạng thái"
+            className="staff-toolbar-select"
+            value={ticketStatus}
+            onChange={handleTicketStatusChange}
+            style={{ padding: '4px 8px', borderRadius: '4px', border: '1px solid #d9d9d9' }}
+          >
+            {kitchenTicketStatusOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
           <Button onClick={() => ticketsQuery.refetch()} disabled={!stationId || !isOnline} loading={ticketsQuery.isFetching}>
             Tải lại phiếu
           </Button>
-          <Button onClick={() => setShowChangeFeed((value) => !value)}>
-            {showChangeFeed ? 'Ẩn đồng bộ' : 'Hiện đồng bộ'}
-          </Button>
+          <Button onClick={() => navigate(staffRoutePaths.kitchen.landing)}>Đổi trạm</Button>
         </div>
-      </section>
+      </div>
 
       {!isOnline ? (
         <InlineWarning
@@ -518,21 +522,18 @@ export function KitchenBoardPage() {
       ) : null}
 
       {blockingState ?? (
-        <div className="staff-kitchen-board-grid">
-          <section className="staff-kitchen-panel staff-kitchen-board-stations" aria-label="Trạm bếp">
-            <div className="staff-kitchen-section-head">
-              <div>
-                <span className="staff-eyebrow">Trạm</span>
-                <h3>Line đang thao tác</h3>
-              </div>
-              <Button
-                onClick={() => navigate(staffRoutePaths.kitchen.landing)}
-                type="text"
-              >
-                Đổi trạm
-              </Button>
+        <>
+          {/* Horizontal Station List */}
+          <div style={{ background: '#fff', padding: '16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+               <h3 style={{ margin: 0, fontSize: '16px' }}>Trạm bếp</h3>
+               <div className="staff-kitchen-lane-summary" aria-label="Tóm tắt phiếu bếp" style={{ display: 'flex', gap: '8px' }}>
+                 <StatusChip label={`${ticketSummary.queued} chờ làm`} tone="warning" />
+                 <StatusChip label={`${ticketSummary.fired} đang làm`} tone="processing" />
+                 <StatusChip label={`${ticketSummary.ready} sẵn sàng phục vụ`} tone="success" />
+               </div>
             </div>
-
+            
             {stationsQuery.isLoading ? <InlineLoading tip="Đang tải trạm bếp..." /> : null}
             {stationsQuery.error ? (
               <TransientFailureState
@@ -547,15 +548,9 @@ export function KitchenBoardPage() {
                 description="Chi nhánh đang chọn chưa có trạm bếp khả dụng."
               />
             ) : null}
-            {stationContext.guard && stationContext.guard.kind !== 'missing-assigned-station' ? (
-              <BranchPolicyState
-                title={stationContext.guard.title}
-                description={stationContext.guard.description}
-                meta={stationContext.guard.meta}
-              />
-            ) : null}
+            
             {stationContext.selectableStations.length > 0 ? (
-              <div className="staff-kitchen-station-list" role="list" aria-label="Danh sách trạm bếp">
+              <div className="staff-kitchen-station-list" style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '8px' }} role="list" aria-label="Danh sách trạm bếp">
                 {stationContext.selectableStations.map((station) => (
                   <button
                     key={station.station_id}
@@ -563,52 +558,38 @@ export function KitchenBoardPage() {
                     className={`staff-kitchen-station-card${station.station_id === stationId ? ' staff-card-selected' : ''}`}
                     aria-pressed={station.station_id === stationId}
                     onClick={() => selectStation(station)}
+                    style={{ flexShrink: 0, width: '280px', textAlign: 'left', padding: '12px', border: station.station_id === stationId ? '2px solid #1890ff' : '1px solid #d9d9d9', borderRadius: '8px', cursor: 'pointer', background: station.station_id === stationId ? '#e6f7ff' : '#fff' }}
                   >
                     <div className="staff-kitchen-station-card-main">
-                      <div className="staff-kitchen-station-card-head">
+                      <div className="staff-kitchen-station-card-head" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                         <div className="staff-kitchen-station-copy">
-                          <span className="staff-kitchen-station-code">{station.code}</span>
-                          <strong>{kitchenStationDisplayName(station)}</strong>
+                          <strong style={{ display: 'block', fontSize: '14px' }}>{kitchenStationDisplayName(station)}</strong>
+                          <span className="staff-kitchen-station-code" style={{ fontSize: '12px', color: '#888' }}>{station.code}</span>
                         </div>
-                        <span className={`staff-kitchen-station-state${station.station_id === stationId ? ' staff-kitchen-station-state-active' : ''}`}>
-                          {station.station_id === stationId ? 'Đang chọn' : 'Chọn'}
-                        </span>
                       </div>
-                      <div className="staff-kitchen-station-metrics">
-                        <span>
+                      <div className="staff-kitchen-station-metrics" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#555' }}>
+                        <span style={{ display: 'flex', flexDirection: 'column' }}>
                           <strong>{translateUiCode(station.output_mode)}</strong>
                           <small>Chế độ</small>
                         </span>
-                        <span>
+                        <span style={{ display: 'flex', flexDirection: 'column' }}>
                           <strong>{station.ticket_counts.queued}</strong>
                           <small>Chờ làm</small>
                         </span>
-                        <span>
+                        <span style={{ display: 'flex', flexDirection: 'column' }}>
                           <strong>{station.ticket_counts.ready}</strong>
-                          <small>Sẵn sàng phục vụ</small>
+                          <small>Sẵn sàng</small>
                         </span>
                       </div>
-                      <p className="staff-kitchen-station-summary">{stationWorkloadLabel(station)}</p>
                     </div>
                   </button>
                 ))}
               </div>
             ) : null}
-          </section>
+          </div>
 
-          <section className="staff-kitchen-panel staff-kitchen-board-lanes" aria-label="Các cột trạng thái phiếu bếp">
-            <div className="staff-kitchen-section-head">
-              <div>
-                <span className="staff-eyebrow">Hàng đợi</span>
-                <h3>{selectedStation ? kitchenStationDisplayName(selectedStation) : 'Chọn trạm bếp'}</h3>
-              </div>
-              <div className="staff-kitchen-lane-summary" aria-label="Tóm tắt phiếu bếp">
-                <StatusChip label={`${ticketSummary.queued} chờ làm`} tone="warning" />
-                <StatusChip label={`${ticketSummary.fired} đang làm`} tone="processing" />
-                <StatusChip label={`${ticketSummary.ready} sẵn sàng phục vụ`} tone="success" />
-              </div>
-            </div>
-
+          {/* Ticket Lanes */}
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
             {!stationId && !stationsQuery.isLoading ? (
               <EmptyBlock
                 title="Cần chọn trạm bếp"
@@ -633,75 +614,83 @@ export function KitchenBoardPage() {
               <TicketLanes
                 lanes={activeLanes}
                 selectedTicketId={selectedTicketId}
-                onSelectTicket={(ticket) => updateKitchenSearch({ ticketId: ticket.ticket_id }, stationId)}
+                onSelectTicket={(ticket) => { updateKitchenSearch({ ticketId: ticket.ticket_id }, stationId); setDetailDrawerOpen(true); }}
               />
             ) : null}
-          </section>
+          </div>
 
-          <aside className="staff-kitchen-panel staff-kitchen-board-detail" aria-label="Phiếu bếp đang chọn">
-            <MutationStatusNotice
-              feedback={mutationFeedback}
-              onDismiss={() => setMutationFeedback(createIdleMutationFeedback())}
-              onRetry={() => {
-                void refreshKitchenWorkspaceSlices(selectedTicket?.order.order_id ?? journey.orderId ?? null);
-              }}
-            />
-            <TicketDetailPanel
-              isOnline={isOnline}
-              isPending={ticketActionMutation.isPending || lockedTicketAction !== null}
-              selectedTicket={selectedTicket}
-              stationId={stationId}
-              onTicketAction={(action) => void handleTicketAction(action)}
-            />
+          {/* Ticket Detail Drawer */}
+          <Drawer
+            title="Chi tiết phiếu bếp"
+            placement="right"
+            width={450}
+            onClose={() => setDetailDrawerOpen(false)}
+            open={detailDrawerOpen}
+            destroyOnClose={false}
+          >
+            <div className="staff-kitchen-board-detail" aria-label="Phiếu bếp đang chọn" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <MutationStatusNotice
+                feedback={mutationFeedback}
+                onDismiss={() => setMutationFeedback(createIdleMutationFeedback())}
+                onRetry={() => {
+                  void refreshKitchenWorkspaceSlices(selectedTicket?.order.order_id ?? journey.orderId ?? null);
+                }}
+              />
+              <TicketDetailPanel
+                isOnline={isOnline}
+                isPending={ticketActionMutation.isPending || lockedTicketAction !== null}
+                selectedTicket={selectedTicket}
+                stationId={stationId}
+                onTicketAction={(action) => void handleTicketAction(action)}
+              />
 
-            {journey.orderId && canDispatchOrder ? (
-              <section className="staff-kitchen-subpanel" aria-label="Gửi đơn xuống bếp">
+              {journey.orderId && canDispatchOrder ? (
+                <section className="staff-kitchen-subpanel" aria-label="Gửi đơn xuống bếp">
+                  <div className="staff-kitchen-section-head">
+                    <div>
+                      <span className="staff-eyebrow">Chuyển món</span>
+                      <h3>Gửi đơn #{journey.orderId}</h3>
+                    </div>
+                  </div>
+                  <p className="staff-kitchen-muted">Dùng khi luồng gọi món đã chuyển đúng đơn sang màn bếp.</p>
+                  <Button
+                    type="primary"
+                    onClick={() => dispatchMutation.mutate()}
+                    disabled={!journey.orderId || journey.orderRowVersion === undefined || !isOnline}
+                    loading={dispatchMutation.isPending}
+                  >
+                    Gửi đơn xuống bếp
+                  </Button>
+                </section>
+              ) : null}
+
+              <section className="staff-kitchen-subpanel" aria-label="Đồng bộ bếp">
                 <div className="staff-kitchen-section-head">
                   <div>
-                    <span className="staff-eyebrow">Chuyển món</span>
-                    <h3>Gửi đơn #{journey.orderId}</h3>
+                    <span className="staff-eyebrow">Đồng bộ</span>
+                    <h3>Đang theo dõi thay đổi</h3>
                   </div>
+                  <StatusChip label={realtimeSummary.label} tone={realtimeSummary.tone} />
                 </div>
-                <p className="staff-kitchen-muted">Dùng khi luồng gọi món đã chuyển đúng đơn sang màn bếp.</p>
-                <Button
-                  type="primary"
-                  onClick={() => dispatchMutation.mutate()}
-                  disabled={!journey.orderId || journey.orderRowVersion === undefined || !isOnline}
-                  loading={dispatchMutation.isPending}
-                >
-                  Gửi đơn xuống bếp
-                </Button>
+                {changesQuery.isLoading ? (
+                  <InlineLoading tip="Đang đọc thay đổi trong bếp..." />
+                ) : changesQuery.error ? (
+                  <TransientFailureState
+                    title="Chưa đọc được đồng bộ bếp"
+                    description={formatApiError(changesQuery.error, 'Không thể đọc luồng thay đổi của bếp.')}
+                    primaryAction={<Button onClick={() => changesQuery.refetch()}>Tải lại</Button>}
+                  />
+                ) : (
+                  <div className="staff-kitchen-sync-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+                    <Metric label="Sự kiện" value={realtimeSummary.eventCount} />
+                    <Metric label="Chu kỳ giây" value={realtimeSummary.pollHintSeconds ?? 0} />
+                    <Metric label="Lệch dữ liệu" value={ticketSummary.drift} />
+                  </div>
+                )}
               </section>
-            ) : null}
-
-            <section className="staff-kitchen-subpanel" aria-label="Đồng bộ bếp">
-              <div className="staff-kitchen-section-head">
-                <div>
-                  <span className="staff-eyebrow">Đồng bộ</span>
-                  <h3>{showChangeFeed ? 'Đang theo dõi thay đổi' : 'Đã thu gọn'}</h3>
-                </div>
-                <StatusChip label={realtimeSummary.label} tone={realtimeSummary.tone} />
-              </div>
-              {!showChangeFeed ? (
-                <p className="staff-kitchen-muted">Mở phần đồng bộ khi cần kiểm tra tình trạng cập nhật dữ liệu bếp.</p>
-              ) : changesQuery.isLoading ? (
-                <InlineLoading tip="Đang đọc thay đổi trong bếp..." />
-              ) : changesQuery.error ? (
-                <TransientFailureState
-                  title="Chưa đọc được đồng bộ bếp"
-                  description={formatApiError(changesQuery.error, 'Không thể đọc luồng thay đổi của bếp.')}
-                  primaryAction={<Button onClick={() => changesQuery.refetch()}>Tải lại</Button>}
-                />
-              ) : (
-                <div className="staff-kitchen-sync-grid">
-                  <Metric label="Sự kiện" value={realtimeSummary.eventCount} />
-                  <Metric label="Chu kỳ giây" value={realtimeSummary.pollHintSeconds ?? 0} />
-                  <Metric label="Lệch dữ liệu" value={ticketSummary.drift} />
-                </div>
-              )}
-            </section>
-          </aside>
-        </div>
+            </div>
+          </Drawer>
+        </>
       )}
     </div>
   );

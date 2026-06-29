@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Button,
@@ -9,6 +9,7 @@ import {
   InputNumber,
   Space,
   Typography,
+  Table,
 } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -44,8 +45,9 @@ import {
 } from '../../../../domains/reservations/reservation-tables';
 import { orderTone } from '../../../../shared/status/status';
 import { translateUiCode } from '../../../../shared/utils/translation';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
+import { OrderMenuDrawer } from './OrderMenuDrawer';
+import { OrderItemDetailDrawer } from './OrderItemDetailDrawer';
 import { toast } from '../../../../shared/ui/feedback/toast';
 import {
   ApiStateBlock,
@@ -207,6 +209,8 @@ export function OrderWorkspacePage() {
   const [routeOrderRecoveryEnabled, setRouteOrderRecoveryEnabled] = useState(false);
   const [orderMutationFeedback, setOrderMutationFeedback] = useState<OrderMutationFeedback | null>(null);
   const [editItemForm] = Form.useForm<EditItemValues>();
+  const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
+  const [itemDetailDrawerOpen, setItemDetailDrawerOpen] = useState(false);
 
   const routeTableIds = useMemo(() => journey.tableIds ?? [], [journey.tableIds]);
   const tableId = journey.tableId ?? routeTableIds[0] ?? null;
@@ -389,6 +393,7 @@ export function OrderWorkspacePage() {
 
     if (!selectedItemId || !orderItems.some((item) => item.order_item_id === selectedItemId)) {
       setSelectedItemId(orderItems[0]?.order_item_id ?? null);
+      if (orderItems[0]?.order_item_id) setItemDetailDrawerOpen(true);
     }
   }, [orderItems, selectedItemId]);
 
@@ -844,29 +849,63 @@ export function OrderWorkspacePage() {
     />
   ) : null;
 
+  
   const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-order-workspace-main">
-      <PageHeader
-        className="staff-order-page-header"
-        eyebrow="Vòng đời đơn hàng"
-        title="Workspace đơn hàng đang phục vụ"
-        description="Giữ ngữ cảnh bàn, đơn và dòng món trong cùng một nhịp thao tác để thêm món, sửa món và chuyển bếp nhanh hơn."
-        extra={
-          <>
-            <Button onClick={() => orderDetailQuery.refetch()} disabled={!resolvedOrderId} loading={orderDetailQuery.isFetching}>
-              Làm mới đơn hàng
+    <div className="staff-workspace-fluid staff-workspace-flex-column" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Đơn hàng {resolvedOrderId ? `#${resolvedOrderId}` : ''}</Typography.Title>
+          <span className="staff-eyebrow">
+            {reservationTableLabel ?? 'Chọn bàn'}
+          </span>
+          <span className="staff-eyebrow">
+            {isSnapshotOnlyGuest ? (
+              <span className="staff-snapshot-label">{RESERVATION_SNAPSHOT_GUEST_LABEL} </span>
+            ) : null}
+            {customerLabel}
+          </span>
+          {resolvedOrderId && orderDetailQuery.data?.data.order.status ? (
+            <StatusChip label={orderDetailQuery.data.data.order.status} tone={orderTone(orderDetailQuery.data.data.order.status)} />
+          ) : null}
+          {resolvedOrderId && orderDetailQuery.data?.data.order.payment_status ? (
+            <StatusChip label={orderDetailQuery.data.data.order.payment_status} tone={orderTone(orderDetailQuery.data.data.order.payment_status)} />
+          ) : null}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Button onClick={() => orderDetailQuery.refetch()} disabled={!resolvedOrderId} loading={orderDetailQuery.isFetching}>
+            Làm mới
+          </Button>
+          {resolvedOrderId ? (
+            <Button type="primary" onClick={() => setMenuDrawerOpen(true)}>
+              Thêm món
             </Button>
-            <Button
-              type="primary"
-              onClick={handleDispatch}
-              disabled={!resolvedOrderId || resolvedOrderRowVersion === null || resolvedOrderRowVersion === undefined}
-              loading={dispatchMutation.isPending}
-            >
-              Chuyển sang bếp
-            </Button>
-          </>
-        }
-      />
+          ) : null}
+          <Button
+            type="default"
+            onClick={handleDispatch}
+            disabled={!resolvedOrderId || resolvedOrderRowVersion === null || resolvedOrderRowVersion === undefined}
+            loading={dispatchMutation.isPending}
+          >
+            Chuyển sang bếp
+          </Button>
+          <Button
+            disabled={!resolvedOrderId}
+            onClick={() =>
+              navigate(`${staffRoutePaths.ops.checkout}?${buildJourneySearch({
+                source: 'order',
+                tableId: primaryTableId ?? undefined,
+                tableIds: resolvedTableIds,
+                reservationId: reservationId ?? undefined,
+                reservationRowVersion: reservationRowVersion ?? reservationDetailQuery.data?.data.row_version ?? undefined,
+                orderId: resolvedOrderId ?? undefined,
+                orderRowVersion: orderDetailQuery.data?.data.order.row_version ?? undefined,
+              })}`)
+            }
+          >
+            Thanh toán
+          </Button>
+        </div>
+      </div>
 
       {orderDetailQuery.isLoading || activeOrderByReservationQuery.isLoading ? (
         <InlineLoading tip="Đang xác định đơn hàng hiện tại..." />
@@ -959,37 +998,14 @@ export function OrderWorkspacePage() {
           </Space>
         </Card>
       ) : (
-        <Card title={`Đơn hàng #${resolvedOrderId}`} className="staff-order-current-card">
+        <Space orientation="vertical" size={16} style={{ width: '100%' }}>
           {!orderDetailQuery.data ? (
             <EmptyBlock
             title="Chưa có chi tiết đơn hàng"
             description="Đã xác định được đơn hàng nhưng phần đọc chi tiết vẫn chưa tải xong."
             />
           ) : (
-            <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Trạng thái">
-                  <StatusChip label={orderDetailQuery.data.data.order.status} tone={orderTone(orderDetailQuery.data.data.order.status)} />
-                </Descriptions.Item>
-                <Descriptions.Item label="Thanh toán">
-                  <StatusChip label={orderDetailQuery.data.data.order.payment_status ?? 'Pending'} tone={orderTone(orderDetailQuery.data.data.order.payment_status)} />
-                </Descriptions.Item>
-                <Descriptions.Item label="Đặt bàn">
-                  {orderDetailQuery.data.data.reservation?.reservation_code ?? 'Khách vãng lai'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Bàn">
-                  {reservationTableLabel}
-                </Descriptions.Item>
-                <Descriptions.Item label="Khách">
-                  <Space wrap size={8}>
-                    <Typography.Text>{customerLabel}</Typography.Text>
-                    {isSnapshotOnlyGuest ? (
-                      <StatusChip label={RESERVATION_SNAPSHOT_GUEST_LABEL} tone="processing" variant="freshness" />
-                    ) : null}
-                  </Space>
-                </Descriptions.Item>
-              </Descriptions>
-
+            <>
               {itemConcurrencyMissing ? (
                 <ConflictState
                   title="Chi tiết dòng món đang thiếu phiên bản mới nhất"
@@ -999,300 +1015,127 @@ export function OrderWorkspacePage() {
                 />
               ) : null}
 
-              <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-                <Typography.Text strong>Danh sách món</Typography.Text>
+              <Card bodyStyle={{ padding: 0 }} bordered={false} style={{ overflow: 'hidden' }}>
                 {orderDetailQuery.data.data.items.length === 0 ? (
                   <EmptyBlock
                     title="Chưa có dòng món nào"
-                    description="Thêm món từ cột bên phải để bắt đầu phục vụ cho đơn hàng hiện tại."
+                    description="Bấm 'Thêm món' để bắt đầu phục vụ cho đơn hàng hiện tại."
                   />
                 ) : (
-                  orderDetailQuery.data.data.items.map((item) => (
-                    <Card
-                      key={item.order_item_id}
-                      size="small"
-                      className={`staff-order-line-card ${item.order_item_id === selectedItemId ? 'staff-order-line-card-selected' : ''}`}
-                      extra={(
-                        <Space wrap size={8}>
-                          <StatusChip label={item.status} tone={orderTone(item.status)} />
-                          <Typography.Text strong>{formatMoney(item.line_total, item.currency)}</Typography.Text>
-                          <Button
-                            size="small"
-                            type={item.order_item_id === selectedItemId ? 'primary' : 'default'}
-                            onClick={() => setSelectedItemId(item.order_item_id)}
-                          >
-                            {item.order_item_id === selectedItemId ? 'Đang chọn' : 'Xem'}
-                          </Button>
-                        </Space>
-                      )}
-                    >
-                      <div className="staff-order-line-body">
-                        <div className="staff-order-line-copy">
-                          <Typography.Text strong>{getOrderLineName(item)}</Typography.Text>
+                  <Table
+                    rowKey="order_item_id"
+                    pagination={false}
+                    dataSource={orderDetailQuery.data.data.items}
+                    rowClassName={(entry: OrderLineItem) => (entry.order_item_id === selectedItemId ? 'staff-row-selected' : '')}
+                    onRow={(entry: OrderLineItem) => ({
+                      onClick: () => {
+                        setSelectedItemId(entry.order_item_id);
+                        setItemDetailDrawerOpen(true);
+                      },
+                    })}
+                    columns={[
+                      {
+                        title: 'Món',
+                        render: (_: any, item: OrderLineItem) => (
+                          <Space orientation="vertical" size={2}>
+                            <Typography.Text strong>{getOrderLineName(item)}</Typography.Text>
+                            {item.notes ? (
+                              <Typography.Text type="secondary">Ghi chú: {item.notes}</Typography.Text>
+                            ) : null}
+                          </Space>
+                        ),
+                      },
+                      {
+                        title: 'Số lượng',
+                        dataIndex: 'quantity',
+                        render: (quantity: any, item: OrderLineItem) => `${quantity} x ${formatMoney(item.unit_price, item.currency)}`,
+                      },
+                      {
+                        title: 'Thành tiền',
+                        dataIndex: 'line_total',
+                        render: (line_total: any, item: OrderLineItem) => <Typography.Text strong>{formatMoney(line_total, item.currency)}</Typography.Text>,
+                      },
+                      {
+                        title: 'Trạng thái',
+                        render: (_: any, item: OrderLineItem) => <StatusChip label={item.status} tone={orderTone(item.status)} />,
+                      },
+                      {
+                        title: 'Phiên bản',
+                        render: (_: any, item: OrderLineItem) => (
                           <Typography.Text type="secondary">
-                            {item.notes ? `Ghi chú: ${item.notes}` : 'Không có ghi chú bếp'}
+                            {item.row_version ? `v${item.row_version}` : 'Cần tải lại'}
                           </Typography.Text>
-                        </div>
-                        <div className="staff-order-line-meta">
-                          <span>{item.quantity} phần</span>
-                          <span>{formatMoney(item.unit_price, item.currency)} / phần</span>
-                          <span>{item.row_version ? `Cập nhật dòng v${item.row_version}` : 'Cần tải lại dòng'}</span>
-                        </div>
-                      </div>
-                    </Card>
-                  ))
+                        ),
+                      }
+                    ]}
+                  />
                 )}
-              </Space>
+              </Card>
 
-              <Descriptions bordered size="small" column={2}>
-                <Descriptions.Item label="Tạm tính">
-                  {formatMoney(orderDetailQuery.data.data.financial_summary.subtotal, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
-                </Descriptions.Item>
-                <Descriptions.Item label="Tổng cần thu">
-                  {formatMoney(orderDetailQuery.data.data.financial_summary.total_due, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
-                </Descriptions.Item>
-                <Descriptions.Item label="Đã thu">
-                  {formatMoney(orderDetailQuery.data.data.financial_summary.paid, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
-                </Descriptions.Item>
-                <Descriptions.Item label="Còn thiếu">
-                  {formatMoney(orderDetailQuery.data.data.financial_summary.outstanding, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
-                </Descriptions.Item>
-              </Descriptions>
-            </Space>
-          )}
-        </Card>
-      )}
-    </Space>
-  );
-
-  const side = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }} className="staff-order-workspace-side">
-      <Card title="Gọi món nhanh" className="staff-order-menu-panel">
-        <Space orientation="vertical" size={14} style={{ width: '100%' }}>
-          <div className="staff-order-menu-hint">
-            Chọn món trực tiếp từ danh sách. Dòng món chưa khóa sẽ được cộng số lượng nếu cùng món và cùng ghi chú bếp.
-          </div>
-          {paymentMergeLocked ? (
-            <div className="staff-order-menu-guard">
-              Đơn đã ghi nhận thanh toán. Món gọi thêm sẽ tách thành dòng mới để không lẫn phần đã thu.
-            </div>
-          ) : null}
-          <Input.Search
-            allowClear
-            placeholder="Tìm món"
-            value={menuSearch}
-            onChange={(event) => setMenuSearch(event.target.value)}
-            onSearch={setMenuSearch}
-          />
-          {menuCategorySummary.length > 0 ? (
-            <div className="staff-order-menu-category-row">
-              {menuCategorySummary.map((categoryName) => (
-                <span key={categoryName}>{categoryName}</span>
-              ))}
-            </div>
-          ) : null}
-          {menuQuery.isLoading ? <InlineLoading tip="Đang tải danh mục món..." /> : null}
-          {menuQuery.error ? (
-            <ApiStateBlock
-              error={menuQuery.error}
-              fallback="Không thể tải danh mục món cho nhân viên."
-              onRetry={() => {
-                void menuQuery.refetch();
-              }}
-            />
-          ) : null}
-          {!menuQuery.isLoading && !menuQuery.error && menuItems.length === 0 ? (
-            <EmptyBlock
-              title="Không tìm thấy món"
-              description="Thử đổi từ khóa hoặc kiểm tra danh mục món đang mở bán."
-            />
-          ) : null}
-          <div className="staff-order-menu-list">
-            {menuItems.map((item) => {
-              const draft = getMenuDraft(item.item_id);
-              const mergeTarget = findMergeableOrderLine(orderItems, item.item_id, draft.note, currentPaymentStatus);
-              const isAddingThisItem = addItemMutation.isPending && addItemMutation.variables?.menu_item_id === item.item_id;
-
-              return (
-                <div key={item.item_id} className={`staff-order-menu-item ${!item.is_available ? 'staff-order-menu-item-disabled' : ''}`}>
-                  <div className="staff-order-menu-thumb">
-                    {item.img_url ? <img src={item.img_url} alt={item.name} /> : <span>{getMenuInitial(item.name)}</span>}
-                  </div>
-                  <div className="staff-order-menu-copy">
-                    <div className="staff-order-menu-title-row">
-                      <Typography.Text strong>{item.name}</Typography.Text>
-                      <Typography.Text strong>{formatMoney(item.price.amount, item.price.currency ?? 'VND')}</Typography.Text>
-                    </div>
-                    <Typography.Text type="secondary">
-                      {item.category_name ?? item.code}
-                      {mergeTarget ? ` • đang có ${mergeTarget.quantity} phần chưa khóa` : ''}
+              <Card size="small">
+                <Descriptions bordered size="small" column={4}>
+                  <Descriptions.Item label="Tạm tính">
+                    {formatMoney(orderDetailQuery.data.data.financial_summary.subtotal, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Tổng cần thu">
+                    {formatMoney(orderDetailQuery.data.data.financial_summary.total_due, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Đã thu">
+                    {formatMoney(orderDetailQuery.data.data.financial_summary.paid, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Còn thiếu">
+                    <Typography.Text strong type="danger">
+                      {formatMoney(orderDetailQuery.data.data.financial_summary.outstanding, orderDetailQuery.data.data.financial_summary.currency ?? 'VND')}
                     </Typography.Text>
-                    {item.description ? (
-                      <Typography.Text type="secondary" className="staff-order-menu-description">
-                        {item.description}
-                      </Typography.Text>
-                    ) : null}
-                    {!item.is_available ? (
-                      <Typography.Text className="staff-order-menu-disabled-reason" type="secondary">
-                        Tạm ngừng nhận gọi món ở ca hiện tại.
-                      </Typography.Text>
-                    ) : null}
-                    <Input
-                      size="small"
-                      placeholder="Ghi chú bếp cho món này"
-                      value={draft.note}
-                      onChange={(event) => updateMenuDraft(item.item_id, { note: event.target.value })}
-                    />
-                  </div>
-                  <div className="staff-order-menu-actions">
-                    <InputNumber
-                      aria-label={`Số lượng ${item.name}`}
-                      min={1}
-                      max={30}
-                      value={draft.qty}
-                      onChange={(value) => updateMenuDraft(item.item_id, { qty: normalizeMenuQty(value) })}
-                    />
-                    <Button
-                      type={mergeTarget ? 'default' : 'primary'}
-                      disabled={!resolvedOrderId || !item.is_available}
-                      loading={isAddingThisItem}
-                      onClick={() => handleAddMenuItem(item)}
-                    >
-                      {mergeTarget ? 'Cộng số lượng' : 'Thêm món'}
-                    </Button>
-                    {!item.is_available ? <StatusChip label="Ngừng bán" tone="warning" variant="severity" /> : null}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </Space>
-      </Card>
-
-      <Card title="Dòng món đang chọn" className="staff-order-selected-item-card">
-        <Form<EditItemValues> layout="vertical" form={editItemForm} onFinish={handleUpdateItem}>
-          {!selectedItem ? (
-            <EmptyBlock
-              title="Chưa chọn dòng món"
-              description="Chọn một dòng món để sửa số lượng, ghi chú hoặc chuyển qua các bước của bếp và phục vụ."
-            />
-          ) : (
-            <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-              <Descriptions bordered size="small" column={1}>
-                <Descriptions.Item label="Dòng món">
-                  #{selectedItem.order_item_id}
-                </Descriptions.Item>
-                <Descriptions.Item label="Món">
-                  {selectedItem.item?.name ?? selectedItem.item_name_snapshot ?? `Món #${selectedItem.item_id}`}
-                </Descriptions.Item>
-                <Descriptions.Item label="Trạng thái">
-                  <StatusChip label={selectedItem.status} tone={orderTone(selectedItem.status)} />
-                </Descriptions.Item>
-                <Descriptions.Item label="Phiên bản đơn hàng">
-                  {orderDetailQuery.data?.data.order.row_version ?? 'Thiếu'}
-                </Descriptions.Item>
-                <Descriptions.Item label="Phiên bản dòng món">
-                  {selectedItem.row_version ?? 'Thiếu'}
-                </Descriptions.Item>
-              </Descriptions>
-
-              <Form.Item name="qty" label="Số lượng" rules={[{ required: true, message: 'Nhập số lượng món.' }]}>
-                <InputNumber min={1} max={30} style={{ width: '100%' }} disabled={!selectedItemEditable || itemConcurrencyMissing} />
-              </Form.Item>
-              <Form.Item name="note" label="Ghi chú">
-                <Input.TextArea rows={3} placeholder="Ghi chú cho bếp hoặc phục vụ" disabled={!selectedItemEditable || itemConcurrencyMissing} />
-              </Form.Item>
-              <Button
-                type="primary"
-                htmlType="submit"
-                block
-                disabled={!selectedItemEditable || itemConcurrencyMissing}
-                loading={updateItemMutation.isPending}
-              >
-                Lưu thay đổi dòng món
-              </Button>
-
-              <Space wrap>
-                {allowedStatusTransitions.length === 0 ? (
-                  <Typography.Text type="secondary">
-                    Dòng món này đã ở trạng thái cuối và không thể chuyển tiếp.
-                  </Typography.Text>
-                ) : (
-                  allowedStatusTransitions.map((status) => (
-                    <Button
-                      key={status}
-                      onClick={() => handleStatusTransition(status)}
-                      danger={status === 'Cancelled'}
-                      disabled={itemConcurrencyMissing}
-                      loading={updateItemStatusMutation.isPending}
-                    >
-                      Đánh dấu {translateUiCode(status)}
-                    </Button>
-                  ))
-                )}
-              </Space>
-            </Space>
+                  </Descriptions.Item>
+                </Descriptions>
+              </Card>
+            </>
           )}
-        </Form>
-      </Card>
-
-      <Card title="Bước chuyển tiếp tiếp theo" className="staff-order-next-step-card">
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-          <Typography.Text type="secondary">
-            Tiếp tục dùng ngữ cảnh từ route và store để nhân viên không phải nhập lại các ID.
-          </Typography.Text>
-          <Button
-            type="primary"
-            disabled={!resolvedOrderId}
-            onClick={() =>
-              navigate(`${staffRoutePaths.kitchen.landing}?${buildJourneySearch({
-                source: 'order',
-                tableId: primaryTableId ?? undefined,
-                tableIds: resolvedTableIds,
-                reservationId: reservationId ?? undefined,
-                reservationRowVersion: reservationRowVersion ?? reservationDetailQuery.data?.data.row_version ?? undefined,
-                orderId: resolvedOrderId ?? undefined,
-                orderRowVersion: orderDetailQuery.data?.data.order.row_version ?? undefined,
-              })}`)
-            }
-          >
-            Mở màn hình bếp
-          </Button>
-          <Button
-            disabled={!resolvedOrderId}
-            onClick={() =>
-              navigate(`${staffRoutePaths.ops.checkout}?${buildJourneySearch({
-                source: 'order',
-                tableId: primaryTableId ?? undefined,
-                tableIds: resolvedTableIds,
-                reservationId: reservationId ?? undefined,
-                reservationRowVersion: reservationRowVersion ?? reservationDetailQuery.data?.data.row_version ?? undefined,
-                orderId: resolvedOrderId ?? undefined,
-                orderRowVersion: orderDetailQuery.data?.data.order.row_version ?? undefined,
-              })}`)
-            }
-          >
-            Mở thanh toán
-          </Button>
-          <Button
-            onClick={() =>
-              navigate(`${staffRoutePaths.ops.tables}?${buildJourneySearch({
-                source: journey.source ?? 'order',
-                tableId: primaryTableId ?? undefined,
-                tableIds: resolvedTableIds,
-                reservationId: reservationId ?? undefined,
-                reservationRowVersion: reservationRowVersion ?? reservationDetailQuery.data?.data.row_version ?? undefined,
-                orderId: resolvedOrderId ?? undefined,
-                orderRowVersion: orderDetailQuery.data?.data.order.row_version ?? undefined,
-              })}`)
-            }
-          >
-            Quay lại sơ đồ bàn
-          </Button>
         </Space>
-      </Card>
-    </Space>
+      )}
+    </div>
   );
 
-  return <SplitWorkspace main={main} side={side} variant="detail-heavy" className="staff-order-split-workspace" />;
+  return (
+    <>
+      <div data-testid="order-workspace-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%' }}>
+        {main}
+      </div>
+      <OrderMenuDrawer
+        open={menuDrawerOpen}
+        onClose={() => setMenuDrawerOpen(false)}
+        menuSearch={menuSearch}
+        setMenuSearch={setMenuSearch}
+        menuCategorySummary={menuCategorySummary}
+        menuQuery={menuQuery}
+        menuItems={menuItems}
+        getMenuDraft={getMenuDraft as any}
+        updateMenuDraft={updateMenuDraft}
+        handleAddMenuItem={handleAddMenuItem}
+        findMergeableOrderLine={findMergeableOrderLine}
+        orderItems={orderItems}
+        currentPaymentStatus={currentPaymentStatus}
+        addItemMutationPending={addItemMutation.isPending}
+        addItemMutationVariables={addItemMutation.variables}
+        resolvedOrderId={resolvedOrderId}
+        paymentMergeLocked={paymentMergeLocked}
+      />
+      <OrderItemDetailDrawer
+        open={itemDetailDrawerOpen}
+        onClose={() => setItemDetailDrawerOpen(false)}
+        selectedItem={selectedItem}
+        editItemForm={editItemForm}
+        handleUpdateItem={handleUpdateItem}
+        selectedItemEditable={selectedItemEditable}
+        itemConcurrencyMissing={itemConcurrencyMissing}
+        updateItemMutationPending={updateItemMutation.isPending}
+        allowedStatusTransitions={allowedStatusTransitions}
+        handleStatusTransition={handleStatusTransition}
+        updateItemStatusMutationPending={updateItemStatusMutation.isPending}
+        orderRowVersion={orderDetailQuery.data?.data.order.row_version}
+      />
+    </>
+  );
+
 }

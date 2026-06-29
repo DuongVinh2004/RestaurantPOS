@@ -1,4 +1,4 @@
-import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography } from 'antd';
+import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography, Drawer, Tabs } from 'antd';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useFlowStore } from '../../../../app/store/flow-store';
@@ -36,8 +36,7 @@ import {
 } from '../../../../shared/api/staff-api';
 import { formatApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
@@ -84,6 +83,9 @@ export function AdminInventoryPage() {
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [recipeMenuItemId, setRecipeMenuItemId] = useState<number | null>(null);
   const [recipeMenuItemName, setRecipeMenuItemName] = useState<string>('');
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'ingredient' | 'po'>('ingredient');
+  const [activeTab, setActiveTab] = useState('ingredients');
 
   const ingredientsQuery = useQuery({
     queryKey: ['admin-inventory-ingredients', filters.ingredientQuery, filters.ingredientActiveOnly],
@@ -207,449 +209,479 @@ export function AdminInventoryPage() {
     },
   });
 
-  const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeader
-        eyebrow="Kho"
-        title="Kho và mua hàng"
-        description="Theo dõi nguyên liệu, nhà cung cấp và đơn mua hàng trong khu quản trị, tách khỏi màn vận hành ca."
-        context={(
-          <>
-            <StatusChip label={filters.branchIdInput || branchId ? `Chi nhánh #${filters.branchIdInput || branchId}` : 'Tất cả chi nhánh'} tone={filters.branchIdInput || branchId ? 'processing' : 'default'} />
-            <StatusChip label={`${purchaseOrderSummary.openCount} đơn mua đang mở`} tone={purchaseOrderSummary.openCount > 0 ? 'warning' : 'success'} />
-            <StatusChip label={`${ingredientSummary.zeroStockCount} nguyên liệu hết tồn`} tone={ingredientSummary.zeroStockCount > 0 ? 'warning' : 'default'} />
-          </>
-        )}
-      />
+  
+  return (
+    <div className="staff-workspace-fluid staff-workspace-flex-column" data-testid="admin-inventory-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <span className="staff-eyebrow" style={{ fontSize: '14px', fontWeight: 600 }}>Kho & Mua hàng</span>
+          <StatusChip label={filters.branchIdInput || branchId ? `Chi nhánh #${filters.branchIdInput || branchId}` : 'Tất cả chi nhánh'} tone={filters.branchIdInput || branchId ? 'processing' : 'default'} />
+          <StatusChip label={`${purchaseOrderSummary.openCount} đơn mua đang mở`} tone={purchaseOrderSummary.openCount > 0 ? 'warning' : 'success'} />
+          <StatusChip label={`${ingredientSummary.zeroStockCount} nguyên liệu hết tồn`} tone={ingredientSummary.zeroStockCount > 0 ? 'warning' : 'default'} />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Button onClick={() => { ingredientsQuery.refetch(); suppliersQuery.refetch(); purchaseOrdersQuery.refetch(); }}>Làm mới tất cả</Button>
+        </div>
+      </div>
 
-      <Card className="staff-workspace-filter-card" title="Lọc kho">
-        <Row gutter={[12, 12]}>
-          <Col xs={24} md={12}>
-            <Input
-              aria-label="Tìm nguyên liệu"
-              autoComplete="off"
-              placeholder="Tìm nguyên liệu"
-              value={filters.ingredientQuery}
-              onChange={(event) => setFilters((current) => ({ ...current, ingredientQuery: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={12}>
-            <label className="staff-admin-switch-row">
-              <span>Chỉ nguyên liệu đang dùng</span>
-              <Switch
-                checked={filters.ingredientActiveOnly}
-                onChange={(checked) => setFilters((current) => ({ ...current, ingredientActiveOnly: checked }))}
-              />
-            </label>
-          </Col>
-          <Col xs={24} md={12}>
-            <Input
-              aria-label="Tìm nhà cung cấp"
-              autoComplete="off"
-              placeholder="Tìm nhà cung cấp"
-              value={filters.supplierQuery}
-              onChange={(event) => setFilters((current) => ({ ...current, supplierQuery: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={12}>
-            <label className="staff-admin-switch-row">
-              <span>Chỉ nhà cung cấp đang dùng</span>
-              <Switch
-                checked={filters.supplierActiveOnly}
-                onChange={(checked) => setFilters((current) => ({ ...current, supplierActiveOnly: checked }))}
-              />
-            </label>
-          </Col>
-          <Col xs={24} md={8}>
-            <Input
-              aria-label="Tìm đơn mua hàng"
-              autoComplete="off"
-              placeholder="Tìm đơn mua hàng"
-              value={filters.purchaseOrderQuery}
-              onChange={(event) => setFilters((current) => ({ ...current, purchaseOrderQuery: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={8}>
-            <Input
-              aria-label="Mã chi nhánh của đơn mua"
-              autoComplete="off"
-              placeholder="Mã chi nhánh"
-              value={filters.branchIdInput}
-              onChange={(event) => setFilters((current) => ({ ...current, branchIdInput: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={8}>
-            <Select
-              aria-label="Trạng thái đơn mua"
-              style={{ width: '100%' }}
-              options={purchaseOrderStatusOptions}
-              value={filters.purchaseOrderStatus}
-              onChange={(value) => setFilters((current) => ({ ...current, purchaseOrderStatus: value }))}
-            />
-          </Col>
-        </Row>
-      </Card>
+      <div style={{ flex: 1, minHeight: 0, background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+        <Tabs
+          className="staff-workspace-tabs"
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key)}
+          style={{ height: '100%' }}
+          items={[
+            {
+              key: 'ingredients',
+              label: 'Nguyên liệu',
+              children: (
+                <div style={{ padding: '16px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} md={12}><Card className="staff-admin-summary-card"><Statistic title="Nguyên liệu hiển thị" value={ingredientSummary.displayedCount} /></Card></Col>
+                    <Col xs={24} md={12}><Card className="staff-admin-summary-card"><Statistic title="Liên kết công thức" value={ingredientSummary.recipeUsageCount} /></Card></Col>
+                  </Row>
 
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={8}>
-          <Card className="staff-admin-summary-card">
-            <Statistic title="Nguyên liệu" value={ingredientSummary.displayedCount} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card className="staff-admin-summary-card">
-            <Statistic title="Nhà cung cấp" value={supplierSummary.displayedCount} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card className="staff-admin-summary-card">
-            <Statistic title="Đơn mua hàng" value={purchaseOrderSummary.displayedCount} />
-          </Card>
-        </Col>
-      </Row>
+                  <Card className="staff-workspace-filter-card" title="Lọc nguyên liệu">
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} md={12}>
+                        <Input
+                          aria-label="Tìm nguyên liệu"
+                          autoComplete="off"
+                          placeholder="Tìm nguyên liệu"
+                          value={filters.ingredientQuery}
+                          onChange={(event) => setFilters((current) => ({ ...current, ingredientQuery: event.target.value }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <label className="staff-admin-switch-row">
+                          <span>Chỉ nguyên liệu đang dùng</span>
+                          <Switch
+                            checked={filters.ingredientActiveOnly}
+                            onChange={(checked) => setFilters((current) => ({ ...current, ingredientActiveOnly: checked }))}
+                          />
+                        </label>
+                      </Col>
+                    </Row>
+                  </Card>
 
-      <Card
-        className="staff-workspace-table-card"
-        title="Nguyên liệu"
-        extra={<Button type="primary" size="small" data-testid="inventory-ingredient-create-button" onClick={() => { setEditingIngredient(null); setIsIngredientModalOpen(true); }}>Tạo NL</Button>}
-      >
-        <QuerySurface
-          loading={ingredientsQuery.isLoading}
-          error={ingredientsQuery.error}
-          fallback="Chưa tải được danh sách nguyên liệu."
-          emptyTitle="Không có nguyên liệu phù hợp"
-          emptyDescription="Hãy đổi từ khóa hoặc bộ lọc hoạt động để xem nguyên liệu khác."
-          rows={ingredientRows}
-          renderRows={() => (
-            <div className="staff-admin-surface-list">
-              {ingredientRows.map((ingredient) => (
-                <button
-                  key={ingredient.ingredient_id}
-                  type="button"
-                  className={`staff-admin-branch-row ${ingredient.ingredient_id === selectedIngredientId ? 'staff-admin-branch-row-selected' : ''}`}
-                  onClick={() => setSelectedIngredientId(ingredient.ingredient_id)}
-                >
-                  <div>
-                    <strong>{ingredient.name}</strong>
-                    <Typography.Paragraph type="secondary">
-                      {ingredient.code ?? `Nguyên liệu #${ingredient.ingredient_id}`} / {ingredient.unit_code}
-                    </Typography.Paragraph>
-                    <Button type="link" size="small" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); setEditingIngredient(ingredient); setIsIngredientModalOpen(true); }}>Sửa</Button>
-                  </div>
-                  <Space wrap size={6}>
-                    <StatusChip label={ingredient.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={ingredient.is_active ? 'success' : 'warning'} />
-                    <StatusChip label={`${ingredient.recipe_usage_count} công thức`} tone="default" />
-                    <Button
-                      size="small"
-                      danger
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Bạn có chắc muốn ${ingredient.is_active ? 'tạm tắt' : 'mở lại'} nguyên liệu này?`)) {
-                          updateIngredientMutation.mutate({
-                            id: ingredient.ingredient_id,
-                            payload: { row_version: ingredient.row_version, is_active: !ingredient.is_active }
-                          });
-                        }
-                      }}
-                    >
-                      {ingredient.is_active ? 'Tạm tắt' : 'Mở lại'}
-                    </Button>
-                  </Space>
-                  <Typography.Text type="secondary">
-                    Tồn kho {formatInventoryQuantity(ingredient.stock.on_hand)} {ingredient.stock.unit_code}
-                  </Typography.Text>
-                </button>
-              ))}
-            </div>
-          )}
-          onRetry={() => void ingredientsQuery.refetch()}
+                  <Card
+                    className="staff-workspace-table-card"
+                    title="Nguyên liệu"
+                    extra={<Button type="primary" size="small" data-testid="inventory-ingredient-create-button" onClick={() => { setEditingIngredient(null); setIsIngredientModalOpen(true); }}>Tạo NL</Button>}
+                  >
+                    <QuerySurface
+                      loading={ingredientsQuery.isLoading}
+                      error={ingredientsQuery.error}
+                      fallback="Chưa tải được danh sách nguyên liệu."
+                      emptyTitle="Không có nguyên liệu phù hợp"
+                      emptyDescription="Hãy đổi từ khóa hoặc bộ lọc hoạt động để xem nguyên liệu khác."
+                      rows={ingredientRows}
+                      renderRows={() => (
+                        <div className="staff-admin-surface-list">
+                          {ingredientRows.map((ingredient) => (
+                            <button
+                              key={ingredient.ingredient_id}
+                              type="button"
+                              className={`staff-admin-branch-row ${ingredient.ingredient_id === selectedIngredientId && drawerMode === 'ingredient' ? 'staff-admin-branch-row-selected' : ''}`}
+                              onClick={() => { setSelectedIngredientId(ingredient.ingredient_id); setDrawerMode('ingredient'); setDetailDrawerOpen(true); }}
+                            >
+                              <div>
+                                <strong>{ingredient.name}</strong>
+                                <Typography.Paragraph type="secondary">
+                                  {ingredient.code ?? `Nguyên liệu #${ingredient.ingredient_id}`} / {ingredient.unit_code}
+                                </Typography.Paragraph>
+                                <Button type="link" size="small" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); setEditingIngredient(ingredient); setIsIngredientModalOpen(true); }}>Sửa</Button>
+                              </div>
+                              <Space wrap size={6}>
+                                <StatusChip label={ingredient.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={ingredient.is_active ? 'success' : 'warning'} />
+                                <StatusChip label={`${ingredient.recipe_usage_count} công thức`} tone="default" />
+                                <Button
+                                  size="small"
+                                  danger
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Bạn có chắc muốn ${ingredient.is_active ? 'tạm tắt' : 'mở lại'} nguyên liệu này?`)) {
+                                      updateIngredientMutation.mutate({
+                                        id: ingredient.ingredient_id,
+                                        payload: { row_version: ingredient.row_version, is_active: !ingredient.is_active }
+                                      });
+                                    }
+                                  }}
+                                >
+                                  {ingredient.is_active ? 'Tạm tắt' : 'Mở lại'}
+                                </Button>
+                              </Space>
+                              <Typography.Text type="secondary">
+                                Tồn kho {formatInventoryQuantity(ingredient.stock.on_hand)} {ingredient.stock.unit_code}
+                              </Typography.Text>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      onRetry={() => void ingredientsQuery.refetch()}
+                    />
+                  </Card>
+                </div>
+              )
+            },
+            {
+              key: 'suppliers',
+              label: 'Nhà cung cấp',
+              children: (
+                <div style={{ padding: '16px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} md={12}><Card className="staff-admin-summary-card"><Statistic title="Nhà cung cấp hiển thị" value={supplierSummary.displayedCount} /></Card></Col>
+                    <Col xs={24} md={12}><Card className="staff-admin-summary-card"><Statistic title="Có số điện thoại" value={supplierSummary.withPhoneCount} suffix={`/ ${supplierSummary.displayedCount}`} /></Card></Col>
+                  </Row>
+
+                  <Card className="staff-workspace-filter-card" title="Lọc nhà cung cấp">
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} md={12}>
+                        <Input
+                          aria-label="Tìm nhà cung cấp"
+                          autoComplete="off"
+                          placeholder="Tìm nhà cung cấp"
+                          value={filters.supplierQuery}
+                          onChange={(event) => setFilters((current) => ({ ...current, supplierQuery: event.target.value }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <label className="staff-admin-switch-row">
+                          <span>Chỉ nhà cung cấp đang dùng</span>
+                          <Switch
+                            checked={filters.supplierActiveOnly}
+                            onChange={(checked) => setFilters((current) => ({ ...current, supplierActiveOnly: checked }))}
+                          />
+                        </label>
+                      </Col>
+                    </Row>
+                  </Card>
+
+                  <Card
+                    className="staff-workspace-table-card"
+                    title="Nhà cung cấp"
+                    extra={<Button type="primary" size="small" data-testid="inventory-supplier-create-button" onClick={() => { setEditingSupplier(null); setIsSupplierModalOpen(true); }}>Tạo NCC</Button>}
+                  >
+                    <QuerySurface
+                      loading={suppliersQuery.isLoading}
+                      error={suppliersQuery.error}
+                      fallback="Chưa tải được danh sách nhà cung cấp."
+                      emptyTitle="Không có nhà cung cấp phù hợp"
+                      emptyDescription="Hãy đổi bộ lọc để xem nhóm nhà cung cấp khác."
+                      rows={supplierRows}
+                      renderRows={() => (
+                        <div className="staff-admin-surface-list">
+                          {supplierRows.map((supplier) => (
+                            <div key={supplier.supplier_id} className="staff-admin-surface-item">
+                              <div>
+                                <strong>{supplier.name}</strong>
+                                <Typography.Paragraph type="secondary">
+                                  {supplier.code ?? `Nhà cung cấp #${supplier.supplier_id}`} / {supplier.contact_name ?? 'Chưa có người liên hệ'}
+                                </Typography.Paragraph>
+                                <Button type="link" size="small" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); setEditingSupplier(supplier); setIsSupplierModalOpen(true); }}>Sửa</Button>
+                              </div>
+                              <Space wrap size={6}>
+                                <StatusChip label={supplier.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={supplier.is_active ? 'success' : 'warning'} />
+                                <Button
+                                  size="small"
+                                  danger
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Bạn có chắc muốn ${supplier.is_active ? 'tạm tắt' : 'mở lại'} nhà cung cấp này?`)) {
+                                      updateSupplierMutation.mutate({
+                                        id: supplier.supplier_id,
+                                        payload: { row_version: supplier.row_version, is_active: !supplier.is_active }
+                                      });
+                                    }
+                                  }}
+                                >
+                                  {supplier.is_active ? 'Tạm tắt' : 'Mở lại'}
+                                </Button>
+                              </Space>
+                              <Typography.Text type="secondary">
+                                {supplier.phone ?? 'Chưa có số điện thoại'} / {supplier.email ?? 'Chưa có email'}
+                              </Typography.Text>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      onRetry={() => void suppliersQuery.refetch()}
+                    />
+                  </Card>
+                </div>
+              )
+            },
+            {
+              key: 'purchase_orders',
+              label: 'Đơn mua hàng',
+              children: (
+                <div style={{ padding: '16px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} md={12}><Card className="staff-admin-summary-card"><Statistic title="Đơn mua hiển thị" value={purchaseOrderSummary.displayedCount} /></Card></Col>
+                    <Col xs={24} md={12}><Card className="staff-admin-summary-card"><Statistic title="Số lượng mua còn lại" value={purchaseOrderSummary.remainingQuantity} formatter={(value) => formatInventoryQuantity(Number(value ?? 0))} /></Card></Col>
+                  </Row>
+
+                  <Card className="staff-workspace-filter-card" title="Lọc đơn mua hàng">
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} md={8}>
+                        <Input
+                          aria-label="Tìm đơn mua hàng"
+                          autoComplete="off"
+                          placeholder="Tìm đơn mua hàng"
+                          value={filters.purchaseOrderQuery}
+                          onChange={(event) => setFilters((current) => ({ ...current, purchaseOrderQuery: event.target.value }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Input
+                          aria-label="Mã chi nhánh của đơn mua"
+                          autoComplete="off"
+                          placeholder="Mã chi nhánh"
+                          value={filters.branchIdInput}
+                          onChange={(event) => setFilters((current) => ({ ...current, branchIdInput: event.target.value }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Select
+                          aria-label="Trạng thái đơn mua"
+                          style={{ width: '100%' }}
+                          options={purchaseOrderStatusOptions}
+                          value={filters.purchaseOrderStatus}
+                          onChange={(value) => setFilters((current) => ({ ...current, purchaseOrderStatus: value }))}
+                        />
+                      </Col>
+                    </Row>
+                  </Card>
+
+                  <Card
+                    className="staff-workspace-table-card"
+                    title="Đơn mua hàng"
+                    extra={<Button type="primary" size="small" data-testid="inventory-po-create-button" onClick={() => setIsPOModalOpen(true)}>Tạo Đơn</Button>}
+                  >
+                    <QuerySurface
+                      loading={purchaseOrdersQuery.isLoading}
+                      error={purchaseOrdersQuery.error}
+                      fallback="Chưa tải được danh sách đơn mua hàng."
+                      emptyTitle="Không có đơn mua phù hợp"
+                      emptyDescription="Hãy đổi chi nhánh hoặc trạng thái để xem lịch nhận hàng khác."
+                      rows={purchaseOrderRows}
+                      renderRows={() => (
+                        <div className="staff-admin-surface-list">
+                          {purchaseOrderRows.map((purchaseOrder: any) => (
+                            <button
+                              key={purchaseOrder.purchase_order_id}
+                              type="button"
+                              className={`staff-admin-branch-row ${purchaseOrder.purchase_order_id === selectedPurchaseOrderId && drawerMode === 'po' ? 'staff-admin-branch-row-selected' : ''}`}
+                              onClick={() => { setSelectedPurchaseOrderId(purchaseOrder.purchase_order_id); setDrawerMode('po'); setDetailDrawerOpen(true); }}
+                            >
+                              <div>
+                                <strong>{purchaseOrder.order_code}</strong>
+                                <Typography.Paragraph type="secondary">
+                                  {purchaseOrder.supplier?.name ?? `Nhà cung cấp #${purchaseOrder.supplier_id}`} / {purchaseOrder.branch?.branch_code ?? `Chi nhánh #${purchaseOrder.branch_id}`}
+                                </Typography.Paragraph>
+                              </div>
+                              <Space wrap size={6}>
+                                <StatusChip label={adminPurchaseOrderStatusLabel(purchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(purchaseOrder.purchase_order_status)} />
+                                <StatusChip label={`${purchaseOrder.summary.receipt_count} phiếu nhận`} tone="default" />
+                                {purchaseOrder.purchase_order_status !== 'Received' && purchaseOrder.purchase_order_status !== 'Cancelled' && (
+                                  <Button
+                                    size="small"
+                                    danger
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      if (confirm('Bạn có chắc muốn hủy đơn mua hàng này?')) {
+                                        updatePurchaseOrderMutation.mutate({
+                                          id: purchaseOrder.purchase_order_id,
+                                          payload: { row_version: purchaseOrder.row_version, purchase_order_status: 'Cancelled' }
+                                        });
+                                      }
+                                    }}
+                                  >
+                                    Hủy đơn
+                                  </Button>
+                                )}
+                              </Space>
+                              <Typography.Text type="secondary">
+                                Còn lại {formatInventoryQuantity(purchaseOrder.summary.remaining_total_quantity)} / dự kiến {formatDateTime(purchaseOrder.expected_at ?? purchaseOrder.ordered_at ?? purchaseOrder.created_at)}
+                              </Typography.Text>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      onRetry={() => void purchaseOrdersQuery.refetch()}
+                    />
+                  </Card>
+                </div>
+              )
+            }
+          ]}
         />
-      </Card>
+      </div>
 
-      <Card
-        className="staff-workspace-table-card"
-        title="Nhà cung cấp"
-        extra={<Button type="primary" size="small" data-testid="inventory-supplier-create-button" onClick={() => { setEditingSupplier(null); setIsSupplierModalOpen(true); }}>Tạo NCC</Button>}
+      <Drawer
+        title={drawerMode === 'ingredient' ? "Lịch sử xuất nhập kho" : "Phiếu nhận hàng"}
+        placement="right"
+        width={500}
+        onClose={() => setDetailDrawerOpen(false)}
+        open={detailDrawerOpen}
+        destroyOnClose={false}
       >
-        <QuerySurface
-          loading={suppliersQuery.isLoading}
-          error={suppliersQuery.error}
-          fallback="Chưa tải được danh sách nhà cung cấp."
-          emptyTitle="Không có nhà cung cấp phù hợp"
-          emptyDescription="Hãy đổi bộ lọc để xem nhóm nhà cung cấp khác."
-          rows={supplierRows}
-          renderRows={() => (
-            <div className="staff-admin-surface-list">
-              {supplierRows.map((supplier) => (
-                <div key={supplier.supplier_id} className="staff-admin-surface-item">
-                  <div>
-                    <strong>{supplier.name}</strong>
-                    <Typography.Paragraph type="secondary">
-                      {supplier.code ?? `Nhà cung cấp #${supplier.supplier_id}`} / {supplier.contact_name ?? 'Chưa có người liên hệ'}
-                    </Typography.Paragraph>
-                    <Button type="link" size="small" style={{ padding: 0 }} onClick={(e) => { e.stopPropagation(); setEditingSupplier(supplier); setIsSupplierModalOpen(true); }}>Sửa</Button>
-                  </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {drawerMode === 'ingredient' && (
+            <Card className="staff-workspace-detail-card">
+              {!selectedIngredient ? (
+                <EmptyBlock title="Chưa chọn nguyên liệu" description="Chọn một nguyên liệu để xem lịch sử xuất nhập, điều chỉnh thủ công hoặc hao hụt." />
+              ) : (
+                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
                   <Space wrap size={6}>
-                    <StatusChip label={supplier.is_active ? 'Đang dùng' : 'Tạm tắt'} tone={supplier.is_active ? 'success' : 'warning'} />
-                    <Button
-                      size="small"
-                      danger
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Bạn có chắc muốn ${supplier.is_active ? 'tạm tắt' : 'mở lại'} nhà cung cấp này?`)) {
-                          updateSupplierMutation.mutate({
-                            id: supplier.supplier_id,
-                            payload: { row_version: supplier.row_version, is_active: !supplier.is_active }
-                          });
-                        }
-                      }}
-                    >
-                      {supplier.is_active ? 'Tạm tắt' : 'Mở lại'}
-                    </Button>
+                    <StatusChip label={selectedIngredient.name} tone="processing" />
+                    <StatusChip label={`${movementSummary.displayedCount} lần ghi nhận`} tone="default" />
+                    <StatusChip label={`${movementSummary.auditedCount} có người thao tác`} tone="success" />
                   </Space>
-                  <Typography.Text type="secondary">
-                    {supplier.phone ?? 'Chưa có số điện thoại'} / {supplier.email ?? 'Chưa có email'}
-                  </Typography.Text>
+                  {ingredientMovementsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử xuất nhập kho..." /> : null}
+                  {ingredientMovementsQuery.error ? (
+                    <ApiStateBlock
+                      error={ingredientMovementsQuery.error}
+                      fallback="Chưa tải được lịch sử xuất nhập kho."
+                      onRetry={() => void ingredientMovementsQuery.refetch()}
+                    />
+                  ) : null}
+                  {movementRows.length > 0 ? (
+                    <div className="staff-admin-detail-list">
+                      {movementRows.map((movement) => (
+                        <div key={movement.movement_id} className="staff-admin-detail-item">
+                          <strong>{inventoryMovementTypeLabel(movement.movement_type)}</strong>
+                          <span>
+                            {formatInventoryQuantity(movement.quantity_delta)} {movement.unit_code} / {formatDateTime(movement.created_at)}
+                          </span>
+                          <StatusChip label={movement.created_by ? `Người thao tác #${movement.created_by}` : 'Chưa rõ người thao tác'} tone={movement.created_by ? 'success' : 'warning'} />
+                        </div>
+                      ))}
+                    </div>
+                  ) : !ingredientMovementsQuery.isLoading && !ingredientMovementsQuery.error ? (
+                    <EmptyBlock title="Chưa có lịch sử xuất nhập" description="Không có ghi nhận nào trong phạm vi chi nhánh hiện tại." />
+                  ) : null}
+
+                  <Select
+                    aria-label="Loại xuất nhập kho"
+                    style={{ width: '100%' }}
+                    options={[...inventoryMovementTypeOptions]}
+                    value={movementForm.movementType}
+                    onChange={(value) => setMovementForm((current) => ({ ...current, movementType: value }))}
+                  />
+                  <InputNumber
+                    aria-label="Số lượng xuất nhập kho"
+                    style={{ width: '100%' }}
+                    min={0}
+                    value={movementForm.quantity === '' ? null : Number(movementForm.quantity)}
+                    placeholder={`Số lượng (${selectedIngredient.unit_code})`}
+                    onChange={(value) => setMovementForm((current) => ({ ...current, quantity: value === null ? '' : String(value) }))}
+                  />
+                  <Input
+                    aria-label="Ghi chú xuất nhập kho"
+                    autoComplete="off"
+                    value={movementForm.notes}
+                    placeholder="Ghi chú điều chỉnh"
+                    onChange={(event) => setMovementForm((current) => ({ ...current, notes: event.target.value }))}
+                  />
+                  <Space wrap>
+                    <Button
+                      type="primary"
+                      onClick={() => createMovementMutation.mutate()}
+                      loading={createMovementMutation.isPending}
+                      disabled={createMovementMutation.isPending}
+                    >
+                      Ghi nhận xuất nhập
+                    </Button>
+                    <StatusChip label={inventoryMovementTypeLabel(movementForm.movementType)} tone={inventoryMovementTone(movementForm.movementType)} />
+                  </Space>
+                  {createMovementMutation.error ? (
+                    <Typography.Text type="danger">
+                      {formatApiError(createMovementMutation.error, 'Chưa ghi nhận được xuất nhập kho.')}
+                    </Typography.Text>
+                  ) : null}
+                </Space>
+              )}
+            </Card>
+          )}
+
+          {drawerMode === 'po' && (
+            <Card
+              className="staff-workspace-detail-card"
+              extra={
+                selectedPurchaseOrder &&
+                !['Received', 'Cancelled'].includes(selectedPurchaseOrder.purchase_order_status) ? (
+                  <Button
+                    type="primary"
+                    size="small"
+                    data-testid="inventory-receipt-create-button"
+                    onClick={() => setIsReceiptModalOpen(true)}
+                  >
+                    Tạo phiếu nhận
+                  </Button>
+                ) : null
+              }
+            >
+              {!selectedPurchaseOrder ? (
+                <EmptyBlock title="Chưa chọn đơn mua" description="Chọn một đơn mua hàng để xem lịch sử nhận hàng từ backend." />
+              ) : (
+                <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+                  <Space wrap size={6}>
+                    <StatusChip label={selectedPurchaseOrder.order_code} tone="processing" />
+                    <StatusChip label={adminPurchaseOrderStatusLabel(selectedPurchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(selectedPurchaseOrder.purchase_order_status)} />
+                    <StatusChip label={`${receiptSummary.displayedCount} phiếu nhận`} tone="default" />
+                    <StatusChip
+                      label={`Tồn: ${formatInventoryQuantity(receiptSummary.receivedQuantity)}`}
+                      tone="success"
+                      data-testid="inventory-stock-on-hand-value"
+                    />
+                  </Space>
+                  {purchaseOrderReceiptsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử nhận hàng..." /> : null}
+                  {purchaseOrderReceiptsQuery.error ? (
+                    <ApiStateBlock
+                      error={purchaseOrderReceiptsQuery.error}
+                      fallback="Chưa tải được phiếu nhận hàng."
+                      onRetry={() => void purchaseOrderReceiptsQuery.refetch()}
+                    />
+                  ) : null}
+                  {receiptRows.length > 0 ? (
+                    <div className="staff-admin-detail-list">
+                      {receiptRows.map((receipt) => (
+                        <div key={receipt.receipt_id} className="staff-admin-detail-item" data-testid="inventory-stock-movement-row">
+                          <strong>{receipt.receipt_code}</strong>
+                          <span>
+                            {inventoryReceiptStatusLabel(receipt.receipt_status)} / {formatInventoryQuantity(receipt.summary.received_total_quantity)} đã nhận / {formatDateTime(receipt.received_at ?? receipt.created_at)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : !purchaseOrderReceiptsQuery.isLoading && !purchaseOrderReceiptsQuery.error ? (
+                    <EmptyBlock title="Chưa có phiếu nhận" description="Nhấn 'Tạo phiếu nhận' để ghi nhận hàng vào kho." />
+                  ) : null}
+                </Space>
+              )}
+            </Card>
+          )}
+
+          <Card className="staff-workspace-detail-card" title="Ghi chú khu vực kho">
+            <div className="staff-admin-note-list">
+              {adminInventoryLaneNotes.map((note) => (
+                <div key={note} className="staff-admin-note-item">
+                  <span />
+                  <Typography.Text>{note}</Typography.Text>
                 </div>
               ))}
             </div>
-          )}
-          onRetry={() => void suppliersQuery.refetch()}
-        />
-      </Card>
-
-      <Card
-        className="staff-workspace-table-card"
-        title="Đơn mua hàng"
-        extra={<Button type="primary" size="small" data-testid="inventory-po-create-button" onClick={() => setIsPOModalOpen(true)}>Tạo Đơn</Button>}
-      >
-        <QuerySurface
-          loading={purchaseOrdersQuery.isLoading}
-          error={purchaseOrdersQuery.error}
-          fallback="Chưa tải được danh sách đơn mua hàng."
-          emptyTitle="Không có đơn mua phù hợp"
-          emptyDescription="Hãy đổi chi nhánh hoặc trạng thái để xem lịch nhận hàng khác."
-          rows={purchaseOrderRows}
-          renderRows={() => (
-            <div className="staff-admin-surface-list">
-              {purchaseOrderRows.map((purchaseOrder: any) => (
-                <button
-                  key={purchaseOrder.purchase_order_id}
-                  type="button"
-                  className={`staff-admin-branch-row ${purchaseOrder.purchase_order_id === selectedPurchaseOrderId ? 'staff-admin-branch-row-selected' : ''}`}
-                  onClick={() => setSelectedPurchaseOrderId(purchaseOrder.purchase_order_id)}
-                >
-                  <div>
-                    <strong>{purchaseOrder.order_code}</strong>
-                    <Typography.Paragraph type="secondary">
-                      {purchaseOrder.supplier?.name ?? `Nhà cung cấp #${purchaseOrder.supplier_id}`} / {purchaseOrder.branch?.branch_code ?? `Chi nhánh #${purchaseOrder.branch_id}`}
-                    </Typography.Paragraph>
-                  </div>
-                  <Space wrap size={6}>
-                    <StatusChip label={adminPurchaseOrderStatusLabel(purchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(purchaseOrder.purchase_order_status)} />
-                    <StatusChip label={`${purchaseOrder.summary.receipt_count} phiếu nhận`} tone="default" />
-                    {purchaseOrder.purchase_order_status !== 'Received' && purchaseOrder.purchase_order_status !== 'Cancelled' && (
-                      <Button
-                        size="small"
-                        danger
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (confirm('Bạn có chắc muốn hủy đơn mua hàng này?')) {
-                            updatePurchaseOrderMutation.mutate({
-                              id: purchaseOrder.purchase_order_id,
-                              payload: { row_version: purchaseOrder.row_version, purchase_order_status: 'Cancelled' }
-                            });
-                          }
-                        }}
-                      >
-                        Hủy đơn
-                      </Button>
-                    )}
-                  </Space>
-                  <Typography.Text type="secondary">
-                    Còn lại {formatInventoryQuantity(purchaseOrder.summary.remaining_total_quantity)} / dự kiến {formatDateTime(purchaseOrder.expected_at ?? purchaseOrder.ordered_at ?? purchaseOrder.created_at)}
-                  </Typography.Text>
-                </button>
-              ))}
-            </div>
-          )}
-          onRetry={() => void purchaseOrdersQuery.refetch()}
-        />
-      </Card>
-    </Space>
-  );
-
-  const side = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="staff-workspace-detail-card" title="Tổng quan kho">
-        <Row gutter={[12, 12]}>
-          <Col span={24}>
-            <Statistic title="Nguyên liệu hết tồn" value={ingredientSummary.zeroStockCount} />
-          </Col>
-          <Col span={24}>
-            <Statistic title="Liên kết công thức" value={ingredientSummary.recipeUsageCount} />
-          </Col>
-          <Col span={24}>
-            <Statistic title="Nhà cung cấp có số ĐT" value={supplierSummary.withPhoneCount} suffix={`/ ${supplierSummary.displayedCount}`} />
-          </Col>
-          <Col span={24}>
-            <Statistic title="Số lượng mua còn lại" value={purchaseOrderSummary.remainingQuantity} formatter={(value) => formatInventoryQuantity(Number(value ?? 0))} />
-          </Col>
-        </Row>
-      </Card>
-
-      <Card className="staff-workspace-detail-card" title="Lịch sử xuất nhập kho">
-        {!selectedIngredient ? (
-          <EmptyBlock title="Chưa chọn nguyên liệu" description="Chọn một nguyên liệu để xem lịch sử xuất nhập, điều chỉnh thủ công hoặc hao hụt." />
-        ) : (
-          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-            <Space wrap size={6}>
-              <StatusChip label={selectedIngredient.name} tone="processing" />
-              <StatusChip label={`${movementSummary.displayedCount} lần ghi nhận`} tone="default" />
-              <StatusChip label={`${movementSummary.auditedCount} có người thao tác`} tone="success" />
-            </Space>
-            {ingredientMovementsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử xuất nhập kho..." /> : null}
-            {ingredientMovementsQuery.error ? (
-              <ApiStateBlock
-                error={ingredientMovementsQuery.error}
-                fallback="Chưa tải được lịch sử xuất nhập kho."
-                onRetry={() => void ingredientMovementsQuery.refetch()}
-              />
-            ) : null}
-            {movementRows.length > 0 ? (
-              <div className="staff-admin-detail-list">
-                {movementRows.map((movement) => (
-                  <div key={movement.movement_id} className="staff-admin-detail-item">
-                    <strong>{inventoryMovementTypeLabel(movement.movement_type)}</strong>
-                    <span>
-                      {formatInventoryQuantity(movement.quantity_delta)} {movement.unit_code} / {formatDateTime(movement.created_at)}
-                    </span>
-                    <StatusChip label={movement.created_by ? `Người thao tác #${movement.created_by}` : 'Chưa rõ người thao tác'} tone={movement.created_by ? 'success' : 'warning'} />
-                  </div>
-                ))}
-              </div>
-            ) : !ingredientMovementsQuery.isLoading && !ingredientMovementsQuery.error ? (
-              <EmptyBlock title="Chưa có lịch sử xuất nhập" description="Không có ghi nhận nào trong phạm vi chi nhánh hiện tại." />
-            ) : null}
-
-            <Select
-              aria-label="Loại xuất nhập kho"
-              style={{ width: '100%' }}
-              options={[...inventoryMovementTypeOptions]}
-              value={movementForm.movementType}
-              onChange={(value) => setMovementForm((current) => ({ ...current, movementType: value }))}
-            />
-            <InputNumber
-              aria-label="Số lượng xuất nhập kho"
-              style={{ width: '100%' }}
-              min={0}
-              value={movementForm.quantity === '' ? null : Number(movementForm.quantity)}
-              placeholder={`Số lượng (${selectedIngredient.unit_code})`}
-              onChange={(value) => setMovementForm((current) => ({ ...current, quantity: value === null ? '' : String(value) }))}
-            />
-            <Input
-              aria-label="Ghi chú xuất nhập kho"
-              autoComplete="off"
-              value={movementForm.notes}
-              placeholder="Ghi chú điều chỉnh"
-              onChange={(event) => setMovementForm((current) => ({ ...current, notes: event.target.value }))}
-            />
-            <Space wrap>
-              <Button
-                type="primary"
-                onClick={() => createMovementMutation.mutate()}
-                loading={createMovementMutation.isPending}
-                disabled={createMovementMutation.isPending}
-              >
-                Ghi nhận xuất nhập
-              </Button>
-              <StatusChip label={inventoryMovementTypeLabel(movementForm.movementType)} tone={inventoryMovementTone(movementForm.movementType)} />
-            </Space>
-            {createMovementMutation.error ? (
-              <Typography.Text type="danger">
-                {formatApiError(createMovementMutation.error, 'Chưa ghi nhận được xuất nhập kho.')}
-              </Typography.Text>
-            ) : null}
-          </Space>
-        )}
-      </Card>
-
-      <Card
-        className="staff-workspace-detail-card"
-        title="Phiếu nhận hàng"
-        extra={
-          selectedPurchaseOrder &&
-          !['Received', 'Cancelled'].includes(selectedPurchaseOrder.purchase_order_status) ? (
-            <Button
-              type="primary"
-              size="small"
-              data-testid="inventory-receipt-create-button"
-              onClick={() => setIsReceiptModalOpen(true)}
-            >
-              Tạo phiếu nhận
-            </Button>
-          ) : null
-        }
-      >
-        {!selectedPurchaseOrder ? (
-          <EmptyBlock title="Chưa chọn đơn mua" description="Chọn một đơn mua hàng để xem lịch sử nhận hàng từ backend." />
-        ) : (
-          <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-            <Space wrap size={6}>
-              <StatusChip label={selectedPurchaseOrder.order_code} tone="processing" />
-              <StatusChip label={adminPurchaseOrderStatusLabel(selectedPurchaseOrder.purchase_order_status)} tone={adminPurchaseOrderTone(selectedPurchaseOrder.purchase_order_status)} />
-              <StatusChip label={`${receiptSummary.displayedCount} phiếu nhận`} tone="default" />
-              <StatusChip
-                label={`Tồn: ${formatInventoryQuantity(receiptSummary.receivedQuantity)}`}
-                tone="success"
-                data-testid="inventory-stock-on-hand-value"
-              />
-            </Space>
-            {purchaseOrderReceiptsQuery.isLoading ? <InlineLoading tip="Đang tải lịch sử nhận hàng..." /> : null}
-            {purchaseOrderReceiptsQuery.error ? (
-              <ApiStateBlock
-                error={purchaseOrderReceiptsQuery.error}
-                fallback="Chưa tải được phiếu nhận hàng."
-                onRetry={() => void purchaseOrderReceiptsQuery.refetch()}
-              />
-            ) : null}
-            {receiptRows.length > 0 ? (
-              <div className="staff-admin-detail-list">
-                {receiptRows.map((receipt) => (
-                  <div key={receipt.receipt_id} className="staff-admin-detail-item" data-testid="inventory-stock-movement-row">
-                    <strong>{receipt.receipt_code}</strong>
-                    <span>
-                      {inventoryReceiptStatusLabel(receipt.receipt_status)} / {formatInventoryQuantity(receipt.summary.received_total_quantity)} đã nhận / {formatDateTime(receipt.received_at ?? receipt.created_at)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : !purchaseOrderReceiptsQuery.isLoading && !purchaseOrderReceiptsQuery.error ? (
-              <EmptyBlock title="Chưa có phiếu nhận" description="Nhấn 'Tạo phiếu nhận' để ghi nhận hàng vào kho." />
-            ) : null}
-          </Space>
-        )}
-      </Card>
-
-      <Card className="staff-workspace-detail-card" title="Ghi chú khu vực kho">
-        <div className="staff-admin-note-list">
-          {adminInventoryLaneNotes.map((note) => (
-            <div key={note} className="staff-admin-note-item">
-              <span />
-              <Typography.Text>{note}</Typography.Text>
-            </div>
-          ))}
+          </Card>
         </div>
-      </Card>
-    </Space>
-  );
-
-  const poDetailLines = (purchaseOrderDetailQuery.data as any)?.data?.lines ?? [];
-
-  return (
-    <>
-      <SplitWorkspace main={main} side={side} />
-      <IngredientModal open={isIngredientModalOpen} onClose={() => setIsIngredientModalOpen(false)} editingIngredient={editingIngredient} />
+      </Drawer>
+      {(() => {
+        const poDetailLines = (purchaseOrderDetailQuery.data as any)?.data?.lines ?? [];
+        return (
+          <>
+            <IngredientModal open={isIngredientModalOpen} onClose={() => setIsIngredientModalOpen(false)} editingIngredient={editingIngredient} />
       <SupplierModal open={isSupplierModalOpen} onClose={() => setIsSupplierModalOpen(false)} editingSupplier={editingSupplier} />
       <PurchaseOrderModal open={isPOModalOpen} onClose={() => setIsPOModalOpen(false)} suppliers={supplierRows as any} ingredients={ingredientRows as any} />
       <PurchaseReceiptModal
@@ -666,7 +698,10 @@ export function AdminInventoryPage() {
         menuItemName={recipeMenuItemName}
         ingredients={ingredientRows as any}
       />
-    </>
+          </>
+        );
+      })()}
+    </div>
   );
 }
 

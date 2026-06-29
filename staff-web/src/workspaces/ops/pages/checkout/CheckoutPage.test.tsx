@@ -119,7 +119,7 @@ describe('CheckoutPage', () => {
       },
     });
 
-    const { queryClient } = renderWithProviders(`${staffRoutePaths.ops.checkout}?source=order&reservation_id=34&reservation_row_version=5&table_ids=12,14&order_id=56&order_row_version=10`);
+    const { queryClient } = renderWithProviders(`${staffRoutePaths.ops.refunds}?source=order&reservation_id=34&reservation_row_version=5&table_ids=12,14&order_id=56&order_row_version=10`);
     const invalidateQueriesSpy = vi.spyOn(queryClient, 'invalidateQueries');
 
     fireEvent.click(await screen.findByRole('button', { name: /Làm mới preview hoàn tiền/i }));
@@ -179,7 +179,7 @@ describe('CheckoutPage', () => {
       },
     });
 
-    renderWithProviders(`${staffRoutePaths.ops.checkout}?source=order&reservation_id=34&reservation_row_version=5&table_ids=12,14&order_id=56&order_row_version=10`);
+    renderWithProviders(`${staffRoutePaths.ops.refunds}?source=order&reservation_id=34&reservation_row_version=5&table_ids=12,14&order_id=56&order_row_version=10`);
 
     fireEvent.click(await screen.findByRole('button', { name: /Làm mới preview hoàn tiền/i }));
     await waitFor(() => expect(apiMocks.getRefundPreview).toHaveBeenCalledTimes(1));
@@ -258,7 +258,7 @@ describe('CheckoutPage', () => {
 
     await waitFor(() => expect(apiMocks.getCurrentCashierShift).toHaveBeenCalledWith(7));
     expect(await screen.findByRole('button', { name: 'Hoàn tất thanh toán' })).toBeDisabled();
-    expect(screen.getByText(/Chi nhánh hiện tại chưa có ca thu ngân đang mở/i)).toBeInTheDocument();
+    expect(screen.getByText(/Chi nhánh hiện tại còn bị chặn bởi ca thu ngân/i)).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: 'Mở trung tâm ca thu ngân' }).length).toBeGreaterThan(0);
   });
 

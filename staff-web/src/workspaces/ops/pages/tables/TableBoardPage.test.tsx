@@ -191,9 +191,9 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables');
 
-    const card = await screen.findByRole('button', { name: /Bàn 1/i });
+    const card = await screen.findByRole('button', { name: /S1/i });
 
-    expect(within(card).getAllByText('Trống')).toHaveLength(2);
+    expect(within(card).getAllByText('Trống')).toHaveLength(1);
     expect(within(card).queryByText('Gợi ý')).not.toBeInTheDocument();
     expect(within(card).getByText('Khu B')).toBeInTheDocument();
     expect(within(card).queryByText('Tiếp theo')).not.toBeInTheDocument();
@@ -317,8 +317,8 @@ describe('TableBoardPage', () => {
 
     renderWithProviders('/ops/tables?source=board&table_id=21');
 
-    const selectedCard = await screen.findByRole('button', { name: /Bàn 1/i });
-    const reservedCard = await screen.findByRole('button', { name: /Bàn 2/i });
+    const selectedCard = await screen.findByRole('button', { name: /M1/i });
+    const reservedCard = await screen.findByRole('button', { name: /M2/i });
 
     expect(within(selectedCard).getByText('Xếp bàn')).toBeInTheDocument();
     expect(within(selectedCard).queryByText('Đang mở chi tiết')).not.toBeInTheDocument();

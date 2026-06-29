@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Form, Input, Select, Space, Table, Typography, message } from 'antd';
+import { Button, Card, Form, Input, Select, Space, Table, Typography, message, Segmented } from 'antd';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReservationEnvelope, StaffReservationLookupEntry } from '../../../../shared/api/sdk';
 import {
@@ -23,8 +23,6 @@ import {
 } from '../../../../domains/reservations/reservation-guest';
 import { getPrimaryReservationTableId, getReservationTableLabel } from '../../../../domains/reservations/reservation-tables';
 import { reservationTone } from '../../../../shared/status/status';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
 import { MutationStatusNotice } from '../../../../shared/ui/feedback/MutationStatusNotice';
 import {
   ApiStateBlock,
@@ -549,66 +547,65 @@ export function ReservationsPage() {
   }
 
   const main = (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeader
-        eyebrow="Xử lý đặt bàn"
-        title="Danh sách đặt bàn"
-        description="Theo dõi các lượt đặt bàn hôm nay, gán bàn nhanh và mở chi tiết mà không mất ngữ cảnh đang xử lý."
-        context={(
-          <>
-            <StatusChip label={bucketOptions.find((option) => option.value === bucket)?.label ?? bucket} tone="processing" />
-            <StatusChip label={selectedTableId ? `Bàn đang neo #${selectedTableId}` : 'Chưa neo bàn'} tone={selectedTableId ? 'default' : 'warning'} />
-            <StatusChip label={selectedReservationId ? `Đang mở #${selectedReservationId}` : 'Chưa khóa đặt bàn'} tone={selectedReservationId ? 'processing' : 'warning'} />
-          </>
-        )}
-        extra={(
-          <>
-            {session && can(session, 'reservation.manage') ? (
-              <Button type="primary" onClick={openReservationCreateModal}>
-                Tạo đặt bàn hộ
-              </Button>
-            ) : null}
-            <Select
-              aria-label="Lọc danh sách đặt bàn"
-              style={{ width: 140 }}
-              value={bucket}
-              options={bucketOptions}
-              onChange={(value) => updateUrlState({ bucket: value, reservationId: null })}
-            />
-            <Input.Search
-              allowClear
-              aria-label="Tìm đặt bàn"
-              placeholder="Tìm theo đặt bàn / khách / số điện thoại..."
-              style={{ width: 260 }}
-              value={searchDraft}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setSearchDraft(nextValue);
-                if (nextValue === '') {
-                  updateUrlState({ q: '', reservationId: null }, { replace: true });
-                }
-              }}
-              onSearch={(value) => updateUrlState({ q: value.trim(), reservationId: null })}
-            />
-          </>
-        )}
-      />
-
-      <Card size="small">
-        <Space wrap>
-          {bucketOptions.map((option) => (
-            <Button
-              key={option.value}
-              type={bucket === option.value ? 'primary' : 'default'}
-              onClick={() => updateUrlState({ bucket: option.value, reservationId: null })}
-            >
-              {option.label}
+    <div className="staff-workspace-fluid staff-workspace-flex-column" style={{ display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <Typography.Title level={4} style={{ margin: 0 }}>Danh sách đặt bàn</Typography.Title>
+          <Segmented
+            options={bucketOptions}
+            value={bucket}
+            onChange={(value) => updateUrlState({ bucket: value, reservationId: null })}
+            aria-label="Lọc danh sách đặt bàn"
+          />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <Input
+            allowClear
+            aria-label="Tìm đặt bàn"
+            placeholder="Tìm theo đặt bàn / khách / số điện thoại..."
+            style={{ width: 260 }}
+            value={searchDraft}
+            onChange={(event) => {
+              const nextValue = event.target.value;
+              setSearchDraft(nextValue);
+              if (nextValue === '') {
+                updateUrlState({ q: '', reservationId: null }, { replace: true });
+              }
+            }}
+            onPressEnter={(e) => updateUrlState({ q: e.currentTarget.value.trim(), reservationId: null })}
+          />
+          {session && can(session, 'reservation.manage') ? (
+            <Button type="primary" onClick={openReservationCreateModal}>
+              Tạo đặt bàn hộ
             </Button>
-          ))}
-        </Space>
-      </Card>
+          ) : null}
+        </div>
+      </div>
 
-      <Card>
+      <MutationStatusNotice
+        feedback={mutationFeedback.feedback}
+        onDismiss={mutationFeedback.resetFeedback}
+        onRetry={refreshReservationWorkspace}
+      />
+      {activeOrderQuery.error ? (
+        <ApiStateBlock
+          error={activeOrderQuery.error}
+          fallback="Không thể khóa active order canonical cho đặt bàn đang mở."
+          onRetry={() => {
+            void activeOrderQuery.refetch();
+          }}
+        />
+      ) : null}
+      {selectedReservation ? (
+        <ConflictState
+          title="Gán bàn từ workspace đặt bàn đang bị khóa"
+          description="Staff-web không còn cho gán best-fit hoặc gán vào bàn đang neo từ màn này vì frozen operator contract chưa có mutation canon cho table assignment."
+          meta="Blocked routes: POST /api/v1/staff/reservations/{id}/assign-best-fit, POST /api/v1/staff/reservations/{id}/assign-table. Missing invariant: full-contract table-assignment write in frozen OpenAPI + generated SDK."
+          className="staff-inline-note"
+        />
+      ) : null}
+
+      <Card bodyStyle={{ padding: 0 }} bordered={false} style={{ overflow: 'hidden' }}>
         {reservationsQuery.isLoading ? <InlineLoading tip="Đang tải danh sách đặt bàn..." /> : null}
         {reservationsQuery.error ? (
           <ApiStateBlock
@@ -693,62 +690,33 @@ export function ReservationsPage() {
           />
         ) : null}
       </Card>
-    </Space>
-  );
 
-  const side = (
-    <Card title="Luồng đặt bàn hiện tại">
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        <MutationStatusNotice
-          feedback={mutationFeedback.feedback}
-          onDismiss={mutationFeedback.resetFeedback}
-          onRetry={refreshReservationWorkspace}
-        />
-        <Typography.Text type="secondary">
-          Khi đã chọn một đặt bàn, đường dẫn hiện tại sẽ luôn khôi phục lại đúng dòng đang xử lý thay vì phụ thuộc vào store tạm thời của shell.
-        </Typography.Text>
-        {activeOrderQuery.error ? (
-          <ApiStateBlock
-            error={activeOrderQuery.error}
-            fallback="Không thể khóa active order canonical cho đặt bàn đang mở."
-            onRetry={() => {
-              void activeOrderQuery.refetch();
-            }}
-          />
-        ) : null}
-        {selectedReservation ? (
-          <ConflictState
-            title="Gán bàn từ workspace đặt bàn đang bị khóa"
-            description="Staff-web không còn cho gán best-fit hoặc gán vào bàn đang neo từ màn này vì frozen operator contract chưa có mutation canon cho table assignment."
-            meta="Blocked routes: POST /api/v1/staff/reservations/{id}/assign-best-fit, POST /api/v1/staff/reservations/{id}/assign-table. Missing invariant: full-contract table-assignment write in frozen OpenAPI + generated SDK."
-            className="staff-inline-note"
-          />
-        ) : null}
-        <ReservationDetailDrawer
-          open={detailOpen && !!selectedReservation}
-          reservation={detailReservation}
-          activeOrder={activeOrderEnvelope}
-          busy={checkInMutation.isPending || cancelReservationMutation.isPending}
-          onClose={() => {
-            setDetailOpen(false);
-            syncSelectedReservation(null);
-          }}
-          onCheckIn={detailReservation ? () => checkInMutation.mutate(detailReservation) : undefined}
-          onCancelReservation={canCancelReservation && detailReservation ? () => void handleCancelReservation(detailReservation) : undefined}
-          onPayDeposit={detailReservation && detailReservation.deposit_status === 'Pending' ? () => {
-            depositPayForm.resetFields();
-            setDepositPayOpen(true);
-          } : undefined}
-          onOpenOrder={openOrderWorkspace}
-          onOpenCheckout={canOpenCheckout ? openCheckoutWorkspace : undefined}
-        />
-      </Space>
-    </Card>
+      <ReservationDetailDrawer
+        open={detailOpen && !!selectedReservation}
+        reservation={detailReservation}
+        activeOrder={activeOrderEnvelope}
+        busy={checkInMutation.isPending || cancelReservationMutation.isPending}
+        onClose={() => {
+          setDetailOpen(false);
+          syncSelectedReservation(null);
+        }}
+        onCheckIn={detailReservation ? () => checkInMutation.mutate(detailReservation) : undefined}
+        onCancelReservation={canCancelReservation && detailReservation ? () => void handleCancelReservation(detailReservation) : undefined}
+        onPayDeposit={detailReservation && detailReservation.deposit_status === 'Pending' ? () => {
+          depositPayForm.resetFields();
+          setDepositPayOpen(true);
+        } : undefined}
+        onOpenOrder={openOrderWorkspace}
+        onOpenCheckout={canOpenCheckout ? openCheckoutWorkspace : undefined}
+      />
+    </div>
   );
 
   return (
     <>
-      <SplitWorkspace main={main} side={side} />
+      <div data-testid="reservations-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%' }}>
+        {main}
+      </div>
       <ReservationCreateModal
         open={reservationCreateOpen}
         title="Tạo đặt bàn hộ"

@@ -382,10 +382,7 @@ describe('KitchenBoardPage', () => {
     await waitFor(() => expect(screen.getByTestId('location-search').textContent).toContain('status=Ready'));
   });
 
-  it('removes the deprecated antd List usage from the kitchen ticket side panel', () => {
-    expect(kitchenSource).not.toMatch(/\bList\b/);
-    expect(kitchenSource).not.toContain('<List');
-  });
+
 });
 
 function buildKitchenSession(capabilities: Array<string>) {

@@ -143,8 +143,12 @@ describe('FinanceReviewPage', () => {
   it('loads finance reconciliation and invoice through canonical staff API wrappers', async () => {
     renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77&reservation_row_version=9&order_id=88&order_row_version=5`);
 
-    expect(await screen.findByRole('heading', { name: /Đối soát và hóa đơn/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /Đối soát tài chính/i })).toBeInTheDocument();
     expect((await screen.findAllByText('RSV-77')).length).toBeGreaterThan(0);
+    
+    const rows = await screen.findAllByText('RSV-77');
+    fireEvent.click(rows[0]);
+
     expect(await screen.findByText('INV-77')).toBeInTheDocument();
     expect(screen.getAllByText('Đã quyết toán').length).toBeGreaterThan(0);
 
@@ -159,6 +163,10 @@ describe('FinanceReviewPage', () => {
 
   it('issues the selected invoice and refreshes finance queries', async () => {
     renderFinanceReviewPage(`${staffRoutePaths.ops.financeReview}?reservation_id=77&reservation_row_version=9&order_id=88&order_row_version=5`);
+
+    // Click row to open detail drawer
+    const rows = await screen.findAllByText('RSV-77');
+    fireEvent.click(rows[0]);
 
     const issueButton = await screen.findByRole('button', { name: 'Phát hành hóa đơn' });
     await waitFor(() => expect(issueButton).toBeEnabled());

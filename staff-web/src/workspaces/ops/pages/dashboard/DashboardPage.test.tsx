@@ -312,9 +312,9 @@ describe('DashboardPage', () => {
   it('renders dashboard blocks from live query data', async () => {
     renderDashboard();
 
-    expect(await screen.findByRole('heading', { level: 2, name: 'Cockpit vận hành Mộc Sen' })).toBeInTheDocument();
-    expect(screen.getByText('Tình trạng ca')).toBeInTheDocument();
-    expect(await screen.findAllByText('SHIFT-01')).not.toHaveLength(0);
+    expect(await screen.findByRole('heading', { level: 5, name: 'Cockpit vận hành Mộc Sen' })).toBeInTheDocument();
+    expect(await screen.findAllByText(/Ca thu ngân/i)).not.toHaveLength(0);
+    expect(await screen.findAllByText(/SHIFT-/)).not.toHaveLength(0);
   });
 
   it('deep-links from a KPI card into the relevant workspace', async () => {

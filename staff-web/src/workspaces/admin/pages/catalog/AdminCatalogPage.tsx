@@ -1,4 +1,4 @@
-import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography } from 'antd';
+import { Button, Card, Col, Input, InputNumber, Row, Select, Space, Statistic, Switch, Typography, Drawer, Tabs } from 'antd';
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -28,8 +28,7 @@ import {
 import { formatApiError, isKnownApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
 import { AdminMasterDataImportPanel } from '../components/AdminMasterDataImportPanel';
-import { PageHeader } from '../../../../shared/ui/layout/PageHeader';
-import { SplitWorkspace } from '../../../../shared/ui/layout/SplitWorkspace';
+
 import { ApiStateBlock, EmptyBlock, InlineLoading } from '../../../../shared/ui/states/StateBlocks';
 import { StatusChip } from '../../../../shared/ui/status/StatusChip';
 import { toast } from '../../../../shared/ui/feedback/toast';
@@ -69,6 +68,9 @@ export function AdminCatalogPage() {
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
   const [recipeMenuItemId, setRecipeMenuItemId] = useState<number | null>(null);
   const [recipeMenuItemName, setRecipeMenuItemName] = useState<string>('');
+  const [detailDrawerOpen, setDetailDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState<'category' | 'item' | 'price' | 'advanced'>('category');
+  const [activeTab, setActiveTab] = useState('items');
 
   const selectedItemId = readSelectedCatalogItemId(filters);
 
@@ -216,494 +218,552 @@ export function AdminCatalogPage() {
   const updateSelectedItemIdInput = (nextItemId: string) => {
     createPriceMutation.reset();
     setFilters((current) => ({ ...current, selectedItemIdInput: nextItemId }));
+    if (nextItemId.trim() !== '') {
+      setDrawerMode('price');
+      setDetailDrawerOpen(true);
+    }
   };
 
-  const main = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <PageHeader
-        eyebrow="Thực đơn"
-        title="Thực đơn và giá bán"
-        description="Quản lý loại món, món ăn, dòng giá và dữ liệu nhập/xuất thực đơn qua quyền menu.manage."
-        context={(
-          <>
-            <StatusChip label={`${summary.categories} loại món`} tone="processing" />
-            <StatusChip label={`${summary.items} món`} tone="processing" />
-            <StatusChip label={`${summary.pricedItems} món có giá`} tone="success" />
-          </>
-        )}
-      />
-
-      <Card className="staff-workspace-filter-card" title="Lọc thực đơn">
-        <Row gutter={[12, 12]}>
-          <Col xs={24} md={8}>
-            <Input
-              aria-label="Tìm loại món"
-              autoComplete="off"
-              placeholder="Tìm loại món"
-              value={filters.categoryQuery}
-              onChange={(event) => setFilters((current) => ({ ...current, categoryQuery: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={4}>
-            <label className="staff-admin-switch-row">
-              <span>Gồm mục đã xóa</span>
-              <Switch
-                checked={filters.includeDeletedCategories}
-                onChange={(checked) => setFilters((current) => ({ ...current, includeDeletedCategories: checked }))}
-              />
-            </label>
-          </Col>
-          <Col xs={24} md={8}>
-            <Input
-              aria-label="Tìm món ăn"
-              autoComplete="off"
-              placeholder="Tìm món ăn"
-              value={filters.itemQuery}
-              onChange={(event) => setFilters((current) => ({ ...current, itemQuery: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={4}>
-            <label className="staff-admin-switch-row">
-              <span>Chỉ món đang bán</span>
-              <Switch
-                checked={filters.availableOnly}
-                onChange={(checked) => setFilters((current) => ({ ...current, availableOnly: checked }))}
-              />
-            </label>
-          </Col>
-          <Col xs={24} md={6}>
-            <Input
-              aria-label="Mã loại món"
-              autoComplete="off"
-              placeholder="Mã loại món"
-              value={filters.categoryIdInput}
-              onChange={(event) => setFilters((current) => ({ ...current, categoryIdInput: event.target.value }))}
-            />
-          </Col>
-          <Col xs={24} md={6}>
-            <Input
-              aria-label="Mã món đang chọn"
-              autoComplete="off"
-              placeholder="Mã món để xem giá"
-              value={filters.selectedItemIdInput}
-              onChange={(event) => updateSelectedItemIdInput(event.target.value)}
-            />
-          </Col>
-        </Row>
-      </Card>
-
-      <Row gutter={[16, 16]}>
-        <Col xs={24} md={8}>
-          <Card className="staff-admin-summary-card">
-            <Statistic title="Loại món" value={summary.categories} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card className="staff-admin-summary-card">
-            <Statistic title="Món đang bán" value={summary.availableItems} />
-          </Card>
-        </Col>
-        <Col xs={24} md={8}>
-          <Card className="staff-admin-summary-card">
-            <Statistic title="Dòng giá" value={summary.priceRows} />
-          </Card>
-        </Col>
-      </Row>
-
-      <Card className="staff-workspace-table-card" title="Loại món">
-        <CatalogSurface
-          loading={categoriesQuery.isLoading}
-          error={categoriesQuery.error}
-          fallback="Chưa tải được loại món."
-          rows={categories}
-          emptyTitle="Không có loại món phù hợp"
-          onRetry={() => void categoriesQuery.refetch()}
-          renderRows={() => (
-            <div className="staff-admin-surface-list">
-              {categories.map((category) => (
-                <div key={category.category_id} className="staff-admin-surface-item">
-                  <div>
-                    <strong>{category.name}</strong>
-                    <Typography.Paragraph type="secondary">Loại #{category.category_id} / thứ tự {category.sort_order}</Typography.Paragraph>
-                  </div>
-                  <Space wrap size={6}>
-                    <StatusChip label={category.is_deleted ? 'Đã xóa' : 'Đang dùng'} tone={category.is_deleted ? 'warning' : 'success'} />
-                    <Button
-                      size="small"
-                      onClick={() => setCategoryForm({
-                        id: category.category_id,
-                        name: category.name,
-                        description: category.description || '',
-                        sortOrder: String(category.sort_order),
-                      })}
-                    >Sửa</Button>
-                    <Button
-                      size="small"
-                      danger
-                      onClick={() => {
-                        if (confirm(`Bạn có chắc muốn ${category.is_deleted ? 'khôi phục' : 'xóa'} loại món này?`)) {
-                          updateCategoryMutation.mutate({ id: category.category_id, payload: { is_deleted: !category.is_deleted } });
-                        }
-                      }}
-                    >{category.is_deleted ? 'Khôi phục' : 'Xóa'}</Button>
-                  </Space>
-                  <Typography.Text type="secondary">{category.description ?? 'Chưa có mô tả'}</Typography.Text>
-                </div>
-              ))}
-            </div>
-          )}
-        />
-      </Card>
-
-      <Card className="staff-workspace-table-card" title="Món ăn">
-        <CatalogSurface
-          loading={itemsQuery.isLoading}
-          error={itemsQuery.error}
-          fallback="Chưa tải được món ăn."
-          rows={items}
-          emptyTitle="Không có món ăn phù hợp"
-          onRetry={() => void itemsQuery.refetch()}
-          renderRows={() => (
-            <div className="staff-admin-surface-list">
-              {items.map((item) => (
-                <button
-                  key={item.item_id}
-                  type="button"
-                  className={`staff-admin-branch-row ${item.item_id === selectedItemId ? 'staff-admin-branch-row-selected' : ''}`}
-                  onClick={() => updateSelectedItemIdInput(String(item.item_id))}
-                >
-                  <div className="staff-admin-branch-row-main">
-                    <strong>{item.name}</strong>
-                    <span>{item.code ?? `Món #${item.item_id}`} / {item.category?.name ?? `Loại #${item.category_id ?? 'không rõ'}`}</span>
-                  </div>
-                  <Space wrap size={6}>
-                    <StatusChip label={item.is_available ? 'Đang bán' : 'Tạm ngưng'} tone={item.is_available ? 'success' : 'warning'} />
-                    <StatusChip label={item.current_price ? formatCatalogPrice(item.current_price.price, item.current_price.currency) : 'Chưa có giá hiện tại'} tone={item.current_price ? 'success' : 'warning'} />
-                    <Button
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setItemForm({
-                          id: item.item_id,
-                          code: item.code || '',
-                          name: item.name,
-                          categoryId: item.category_id ? String(item.category_id) : '',
-                          description: item.description || '',
-                          imgUrl: item.img_url || '',
-                          available: item.is_available,
-                          modifierGroupIds: item.modifier_groups?.map((g: any) => g.group_id) || [],
-                          isCombo: item.is_combo || false,
-                          servingSize: item.serving_size ? String(item.serving_size) : '',
-                          comboComponents: item.combo_components || [],
-                        });
-                      }}
-                    >Sửa</Button>
-                    <Button
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRecipeMenuItemId(item.item_id);
-                        setRecipeMenuItemName(item.name);
-                        setIsRecipeModalOpen(true);
-                      }}
-                    >Định lượng</Button>
-                    <Button
-                      size="small"
-                      danger
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (confirm(`Bạn có chắc muốn ${item.is_available ? 'tạm ngưng' : 'mở bán lại'} món này?`)) {
-                          updateItemMutation.mutate({ id: item.item_id, payload: { is_available: !item.is_available } });
-                        }
-                      }}
-                    >{item.is_available ? 'Tạm ngưng' : 'Mở bán lại'}</Button>
-                  </Space>
-                </button>
-              ))}
-            </div>
-          )}
-        />
-      </Card>
-    </Space>
-  );
-
-  const side = (
-    <Space orientation="vertical" size={16} style={{ width: '100%' }}>
-      <Card className="staff-workspace-detail-card" title={categoryForm.id ? "Cập nhật loại món" : "Tạo loại món"}>
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-            <Input
-              aria-label="Tên loại món mới"
-              autoComplete="off"
-              placeholder="Tên loại món"
-              value={categoryForm.name}
-              onChange={(event) => updateCategoryForm({ name: event.target.value })}
-            />
-            <Input
-              aria-label="Mô tả loại món mới"
-              autoComplete="off"
-              placeholder="Mô tả"
-              value={categoryForm.description}
-              onChange={(event) => updateCategoryForm({ description: event.target.value })}
-            />
-            <InputNumber
-              aria-label="Thứ tự loại món mới"
-              style={{ width: '100%' }}
-              value={Number(categoryForm.sortOrder)}
-              onChange={(value) => updateCategoryForm({ sortOrder: value === null ? '0' : String(value) })}
-            />
-          <Space size={8}>
-            <Button
-              type="primary"
-              loading={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-              disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
-              onClick={() => {
-                if (categoryForm.id) {
-                  updateCategoryMutation.mutate({
-                    id: categoryForm.id,
-                    payload: {
-                      name: categoryForm.name.trim(),
-                      description: categoryForm.description.trim() || null,
-                      sort_order: Number(categoryForm.sortOrder),
-                    }
-                  });
-                } else {
-                  createCategoryMutation.mutate();
-                }
-              }}
-            >
-              {categoryForm.id ? "Lưu thay đổi" : "Tạo loại món"}
-            </Button>
-            {categoryForm.id && (
-              <Button onClick={() => setCategoryForm({ id: null, name: '', description: '', sortOrder: '0' })}>
-                Hủy
-              </Button>
-            )}
-          </Space>
-          <CatalogMutationErrorBlock
-            error={createCategoryMutation.error || updateCategoryMutation.error}
-            fallback="Chưa lưu được loại món."
-            onRetry={() => {}}
-            validationTitle="Thông tin loại món chưa hợp lệ"
-          />
-        </Space>
-      </Card>
-
-      <Card className="staff-workspace-detail-card" title={itemForm.id ? "Cập nhật món ăn" : "Tạo món ăn"}>
-        <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-            <Input
-              aria-label="Mã món mới"
-              autoComplete="off"
-              placeholder="Mã món"
-              value={itemForm.code}
-              onChange={(event) => updateItemForm({ code: event.target.value })}
-            />
-            <Input
-              aria-label="Tên món mới"
-              autoComplete="off"
-              placeholder="Tên món"
-              value={itemForm.name}
-              onChange={(event) => updateItemForm({ name: event.target.value })}
-            />
-          <Select
-            aria-label="Loại món của món mới"
-            style={{ width: '100%' }}
-            placeholder="Loại món"
-            allowClear
-            value={itemForm.categoryId || undefined}
-            options={categories.map((category) => ({ value: String(category.category_id), label: category.name }))}
-            onChange={(value) => updateItemForm({ categoryId: value ?? '' })}
-          />
-            <Input
-              aria-label="Mô tả món mới"
-              autoComplete="off"
-              placeholder="Mô tả"
-              value={itemForm.description}
-              onChange={(event) => updateItemForm({ description: event.target.value })}
-            />
-          <Select
-            mode="multiple"
-            style={{ width: '100%' }}
-            placeholder="Chọn các nhóm tùy chọn (Modifiers)"
-            value={itemForm.modifierGroupIds}
-            onChange={(vals) => setItemForm({ ...itemForm, modifierGroupIds: vals })}
-            options={allModifierGroups.map((g: any) => ({ label: g.name, value: g.group_id }))}
-          />
-          <label className="staff-admin-switch-row">
-            <span>Đang bán</span>
-            <Switch
-              checked={itemForm.available}
-              onChange={(checked) => updateItemForm({ available: checked })}
-            />
-          </label>
-          <label className="staff-admin-switch-row">
-            <span>Là Combo</span>
-            <Switch
-              checked={itemForm.isCombo}
-              onChange={(checked) => updateItemForm({ isCombo: checked })}
-            />
-          </label>
-          {itemForm.isCombo && (
-            <Space direction="vertical" style={{ width: '100%', padding: '12px', background: '#fafafa', borderRadius: '8px' }}>
-              <Typography.Text strong>Chi tiết Combo</Typography.Text>
-              <InputNumber
-                aria-label="Số người ăn"
-                style={{ width: '100%' }}
-                placeholder="Số người ăn (vd: 2, 4)"
-                min={1}
-                value={itemForm.servingSize === '' ? null : Number(itemForm.servingSize)}
-                onChange={(value) => updateItemForm({ servingSize: value === null ? '' : String(value) })}
-              />
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Typography.Text>Các món trong Combo:</Typography.Text>
-                {itemForm.comboComponents.map((ci, index) => (
-                  <Space key={index} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
-                    <Select
-                      style={{ width: 250 }}
-                      placeholder="Chọn món"
-                      showSearch
-                      optionFilterProp="label"
-                      value={ci.component_item_id || undefined}
-                      options={items.filter(i => !i.is_combo).map(i => ({ value: i.item_id, label: i.name }))}
-                      onChange={(val) => {
-                        const newItems = [...itemForm.comboComponents];
-                        newItems[index].component_item_id = val;
-                        updateItemForm({ comboComponents: newItems });
-                      }}
-                    />
-                    <InputNumber
-                      min={1}
-                      value={ci.quantity}
-                      onChange={(val) => {
-                        const newItems = [...itemForm.comboComponents];
-                        newItems[index].quantity = val || 1;
-                        updateItemForm({ comboComponents: newItems });
-                      }}
-                    />
-                    <Button
-                      danger
-                      onClick={() => {
-                        const newItems = itemForm.comboComponents.filter((_, i) => i !== index);
-                        updateItemForm({ comboComponents: newItems });
-                      }}
-                    >Xóa</Button>
-                  </Space>
-                ))}
-                <Button
-                  type="dashed"
-                  onClick={() => updateItemForm({ comboComponents: [...itemForm.comboComponents, { component_item_id: 0, quantity: 1 }] })}
-                  block
-                >
-                  + Thêm món vào Combo
-                </Button>
-              </Space>
-            </Space>
-          )}
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Typography.Text>Ảnh món ăn (tùy chọn)</Typography.Text>
-            {itemForm.imgUrl && (
-              <img src={itemForm.imgUrl} alt="Món ăn" style={{ maxWidth: '100%', maxHeight: 150, objectFit: 'contain' }} />
-            )}
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (!file) return;
-                try {
-                  const res = await uploadAdminMedia(file, 'menu');
-                  updateItemForm({ imgUrl: res.url });
-                  toast.success('Tải ảnh thành công.');
-                } catch (err) {
-                  toast.error(formatApiError(err, 'Lỗi tải ảnh lên'));
-                }
-              }}
-            />
-            {itemForm.imgUrl && (
-              <Button size="small" onClick={() => updateItemForm({ imgUrl: '' })}>Xóa ảnh</Button>
-            )}
-          </Space>
-          <Space size={8}>
-            <Button
-              type="primary"
-              loading={createItemMutation.isPending || updateItemMutation.isPending}
-              disabled={createItemMutation.isPending || updateItemMutation.isPending}
-              onClick={() => {
-                if (itemForm.id) {
-                  updateItemMutation.mutate({
-                    id: itemForm.id,
-                    payload: {
-                      code: itemForm.code.trim() || null,
-                      name: itemForm.name.trim(),
-                      category_id: Number(itemForm.categoryId) > 0 ? Number(itemForm.categoryId) : null,
-                      description: itemForm.description.trim() || null,
-                      img_url: itemForm.imgUrl.trim() || null,
-                      is_combo: itemForm.isCombo,
-                      serving_size: itemForm.isCombo && itemForm.servingSize ? Number(itemForm.servingSize) : null,
-                      combo_components: itemForm.isCombo && itemForm.comboComponents.length > 0 ? itemForm.comboComponents : null,
-                      is_available: itemForm.available,
-                      modifier_group_ids: itemForm.modifierGroupIds,
-                    }
-                  });
-                } else {
-                  createItemMutation.mutate();
-                }
-              }}
-            >
-              {itemForm.id ? "Lưu thay đổi" : "Tạo món"}
-            </Button>
-            {itemForm.id && (
-              <Button onClick={() => setItemForm({ id: null, code: '', name: '', categoryId: '', description: '', imgUrl: '', available: true, modifierGroupIds: [], isCombo: false, servingSize: '', comboComponents: [] })}>
-                Hủy
-              </Button>
-            )}
-          </Space>
-          <CatalogMutationErrorBlock
-            error={createItemMutation.error || updateItemMutation.error}
-            fallback="Chưa lưu được món ăn."
-            onRetry={() => {}}
-            notFoundTitle="Không còn thấy loại món đã chọn"
-            notFoundDescription="Loại món đang gắn cho món mới có thể vừa bị xóa hoặc nằm ngoài phạm vi hiện tại."
-            validationTitle="Thông tin món ăn chưa hợp lệ"
-          />
-        </Space>
-      </Card>
-
-      <AdminModifierGroupsPanel />
-
-      <Card className="staff-workspace-detail-card" title="Quản lý giá">
-        <CatalogPricePanel
-          selectedItemId={selectedItemId}
-          selectedItemLabel={selectedItemLabel}
-          selectedItemOutsideCurrentResults={selectedCatalogItem.outsideCurrentResults}
-          prices={prices}
-          pricesQueryError={pricesQuery.error}
-          pricesQueryLoading={pricesQuery.isLoading}
-          pricePanelReady={pricePanelReady}
-          onRetryPrices={() => void pricesQuery.refetch()}
-          priceForm={priceForm}
-          setPriceForm={updatePriceForm}
-          createPriceError={createPriceMutation.error}
-          createPricePending={createPriceMutation.isPending}
-          onCreatePrice={() => createPriceMutation.mutate()}
-        />
-      </Card>
-
-      <AdminMasterDataImportPanel
-        title="Chạy thử nhập thực đơn"
-        description="Kiểm tra loại món, món ăn hoặc dòng giá trước khi ghi nhận với Idempotency-Key."
-        domains={catalogImportDomains}
-        onCommitted={() => {
-          void queryClient.invalidateQueries({ queryKey: ['admin-catalog-categories'] });
-          void queryClient.invalidateQueries({ queryKey: ['admin-catalog-items'] });
-          void queryClient.invalidateQueries({ queryKey: ['admin-catalog-prices'] });
-        }}
-      />
-    </Space>
-  );
-
+  
   return (
-    <>
-      <SplitWorkspace main={main} side={side} />
+    <div className="staff-workspace-fluid staff-workspace-flex-column" data-testid="admin-catalog-page" style={{ padding: '16px', background: '#f5f7fa', minHeight: '100%', width: '100%', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Top Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', background: '#fff', padding: '12px 16px', borderRadius: '8px', border: '1px solid #f0f0f0' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <span className="staff-eyebrow" style={{ fontSize: '14px', fontWeight: 600 }}>Thực đơn</span>
+          <StatusChip label={`${summary.categories} loại món`} tone="processing" />
+          <StatusChip label={`${summary.items} món`} tone="processing" />
+          <StatusChip label={`${summary.pricedItems} món có giá`} tone="success" />
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Button onClick={() => { setDrawerMode('advanced'); setDetailDrawerOpen(true); }}>Quản lý tùy chọn & Cấu hình</Button>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, background: '#fff', borderRadius: '8px', border: '1px solid #f0f0f0', overflow: 'hidden' }}>
+        <Tabs
+          className="staff-workspace-tabs"
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key)}
+          style={{ height: '100%' }}
+          items={[
+            {
+              key: 'items',
+              label: 'Món ăn',
+              children: (
+                <div style={{ padding: '16px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} md={8}><Card className="staff-admin-summary-card"><Statistic title="Món đang bán" value={summary.availableItems} /></Card></Col>
+                    <Col xs={24} md={8}><Card className="staff-admin-summary-card"><Statistic title="Dòng giá" value={summary.priceRows} /></Card></Col>
+                    <Col xs={24} md={8}><Card className="staff-admin-summary-card"><Statistic title="Tổng số món" value={summary.items} /></Card></Col>
+                  </Row>
+
+                  <Card className="staff-workspace-filter-card" title="Lọc món ăn">
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} md={8}>
+                        <Input
+                          aria-label="Tìm món ăn"
+                          autoComplete="off"
+                          placeholder="Tìm món ăn"
+                          value={filters.itemQuery}
+                          onChange={(event) => setFilters((current) => ({ ...current, itemQuery: event.target.value }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={4}>
+                        <label className="staff-admin-switch-row">
+                          <span>Chỉ món đang bán</span>
+                          <Switch
+                            checked={filters.availableOnly}
+                            onChange={(checked) => setFilters((current) => ({ ...current, availableOnly: checked }))}
+                          />
+                        </label>
+                      </Col>
+                      <Col xs={24} md={6}>
+                        <Select
+                          aria-label="Loại món"
+                          style={{ width: '100%' }}
+                          placeholder="Loại món"
+                          allowClear
+                          value={filters.categoryIdInput || undefined}
+                          options={categories.map((category) => ({ value: String(category.category_id), label: category.name }))}
+                          onChange={(value) => setFilters((current) => ({ ...current, categoryIdInput: value ?? '' }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={6}>
+                        <Input
+                          aria-label="Mã món đang chọn"
+                          autoComplete="off"
+                          placeholder="Mã món để xem giá"
+                          value={filters.selectedItemIdInput}
+                          onChange={(event) => updateSelectedItemIdInput(event.target.value)}
+                        />
+                      </Col>
+                    </Row>
+                  </Card>
+
+                  <Card
+                    className="staff-workspace-table-card"
+                    title="Món ăn"
+                    extra={(
+                      <Button size="small" type="primary" onClick={() => { setItemForm({ id: null, code: '', name: '', categoryId: '', description: '', imgUrl: '', available: true, modifierGroupIds: [], isCombo: false, servingSize: '', comboComponents: [] }); setDrawerMode('item'); setDetailDrawerOpen(true); }}>
+                        Tạo món
+                      </Button>
+                    )}
+                  >
+                    <CatalogSurface
+                      loading={itemsQuery.isLoading}
+                      error={itemsQuery.error}
+                      fallback="Chưa tải được món ăn."
+                      rows={items}
+                      emptyTitle="Không có món ăn phù hợp"
+                      onRetry={() => void itemsQuery.refetch()}
+                      renderRows={() => (
+                        <div className="staff-admin-surface-list">
+                          {items.map((item) => (
+                            <button
+                              key={item.item_id}
+                              type="button"
+                              className={`staff-admin-branch-row ${item.item_id === selectedItemId ? 'staff-admin-branch-row-selected' : ''}`}
+                              onClick={() => { updateSelectedItemIdInput(String(item.item_id)); setDrawerMode('price'); setDetailDrawerOpen(true); }}
+                            >
+                              <div className="staff-admin-branch-row-main">
+                                <strong>{item.name}</strong>
+                                <span>{item.code ?? `Món #${item.item_id}`} / {item.category?.name ?? `Loại #${item.category_id ?? 'không rõ'}`}</span>
+                              </div>
+                              <Space wrap size={6}>
+                                <StatusChip label={item.is_available ? 'Đang bán' : 'Tạm ngưng'} tone={item.is_available ? 'success' : 'warning'} />
+                                <StatusChip label={item.current_price ? formatCatalogPrice(item.current_price.price, item.current_price.currency) : 'Chưa có giá hiện tại'} tone={item.current_price ? 'success' : 'warning'} />
+                                <Button
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDrawerMode('item');
+                                    setDetailDrawerOpen(true);
+                                    setItemForm({
+                                      id: item.item_id,
+                                      code: item.code || '',
+                                      name: item.name,
+                                      categoryId: item.category_id ? String(item.category_id) : '',
+                                      description: item.description || '',
+                                      imgUrl: item.img_url || '',
+                                      available: item.is_available,
+                                      modifierGroupIds: item.modifier_groups?.map((g: any) => g.group_id) || [],
+                                      isCombo: item.is_combo || false,
+                                      servingSize: item.serving_size ? String(item.serving_size) : '',
+                                      comboComponents: item.combo_components || [],
+                                    });
+                                  }}
+                                >Sửa</Button>
+                                <Button
+                                  size="small"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setRecipeMenuItemId(item.item_id);
+                                    setRecipeMenuItemName(item.name);
+                                    setIsRecipeModalOpen(true);
+                                  }}
+                                >Định lượng</Button>
+                                <Button
+                                  size="small"
+                                  danger
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (confirm(`Bạn có chắc muốn ${item.is_available ? 'tạm ngưng' : 'mở bán lại'} món này?`)) {
+                                      updateItemMutation.mutate({ id: item.item_id, payload: { is_available: !item.is_available } });
+                                    }
+                                  }}
+                                >{item.is_available ? 'Tạm ngưng' : 'Mở bán lại'}</Button>
+                              </Space>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </Card>
+                </div>
+              )
+            },
+            {
+              key: 'categories',
+              label: 'Loại món',
+              children: (
+                <div style={{ padding: '16px', height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <Card className="staff-workspace-filter-card" title="Lọc loại món">
+                    <Row gutter={[12, 12]}>
+                      <Col xs={24} md={12}>
+                        <Input
+                          aria-label="Tìm loại món"
+                          autoComplete="off"
+                          placeholder="Tìm loại món"
+                          value={filters.categoryQuery}
+                          onChange={(event) => setFilters((current) => ({ ...current, categoryQuery: event.target.value }))}
+                        />
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <label className="staff-admin-switch-row">
+                          <span>Gồm mục đã xóa</span>
+                          <Switch
+                            checked={filters.includeDeletedCategories}
+                            onChange={(checked) => setFilters((current) => ({ ...current, includeDeletedCategories: checked }))}
+                          />
+                        </label>
+                      </Col>
+                    </Row>
+                  </Card>
+
+                  <Card
+                    className="staff-workspace-table-card"
+                    title="Loại món"
+                    extra={(
+                      <Button size="small" type="primary" onClick={() => { setCategoryForm({ id: null, name: '', description: '', sortOrder: '0' }); setDrawerMode('category'); setDetailDrawerOpen(true); }}>
+                        Tạo loại món
+                      </Button>
+                    )}
+                  >
+                    <CatalogSurface
+                      loading={categoriesQuery.isLoading}
+                      error={categoriesQuery.error}
+                      fallback="Chưa tải được loại món."
+                      rows={categories}
+                      emptyTitle="Không có loại món phù hợp"
+                      onRetry={() => void categoriesQuery.refetch()}
+                      renderRows={() => (
+                        <div className="staff-admin-surface-list">
+                          {categories.map((category) => (
+                            <div key={category.category_id} className="staff-admin-surface-item">
+                              <div>
+                                <strong>{category.name}</strong>
+                                <Typography.Paragraph type="secondary">Loại #{category.category_id} / thứ tự {category.sort_order}</Typography.Paragraph>
+                              </div>
+                              <Space wrap size={6}>
+                                <StatusChip label={category.is_deleted ? 'Đã xóa' : 'Đang dùng'} tone={category.is_deleted ? 'warning' : 'success'} />
+                                <Button
+                                  size="small"
+                                  onClick={() => {
+                                    setDrawerMode('category');
+                                    setDetailDrawerOpen(true);
+                                    setCategoryForm({
+                                      id: category.category_id,
+                                      name: category.name,
+                                      description: category.description || '',
+                                      sortOrder: String(category.sort_order),
+                                    });
+                                  }}
+                                >Sửa</Button>
+                                <Button
+                                  size="small"
+                                  danger
+                                  onClick={() => {
+                                    if (confirm(`Bạn có chắc muốn ${category.is_deleted ? 'khôi phục' : 'xóa'} loại món này?`)) {
+                                      updateCategoryMutation.mutate({ id: category.category_id, payload: { is_deleted: !category.is_deleted } });
+                                    }
+                                  }}
+                                >{category.is_deleted ? 'Khôi phục' : 'Xóa'}</Button>
+                              </Space>
+                              <Typography.Text type="secondary">{category.description ?? 'Chưa có mô tả'}</Typography.Text>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    />
+                  </Card>
+                </div>
+              )
+            }
+          ]}
+        />
+      </div>
+
+      <Drawer
+        title={drawerMode === 'category' ? (categoryForm.id ? "Cập nhật loại món" : "Tạo loại món") : drawerMode === 'item' ? (itemForm.id ? "Cập nhật món ăn" : "Tạo món ăn") : drawerMode === 'price' ? "Quản lý giá" : "Tiện ích bổ sung"}
+        placement="right"
+        width={drawerMode === 'item' || drawerMode === 'advanced' ? 600 : 450}
+        onClose={() => setDetailDrawerOpen(false)}
+        open={detailDrawerOpen}
+        destroyOnClose={false}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {drawerMode === 'category' && (
+            <Card className="staff-workspace-detail-card">
+              <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+                  <Input
+                    aria-label="Tên loại món mới"
+                    autoComplete="off"
+                    placeholder="Tên loại món"
+                    value={categoryForm.name}
+                    onChange={(event) => updateCategoryForm({ name: event.target.value })}
+                  />
+                  <Input
+                    aria-label="Mô tả loại món mới"
+                    autoComplete="off"
+                    placeholder="Mô tả"
+                    value={categoryForm.description}
+                    onChange={(event) => updateCategoryForm({ description: event.target.value })}
+                  />
+                  <InputNumber
+                    aria-label="Thứ tự loại món mới"
+                    style={{ width: '100%' }}
+                    value={Number(categoryForm.sortOrder)}
+                    onChange={(value) => updateCategoryForm({ sortOrder: value === null ? '0' : String(value) })}
+                  />
+                <Space size={8}>
+                  <Button
+                    type="primary"
+                    loading={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+                    disabled={createCategoryMutation.isPending || updateCategoryMutation.isPending}
+                    onClick={() => {
+                      if (categoryForm.id) {
+                        updateCategoryMutation.mutate({
+                          id: categoryForm.id,
+                          payload: {
+                            name: categoryForm.name.trim(),
+                            description: categoryForm.description.trim() || null,
+                            sort_order: Number(categoryForm.sortOrder),
+                          }
+                        });
+                      } else {
+                        createCategoryMutation.mutate();
+                      }
+                    }}
+                  >
+                    {categoryForm.id ? "Lưu thay đổi" : "Tạo loại món"}
+                  </Button>
+                  {categoryForm.id && (
+                    <Button onClick={() => setCategoryForm({ id: null, name: '', description: '', sortOrder: '0' })}>
+                      Hủy
+                    </Button>
+                  )}
+                </Space>
+                <CatalogMutationErrorBlock
+                  error={createCategoryMutation.error || updateCategoryMutation.error}
+                  fallback="Chưa lưu được loại món."
+                  onRetry={() => {}}
+                  validationTitle="Thông tin loại món chưa hợp lệ"
+                />
+              </Space>
+            </Card>
+          )}
+
+          {drawerMode === 'item' && (
+            <Card className="staff-workspace-detail-card">
+              <Space orientation="vertical" size={12} style={{ width: '100%' }}>
+                  <Input
+                    aria-label="Mã món mới"
+                    autoComplete="off"
+                    placeholder="Mã món"
+                    value={itemForm.code}
+                    onChange={(event) => updateItemForm({ code: event.target.value })}
+                  />
+                  <Input
+                    aria-label="Tên món mới"
+                    autoComplete="off"
+                    placeholder="Tên món"
+                    value={itemForm.name}
+                    onChange={(event) => updateItemForm({ name: event.target.value })}
+                  />
+                <Select
+                  aria-label="Loại món của món mới"
+                  style={{ width: '100%' }}
+                  placeholder="Loại món"
+                  allowClear
+                  value={itemForm.categoryId || undefined}
+                  options={categories.map((category) => ({ value: String(category.category_id), label: category.name }))}
+                  onChange={(value) => updateItemForm({ categoryId: value ?? '' })}
+                />
+                  <Input
+                    aria-label="Mô tả món mới"
+                    autoComplete="off"
+                    placeholder="Mô tả"
+                    value={itemForm.description}
+                    onChange={(event) => updateItemForm({ description: event.target.value })}
+                  />
+                <Select
+                  mode="multiple"
+                  style={{ width: '100%' }}
+                  placeholder="Chọn các nhóm tùy chọn (Modifiers)"
+                  value={itemForm.modifierGroupIds}
+                  onChange={(vals) => setItemForm({ ...itemForm, modifierGroupIds: vals })}
+                  options={allModifierGroups.map((g: any) => ({ label: g.name, value: g.group_id }))}
+                />
+                <label className="staff-admin-switch-row">
+                  <span>Đang bán</span>
+                  <Switch
+                    checked={itemForm.available}
+                    onChange={(checked) => updateItemForm({ available: checked })}
+                  />
+                </label>
+                <label className="staff-admin-switch-row">
+                  <span>Là Combo</span>
+                  <Switch
+                    checked={itemForm.isCombo}
+                    onChange={(checked) => updateItemForm({ isCombo: checked })}
+                  />
+                </label>
+                {itemForm.isCombo && (
+                  <Space direction="vertical" style={{ width: '100%', padding: '12px', background: '#fafafa', borderRadius: '8px' }}>
+                    <Typography.Text strong>Chi tiết Combo</Typography.Text>
+                    <InputNumber
+                      aria-label="Số người ăn"
+                      style={{ width: '100%' }}
+                      placeholder="Số người ăn (vd: 2, 4)"
+                      min={1}
+                      value={itemForm.servingSize === '' ? null : Number(itemForm.servingSize)}
+                      onChange={(value) => updateItemForm({ servingSize: value === null ? '' : String(value) })}
+                    />
+                    <Space direction="vertical" style={{ width: '100%' }}>
+                      <Typography.Text>Các món trong Combo:</Typography.Text>
+                      {itemForm.comboComponents.map((ci, index) => (
+                        <Space key={index} style={{ display: 'flex', marginBottom: 8 }} align="baseline">
+                          <Select
+                            style={{ width: 250 }}
+                            placeholder="Chọn món"
+                            showSearch
+                            optionFilterProp="label"
+                            value={ci.component_item_id || undefined}
+                            options={items.filter(i => !i.is_combo).map(i => ({ value: i.item_id, label: i.name }))}
+                            onChange={(val) => {
+                              const newItems = [...itemForm.comboComponents];
+                              newItems[index].component_item_id = val;
+                              updateItemForm({ comboComponents: newItems });
+                            }}
+                          />
+                          <InputNumber
+                            min={1}
+                            value={ci.quantity}
+                            onChange={(val) => {
+                              const newItems = [...itemForm.comboComponents];
+                              newItems[index].quantity = val || 1;
+                              updateItemForm({ comboComponents: newItems });
+                            }}
+                          />
+                          <Button
+                            danger
+                            onClick={() => {
+                              const newItems = itemForm.comboComponents.filter((_, i) => i !== index);
+                              updateItemForm({ comboComponents: newItems });
+                            }}
+                          >Xóa</Button>
+                        </Space>
+                      ))}
+                      <Button
+                        type="dashed"
+                        onClick={() => updateItemForm({ comboComponents: [...itemForm.comboComponents, { component_item_id: 0, quantity: 1 }] })}
+                        block
+                      >
+                        + Thêm món vào Combo
+                      </Button>
+                    </Space>
+                  </Space>
+                )}
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <Typography.Text>Ảnh món ăn (tùy chọn)</Typography.Text>
+                  {itemForm.imgUrl && (
+                    <img src={itemForm.imgUrl} alt="Món ăn" style={{ maxWidth: '100%', maxHeight: 150, objectFit: 'contain' }} />
+                  )}
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      try {
+                        const res = await uploadAdminMedia(file, 'menu');
+                        updateItemForm({ imgUrl: res.url });
+                        toast.success('Tải ảnh thành công.');
+                      } catch (err) {
+                        toast.error(formatApiError(err, 'Lỗi tải ảnh lên'));
+                      }
+                    }}
+                  />
+                  {itemForm.imgUrl && (
+                    <Button size="small" onClick={() => updateItemForm({ imgUrl: '' })}>Xóa ảnh</Button>
+                  )}
+                </Space>
+                <Space size={8}>
+                  <Button
+                    type="primary"
+                    loading={createItemMutation.isPending || updateItemMutation.isPending}
+                    disabled={createItemMutation.isPending || updateItemMutation.isPending}
+                    onClick={() => {
+                      if (itemForm.id) {
+                        updateItemMutation.mutate({
+                          id: itemForm.id,
+                          payload: {
+                            code: itemForm.code.trim() || null,
+                            name: itemForm.name.trim(),
+                            category_id: Number(itemForm.categoryId) > 0 ? Number(itemForm.categoryId) : null,
+                            description: itemForm.description.trim() || null,
+                            img_url: itemForm.imgUrl.trim() || null,
+                            is_combo: itemForm.isCombo,
+                            serving_size: itemForm.isCombo && itemForm.servingSize ? Number(itemForm.servingSize) : null,
+                            combo_components: itemForm.isCombo && itemForm.comboComponents.length > 0 ? itemForm.comboComponents : null,
+                            is_available: itemForm.available,
+                            modifier_group_ids: itemForm.modifierGroupIds,
+                          }
+                        });
+                      } else {
+                        createItemMutation.mutate();
+                      }
+                    }}
+                  >
+                    {itemForm.id ? "Lưu thay đổi" : "Tạo món"}
+                  </Button>
+                  {itemForm.id && (
+                    <Button onClick={() => setItemForm({ id: null, code: '', name: '', categoryId: '', description: '', imgUrl: '', available: true, modifierGroupIds: [], isCombo: false, servingSize: '', comboComponents: [] })}>
+                      Hủy
+                    </Button>
+                  )}
+                </Space>
+                <CatalogMutationErrorBlock
+                  error={createItemMutation.error || updateItemMutation.error}
+                  fallback="Chưa lưu được món ăn."
+                  onRetry={() => {}}
+                  notFoundTitle="Không còn thấy loại món đã chọn"
+                  notFoundDescription="Loại món đang gắn cho món mới có thể vừa bị xóa hoặc nằm ngoài phạm vi hiện tại."
+                  validationTitle="Thông tin món ăn chưa hợp lệ"
+                />
+              </Space>
+            </Card>
+          )}
+
+          {drawerMode === 'price' && (
+            <Card className="staff-workspace-detail-card">
+              <CatalogPricePanel
+                selectedItemId={selectedItemId}
+                selectedItemLabel={selectedItemLabel}
+                selectedItemOutsideCurrentResults={selectedCatalogItem.outsideCurrentResults}
+                prices={prices}
+                pricesQueryError={pricesQuery.error}
+                pricesQueryLoading={pricesQuery.isLoading}
+                pricePanelReady={pricePanelReady}
+                onRetryPrices={() => void pricesQuery.refetch()}
+                priceForm={priceForm}
+                setPriceForm={updatePriceForm}
+                createPriceError={createPriceMutation.error}
+                createPricePending={createPriceMutation.isPending}
+                onCreatePrice={() => createPriceMutation.mutate()}
+              />
+            </Card>
+          )}
+
+          {drawerMode === 'advanced' && (
+            <>
+              <AdminModifierGroupsPanel />
+              <AdminMasterDataImportPanel
+                title="Chạy thử nhập thực đơn"
+                description="Kiểm tra loại món, món ăn hoặc dòng giá trước khi ghi nhận với Idempotency-Key."
+                domains={catalogImportDomains}
+                onCommitted={() => {
+                  void queryClient.invalidateQueries({ queryKey: ['admin-catalog-categories'] });
+                  void queryClient.invalidateQueries({ queryKey: ['admin-catalog-items'] });
+                  void queryClient.invalidateQueries({ queryKey: ['admin-catalog-prices'] });
+                }}
+              />
+            </>
+          )}
+        </div>
+      </Drawer>
       <RecipeModal
         open={isRecipeModalOpen}
         onClose={() => setIsRecipeModalOpen(false)}
@@ -711,7 +771,7 @@ export function AdminCatalogPage() {
         menuItemName={recipeMenuItemName}
         ingredients={(ingredientsQuery.data?.data as any) ?? []}
       />
-    </>
+    </div>
   );
 }
 

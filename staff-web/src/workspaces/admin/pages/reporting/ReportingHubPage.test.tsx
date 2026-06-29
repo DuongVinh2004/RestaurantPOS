@@ -89,7 +89,7 @@ describe('ReportingHubPage', () => {
     fireEvent.change(currencyInput, { target: { value: 'USD' } });
     await waitFor(() => expect(currencyInput).toHaveValue('USD'));
 
-    const resetButton = await screen.findByRole('button', { name: 'Đặt lại bộ lọc' });
+    const resetButton = await screen.findByRole('button', { name: 'Đặt lại' });
     fireEvent.click(resetButton);
 
     await waitFor(() => expect(currencyInput).toHaveValue(''));

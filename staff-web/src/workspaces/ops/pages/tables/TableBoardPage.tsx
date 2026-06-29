@@ -1,6 +1,7 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Button, Card, Space, Typography, Col, Row, Statistic } from 'antd';
+import { Button, Card, Space, Typography, Col, Row, Statistic, Input, Select } from 'antd';
+import { RefreshCcw, Search } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { StaffTableBoardRow, StaffTableBoardUnassignedReservation } from '../../../../shared/api/sdk';
 import {
@@ -122,7 +123,53 @@ function trailingTableNumber(tableCode: string): number | null {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
 
+const tableShortCodeCache: Record<number, string> = {};
+let lastBoardDataSnapshot: StaffTableBoardRow[] | null = null;
+
+function ensureShortCodeCache(rows: StaffTableBoardRow[]) {
+  if (lastBoardDataSnapshot === rows) return;
+  lastBoardDataSnapshot = rows;
+  
+  for (const key in tableShortCodeCache) {
+    delete tableShortCodeCache[key];
+  }
+
+  const sortedRows = [...rows].sort((a, b) => a.table_id - b.table_id);
+  const usedCodes = new Set<string>();
+
+  sortedRows.forEach(row => {
+    const zoneRaw = (row.zone || '').trim();
+    const zoneAcronym = zoneRaw.charAt(0).toLowerCase();
+
+    let matchNumber = 0;
+    const match = (row.table_code || '').match(/(\d+)/);
+    if (match) {
+      matchNumber = parseInt(match[1], 10);
+    }
+    
+    let finalNumber = matchNumber > 0 ? matchNumber : 1;
+    let candidate = `${zoneAcronym}${finalNumber}`.toUpperCase();
+    
+    while (usedCodes.has(candidate)) {
+      finalNumber++;
+      candidate = `${zoneAcronym}${finalNumber}`.toUpperCase();
+    }
+    
+    usedCodes.add(candidate);
+    tableShortCodeCache[row.table_id] = candidate;
+  });
+}
+
 function formatBoardTableName(tableCode: string | null | undefined, zone: string | null | undefined, tableId?: number | null): string {
+  if (tableId && tableShortCodeCache[tableId]) {
+    return tableShortCodeCache[tableId];
+  }
+
+  const shortCode = generateTableShortCode(zone, tableCode).toUpperCase();
+  if (shortCode && /\d$/.test(shortCode)) {
+    return shortCode;
+  }
+
   const raw = tableCode?.trim();
   const zoneLabel = formatBoardZone(zone);
 
@@ -144,6 +191,20 @@ function formatBoardTableName(tableCode: string | null | undefined, zone: string
   }
 
   return raw || 'Bàn chưa đặt tên';
+}
+
+function generateTableShortCode(zone: string | null | undefined, tableCode: string | null | undefined): string {
+  const zoneRaw = (zone || '').trim();
+  const tableRaw = (tableCode || '').trim();
+
+  // Take only the very first character of the zone
+  const zoneAcronym = zoneRaw.charAt(0).toLowerCase();
+  
+  // Extract the FIRST number found in the tableCode (to avoid extracting seat counts like "4" in "Bàn 2 (4 chỗ)")
+  const match = tableRaw.match(/(\d+)/);
+  const number = match ? String(parseInt(match[1], 10)) : '';
+
+  return `${zoneAcronym}${number}`;
 }
 
 function tableCardActionCopy(row: StaffTableBoardRow): string {
@@ -195,9 +256,18 @@ function buildTableCardContext(row: StaffTableBoardRow): {
   }
 
   if (row.reservation) {
+    let timeLabel = '';
+    if (row.reservation.start_time) {
+      const formatted = formatDateTime(row.reservation.start_time);
+      const timePart = formatted.split(' ')[0];
+      if (timePart && timePart.includes(':')) {
+        timeLabel = `Lúc ${timePart} - `;
+      }
+    }
+
     return {
-      label: 'Đặt bàn hiện tại',
-      value: `${row.reservation.guest_count} khách`,
+      label: 'Khách đặt bàn',
+      value: `${timeLabel}${row.reservation.guest_count} khách`,
       meta: getReservationGuestLabel(row.reservation),
     };
   }
@@ -364,10 +434,11 @@ export function TableBoardPage() {
   }, [boardData?.data]);
 
   const filteredBoardRows = useMemo(() => {
+    ensureShortCodeCache(boardData?.data ?? []);
     const query = normalizeDisplayToken(tableSearch);
     const rows = boardData?.data ?? [];
 
-    return rows.filter((row) => {
+    const filtered = rows.filter((row) => {
       if (statusFilter && row.board_state !== statusFilter) {
         return false;
       }
@@ -379,6 +450,7 @@ export function TableBoardPage() {
       const tableDisplayName = formatBoardTableName(row.table_code, row.zone, row.table_id);
       const cardContext = buildTableCardContext(row);
       const tokens = [
+        generateTableShortCode(row.zone, row.table_code),
         tableDisplayName,
         row.table_code,
         formatBoardZone(row.zone),
@@ -393,6 +465,12 @@ export function TableBoardPage() {
       ];
 
       return normalizeDisplayToken(tokens.filter(Boolean).join(' ')).includes(query);
+    });
+
+    return filtered.sort((a, b) => {
+      const nameA = formatBoardTableName(a.table_code, a.zone, a.table_id);
+      const nameB = formatBoardTableName(b.table_code, b.zone, b.table_id);
+      return nameA.localeCompare(nameB, 'vi', { numeric: true });
     });
   }, [boardData?.data, statusFilter, tableSearch]);
 
@@ -1060,125 +1138,70 @@ export function TableBoardPage() {
 
   const main = (
     <Space orientation="vertical" size={14} style={{ width: '100%' }} className="staff-table-board-main">
-      <div className="staff-table-board-ops-panel">
-        <PageHeader
-          className="staff-table-board-page-header"
-          eyebrow="Vận hành sàn phục vụ"
-          title="Sơ đồ bàn"
-          description="Chọn bàn để xếp khách, check-in đặt bàn hoặc mở order đang phục vụ."
-          context={(
-            <>
-              <StatusChip label={branchId ? 'Đúng chi nhánh đang chọn' : 'Theo branch mặc định'} tone="default" variant="freshness" />
-              <StatusChip label={selectedTable ? `${selectedTableDisplayName} • ${translateUiCode(selectedTable.board_state)}` : 'Chưa chọn bàn'} tone={selectedTable ? tableTone(selectedTable.board_state) : 'warning'} variant="entity" />
-              <StatusChip label={`Realtime v${boardRealtimeVersion ?? 0}`} tone="processing" variant="freshness" />
-            </>
-          )}
-          extra={
-            <FiltersBar
-              fields={(
-                <>
-                  <SearchInput
-                    aria-label="Tìm bàn, khu vực hoặc khách"
-                    className="staff-table-board-search"
-                    placeholder="Tìm bàn / khu / khách"
-                    value={tableSearch}
-                    onChange={(event) => setTableSearch(event.target.value)}
-                    onSearch={(value) => setTableSearch(value)}
-                  />
-                  <div className="staff-table-board-toolbar-select-wrap">
-                    <select
-                      aria-label="Lọc theo khu"
-                      className="staff-table-board-zone-select"
-                      value={zone ?? ''}
-                      onChange={(event) => updateBoardSearch(
-                        { zone: event.target.value },
-                        { source: 'board' },
-                        { replace: true },
-                      )}
-                    >
-                      <option value="">Lọc theo khu</option>
-                      {(boardData?.zones ?? []).map((zoneSummary) => (
-                        <option key={zoneSummary.zone} value={zoneSummary.zone}>
-                          {`${formatBoardZone(zoneSummary.zone)} (${zoneSummary.summary.table_count})`}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="staff-table-board-toolbar-select-wrap">
-                    <select
-                      aria-label="Lọc theo trạng thái bàn"
-                      className="staff-table-board-zone-select"
-                      value={boardUrlState.status ?? ''}
-                      onChange={(event) => updateBoardSearch(
-                        { status: event.target.value },
-                        { source: 'board' },
-                      )}
-                    >
-                      <option value="">Tất cả trạng thái</option>
-                      {boardStatusOptions.map(([status, label]) => (
-                        <option key={status} value={status}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-              actions={(
-                <Button className="staff-table-board-toolbar-button" onClick={() => boardQuery.refetch()} loading={isBoardRefreshing}>
-                  Làm mới
-                </Button>
-              )}
-            />
-          }
-        />
+      <div className="staff-table-board-ops-panel" style={{ paddingBottom: '8px' }}>
+        <Card size="small" variant="borderless" styles={{ body: { padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' } }} style={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)' }}>
+          {/* Left Side: Title and KPIs */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+              <Typography.Title level={5} style={{ margin: 0, fontWeight: 600 }}>Sơ đồ bàn</Typography.Title>
+              <StatusChip label={`v${boardRealtimeVersion ?? 0}`} tone="processing" variant="freshness" />
+              {selectedTable ? (
+                <StatusChip label={`${selectedTableDisplayName} • ${translateUiCode(selectedTable.board_state)}`} tone={tableTone(selectedTable.board_state)} variant="entity" />
+              ) : null}
+            </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <Row gutter={16}>
-            <Col xs={12} sm={12} md={6}>
-              <Card size="small" variant="borderless" style={{ height: '100%' }}>
-                <Statistic
-                  title="Đơn phục vụ"
-                  value={boardData?.summary.active_order_count ?? 0}
-                  styles={{ content: { color: '#1677ff' } }}
-                />
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Đang mở trên sơ đồ</Typography.Text>
-              </Card>
-            </Col>
-            <Col xs={12} sm={12} md={6}>
-              <Card size="small" variant="borderless" style={{ height: '100%' }}>
-                <Statistic
-                  title="Chưa gán bàn"
-                  value={boardData?.summary.unassigned_reservation_count ?? 0}
-                  styles={{ content: { color: (boardData?.summary.unassigned_reservation_count ?? 0) > 0 ? '#faad14' : '#52c41a' } }}
-                />
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>Cần điều phối</Typography.Text>
-              </Card>
-            </Col>
-            <Col xs={12} sm={12} md={6}>
-              <Card size="small" variant="borderless" style={{ height: '100%' }}>
-                <Statistic
-                  title="Bàn đang hiển thị"
-                  value={filteredBoardRows.length}
-                />
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {statusFilter ? translateUiCode(statusFilter) : zone ? formatBoardZone(zone) : 'Tất cả khu'}
-                </Typography.Text>
-              </Card>
-            </Col>
-            <Col xs={12} sm={12} md={6}>
-              <Card size="small" variant="borderless" style={{ height: '100%' }}>
-                <Statistic
-                  title="Realtime"
-                  value={`v${boardRealtimeVersion ?? 0}`}
-                />
-                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-                  {isBoardRefreshing ? 'Đang đồng bộ' : 'Ổn định'}
-                </Typography.Text>
-              </Card>
-            </Col>
-          </Row>
-        </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 500 }}>Phục vụ:</span>
+                <span style={{ color: '#0284c7', fontWeight: 600, fontSize: '14px' }}>{boardData?.summary.active_order_count ?? 0}</span>
+              </div>
+              <div style={{ width: '1px', height: '14px', background: '#e2e8f0' }} />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 500 }}>Chưa gán:</span>
+                <span style={{ color: (boardData?.summary.unassigned_reservation_count ?? 0) > 0 ? '#d97706' : '#059669', fontWeight: 600, fontSize: '14px' }}>{boardData?.summary.unassigned_reservation_count ?? 0}</span>
+              </div>
+              <div style={{ width: '1px', height: '14px', background: '#e2e8f0' }} />
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                <span style={{ color: '#64748b', fontSize: '12px', fontWeight: 500 }}>Hiển thị:</span>
+                <span style={{ color: '#0f172a', fontWeight: 600, fontSize: '14px' }}>{filteredBoardRows.length}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side: Filters */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <Input
+              size="small"
+              prefix={<Search size={14} color="#9ca3af" />}
+              placeholder="Tìm bàn / khách..."
+              value={tableSearch}
+              onChange={(e) => setTableSearch(e.target.value)}
+              style={{ width: '150px', borderRadius: '6px' }}
+              allowClear
+            />
+            <Select
+              size="small"
+              value={zone ?? ''}
+              onChange={(value) => updateBoardSearch({ zone: value }, { source: 'board' }, { replace: true })}
+              style={{ width: '120px' }}
+              options={[
+                { value: '', label: 'Tất cả khu' },
+                ...(boardData?.zones ?? []).map((z) => ({ value: z.zone, label: `${formatBoardZone(z.zone)} (${z.summary.table_count})` }))
+              ]}
+            />
+            <Select
+              size="small"
+              value={boardUrlState.status ?? ''}
+              onChange={(value) => updateBoardSearch({ status: value }, { source: 'board' })}
+              style={{ width: '140px' }}
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                ...boardStatusOptions.map(([val, lbl]) => ({ value: val, label: lbl }))
+              ]}
+            />
+            <Button size="small" shape="circle" icon={<RefreshCcw size={14} />} onClick={() => boardQuery.refetch()} loading={isBoardRefreshing} />
+          </div>
+        </Card>
       </div>
 
       {isBoardColdLoading ? <InlineLoading tip="Đang tải sơ đồ bàn..." /> : null}
@@ -1245,10 +1268,16 @@ export function TableBoardPage() {
                   <span>{row.capacity.seats ?? 'Không có'} chỗ</span>
                 </div>
 
-                <div className="staff-table-board-card-context">
-                  <strong className="staff-table-board-context-value">{cardContext.value}</strong>
-                  {cardContext.meta ? <span className="staff-table-board-context-meta">{cardContext.meta}</span> : null}
-                </div>
+                {cardContext.value && cardContext.value !== 'Trống' && cardContext.value !== translateUiCode(row.board_state, 'Không rõ') ? (
+                  <div className="staff-table-board-card-context">
+                    <strong className="staff-table-board-context-value">{cardContext.value}</strong>
+                    {cardContext.meta ? <span className="staff-table-board-context-meta">{cardContext.meta}</span> : null}
+                  </div>
+                ) : (
+                  <div className="staff-table-board-card-context staff-table-board-card-context-empty" style={{ opacity: 0, pointerEvents: 'none', userSelect: 'none' }}>
+                    <strong className="staff-table-board-context-value">-</strong>
+                  </div>
+                )}
 
                 <div className="staff-table-board-card-footer">
                   <strong className="staff-table-board-next-action">{tableCardActionCopy(row)}</strong>

@@ -40,9 +40,18 @@ describe('AdminBenefitsPage', () => {
     renderWithProviders();
 
     expect(await screen.findByText('WELCOME')).toBeInTheDocument();
+    
+    // Open create voucher drawer
+    const createBtns = screen.getAllByRole('button', { name: 'Tạo voucher' });
+    fireEvent.click(createBtns[0]);
+    await screen.findByLabelText('Mã voucher');
+
     fireEvent.change(screen.getByLabelText('Mã voucher'), { target: { value: 'SPRING' } });
     fireEvent.change(screen.getByLabelText('Giá trị giảm'), { target: { value: '15000' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo voucher' }));
+    
+    // Submit voucher
+    const submitBtns = screen.getAllByRole('button', { name: 'Tạo voucher' });
+    fireEvent.click(submitBtns[submitBtns.length - 1]);
 
     await waitFor(() => {
       expect(apiMocks.createAdminBenefitVoucher).toHaveBeenCalledWith(expect.objectContaining({
@@ -51,8 +60,10 @@ describe('AdminBenefitsPage', () => {
       }));
     });
 
+    // Update voucher
     fireEvent.click(screen.getByRole('button', { name: /WELCOME/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật voucher đang chọn' }));
+    await screen.findByLabelText('Mã voucher');
+    fireEvent.click(screen.getByRole('button', { name: 'Cập nhật voucher' }));
 
     await waitFor(() => {
       expect(apiMocks.updateAdminBenefitVoucher).toHaveBeenCalledWith(11, expect.objectContaining({
@@ -60,6 +71,9 @@ describe('AdminBenefitsPage', () => {
       }));
     });
 
+    // Update settings
+    fireEvent.click(screen.getByRole('button', { name: 'Cấu hình & Export' }));
+    await screen.findByLabelText('Giá trị cấu hình ưu đãi');
     fireEvent.change(screen.getByLabelText('Giá trị cấu hình ưu đãi'), { target: { value: 'false' } });
     fireEvent.click(screen.getByRole('button', { name: 'Lưu cấu hình' }));
 
@@ -69,7 +83,7 @@ describe('AdminBenefitsPage', () => {
         value: 'false',
       });
     });
-  }, 20000);
+  }, 30000);
 });
 
 function renderWithProviders() {

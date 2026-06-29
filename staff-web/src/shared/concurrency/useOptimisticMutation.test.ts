@@ -51,7 +51,7 @@ describe('useOptimisticMutation', () => {
     const mutationOpts: any = useOptimisticMutation({ onError: originalOnError });
     mutationOpts.onError?.(new Error('Other'), 'vars', 'ctx');
     
-    expect(originalOnError).toHaveBeenCalledWith(expect.any(Error), 'vars', 'ctx');
+    expect(originalOnError).toHaveBeenCalledWith(expect.any(Error), 'vars', 'ctx', undefined);
   });
 
   it('calls both reportConflict and original onError for conflicts', () => {
@@ -62,6 +62,6 @@ describe('useOptimisticMutation', () => {
     mutationOpts.onError?.(new Error('Conflict'), 'vars', 'ctx');
     
     expect(reportConflictMock).toHaveBeenCalled();
-    expect(originalOnError).toHaveBeenCalledWith(expect.any(Error), 'vars', 'ctx');
+    expect(originalOnError).toHaveBeenCalledWith(expect.any(Error), 'vars', 'ctx', undefined);
   });
 });

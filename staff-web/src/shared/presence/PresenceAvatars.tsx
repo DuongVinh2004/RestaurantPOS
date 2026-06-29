@@ -10,7 +10,7 @@ export function PresenceAvatars({ channel }: { channel: string | null }) {
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', marginLeft: 8 }}>
-      <Avatar.Group size="small" maxCount={3}>
+      <Avatar.Group size="small" max={{ count: 3 }}>
         {members.map((m) => (
           <Tooltip key={m.id} title={`${m.name} đang xem`}>
             <Avatar style={{ backgroundColor: m.color }}>

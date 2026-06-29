@@ -96,8 +96,8 @@ describe('AdminCatalogPage', () => {
   it('renders catalog reads and loads selected item price rows', async () => {
     renderPage();
 
-    expect(await screen.findByText('Thực đơn và giá bán')).toBeInTheDocument();
-    expect(await screen.findByText('Món sáng')).toBeInTheDocument();
+    expect(await screen.findByText('Thực đơn')).toBeInTheDocument();
+    expect(await screen.findByText(/Món sáng/)).toBeInTheDocument();
 
     fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }, { timeout: 5_000 }));
 
@@ -157,7 +157,7 @@ describe('AdminCatalogPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Món sáng', {}, { timeout: 5_000 })).toBeInTheDocument();
+    expect(await screen.findByText(/Món sáng/, {}, { timeout: 5_000 })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('button', { name: /Cà phê/i }, { timeout: 5_000 }));
     fireEvent.change(await screen.findByLabelText('Giá món mới'), {
       target: { value: '56000' },
@@ -175,6 +175,8 @@ describe('AdminCatalogPage', () => {
 
   it('previews imports before commit can be sent with an idempotency key', async () => {
     renderPage();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Quản lý tùy chọn & Cấu hình' }));
 
     fireEvent.change(await screen.findByLabelText('Dòng JSON nhập liệu quản trị'), {
       target: { value: '[{"name":"Món trưa"}]' },
