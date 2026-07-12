@@ -1297,7 +1297,10 @@ class NotificationOutboxService
         }
 
         try {
-            return view('emails.notification', $viewData)->render();
+            /** @var view-string $viewTemplate */
+            $viewTemplate = 'emails.notification';
+
+            return view($viewTemplate, $viewData)->render();
         } catch (\Throwable $e) {
             return '';
         }
