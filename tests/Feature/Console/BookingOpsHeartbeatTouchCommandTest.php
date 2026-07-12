@@ -19,6 +19,7 @@ class BookingOpsHeartbeatTouchCommandTest extends TestCase
         config()->set('booking.idempotency_required_scopes', ['reservations', 'staff.checkout']);
         config()->set('booking.scheduler_heartbeat_ttl_seconds', 300);
         config()->set('booking.scheduler_heartbeat_stale_seconds', 180);
+        config()->set('booking.doctor.allow_local_bypass', false);
         config()->set('booking.reservation_lock_ttl_seconds', 60);
         config()->set('booking.reservation_lock_wait_seconds', 10);
         config()->set('booking.reservation_lock_prefix', 'booking:lock:table');

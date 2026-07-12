@@ -26,12 +26,13 @@ if ($ResetDatabase) {
 $commands = @(
     $backendCommand,
     'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-web.ps1 -App customer-web -HostName 127.0.0.1 -Port 3000',
-    'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-web.ps1 -App staff-web -HostName 127.0.0.1 -Port 5173'
+    'powershell -ExecutionPolicy Bypass -File scripts\ops\dev-web.ps1 -App staff-web -HostName 127.0.0.1 -Port 5173',
+    'php artisan schedule:work'
 )
 
 & $npxCommand.Source concurrently `
-    -n 'backend,customer,staff' `
-    -c 'blue,green,magenta' `
+    -n 'backend,customer,staff,schedule' `
+    -c 'blue,green,magenta,yellow' `
     --kill-others-on-fail `
     @commands
 

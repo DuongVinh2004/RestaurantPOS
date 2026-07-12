@@ -81,7 +81,7 @@ class SimulatedCustomerPaymentSessionDriver
             ];
         }
 
-        $outcome = strtolower(trim((string) ($payload['simulation_outcome'] ?? 'pending')));
+        $outcome = strtolower(trim((string) ($payload['simulation_outcome'] ?? ($isConfirm ? 'succeeded' : 'pending'))));
         $status = match ($outcome) {
             'succeeded' => 'Succeeded',
             'failed' => 'Failed',

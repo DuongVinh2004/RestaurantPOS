@@ -3,8 +3,11 @@
 namespace App\Modules\Reservations\Http\Requests\Customer;
 
 use App\Support\Auth\RequestActorContext;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class CreateReservationRequest extends FormRequest
 {
@@ -17,6 +20,15 @@ class CreateReservationRequest extends FormRequest
             || $actor->isCustomerSession();
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (! $this->has('session_id') && $this->header('X-Session-Id')) {
+            $this->merge([
+                'session_id' => $this->header('X-Session-Id'),
+            ]);
+        }
+    }
+
     public function rules(): array
     {
         $actor = RequestActorContext::fromRequest($this);
@@ -26,24 +38,21 @@ class CreateReservationRequest extends FormRequest
             'user_id' => ['nullable', 'integer', 'min:1', 'exists:users,user_id'],
             'branch_id' => ['nullable', 'integer', 'min:1', 'exists:branches,branch_id'],
             'guest_name' => [
-                $isStaff ? 'nullable' : 'prohibited',
+                'nullable',
                 'string',
                 'max:200',
                 Rule::requiredIf(fn () => $isStaff && ! $this->filled('user_id')),
-                Rule::prohibitedIf(fn () => $isStaff && $this->filled('user_id')),
             ],
             'guest_phone' => [
-                $isStaff ? 'nullable' : 'prohibited',
+                'nullable',
                 'string',
                 'max:50',
                 Rule::requiredIf(fn () => $isStaff && ! $this->filled('user_id')),
-                Rule::prohibitedIf(fn () => $isStaff && $this->filled('user_id')),
             ],
             'guest_email' => [
-                $isStaff ? 'nullable' : 'prohibited',
+                'nullable',
                 'email:rfc',
                 'max:200',
-                Rule::prohibitedIf(fn () => $isStaff && $this->filled('user_id')),
             ],
             'start_time' => ['required', 'date'],
             'end_time' => ['required', 'date', 'after:start_time'],

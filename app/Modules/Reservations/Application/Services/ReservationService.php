@@ -199,8 +199,20 @@ class ReservationService
                 }
 
                 // Bàn có sẵn sàng để đặt không?
-                $nonAllocatable = $tables->filter(fn ($t) => ! $this->tableStateService->isAllocatableForBooking((string) ($t->status?->value ?? $t->status)))
-                    ->pluck('table_id')->values()->all();
+                $nowUtc = Carbon::now('UTC');
+                $isRealtimeWindow = $startUtc->lessThanOrEqualTo($nowUtc->copy()->addMinute())
+                    && $endUtc->greaterThanOrEqualTo($nowUtc->copy()->subMinute());
+
+                $nonAllocatable = $tables->filter(function ($t) use ($isRealtimeWindow): bool {
+                    $status = (string) ($t->status?->value ?? $t->status);
+
+                    if ($isRealtimeWindow) {
+                        return ! $this->tableStateService->isAllocatableForBooking($status);
+                    }
+
+                    return $this->tableStateService->isOperationallyBlocked($status);
+                })->pluck('table_id')->values()->all();
+
                 if (! empty($nonAllocatable)) {
                     throw ValidationException::withMessages([
                         'table_ids' => ['Có bàn không ở trạng thái Available: '.implode(',', $nonAllocatable)],

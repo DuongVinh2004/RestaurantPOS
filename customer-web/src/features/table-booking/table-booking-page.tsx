@@ -824,34 +824,11 @@ export function TableBookingPage() {
                 </div>
               </section>
 
-              <section className="rounded-2xl bg-muted/30 p-5 shadow-none transition-shadow hover:bg-muted/40 border border-transparent">
-                <div className="mb-4">
-                  <p className="text-base font-bold text-foreground">2. Chọn ngày</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Giữ nguyên giờ đang chọn khi đổi ngày nhanh.</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {quickDateOptions.map((option) => {
-                    const selected = activeQuickDate === option.key;
 
-                    return (
-                      <Button
-                        key={option.key}
-                        type="button"
-                        variant={selected ? "default" : "outline"}
-                        className={cn("min-h-10 rounded-full transition-all duration-200 px-5", !selected ? "hover:-translate-y-0.5 hover:shadow-sm bg-background border-transparent shadow-sm" : "shadow-md")}
-                        aria-pressed={selected}
-                        onClick={() => form.setValue("start_time", option.getValue(startTimeValue), { shouldDirty: true, shouldValidate: true })}
-                      >
-                        {option.label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </section>
 
               <section className="rounded-2xl bg-muted/30 p-5 shadow-none transition-shadow hover:bg-muted/40 border border-transparent">
                 <div className="mb-4">
-                  <p className="text-base font-bold text-foreground">3. Chọn giờ</p>
+                  <p className="text-base font-bold text-foreground">2. Chọn ngày & giờ</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Có thể bấm khung giờ gợi ý hoặc nhập trực tiếp.</p>
                 </div>
                 <div className="space-y-2">

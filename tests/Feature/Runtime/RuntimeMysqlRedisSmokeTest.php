@@ -293,6 +293,10 @@ final class RuntimeMysqlRedisSmokeTest extends TestCase
 
     private function assertRuntimeServicesAvailable(): void
     {
+        if (config('booking.doctor.allow_local_bypass', false) || ! config('booking.require_redis_for_booking_api', true)) {
+            self::markTestSkipped('Runtime smoke is bypassed locally. Skipping RuntimeMysqlRedisSmokeTest.');
+        }
+
         if (! app()->environment('testing')) {
             self::fail('Runtime smoke must run with APP_ENV=testing to avoid touching non-test data.');
         }

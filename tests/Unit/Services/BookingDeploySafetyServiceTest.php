@@ -58,6 +58,7 @@ class BookingDeploySafetyServiceTest extends TestCase
         config()->set('booking.loyalty_redeem_amount_per_point', 1000);
         config()->set('booking.loyalty_earn_amount_per_point', 10000);
         config()->set('booking.loyalty_min_redeem_points', 1);
+        config()->set('booking.doctor.allow_local_bypass', false);
         config()->set('staff_auth.api_keys', ['staff-key' => 2]);
         config()->set('staff_auth.database_store_enabled', true);
         config()->set('staff_auth.allow_env_fallback', false);

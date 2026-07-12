@@ -301,6 +301,7 @@ class BookingEnvironmentValidatorTest extends TestCase
         config()->set('cache.default', 'file');
         config()->set('session.driver', 'file');
         config()->set('booking.require_redis_for_booking_api', false);
+        config()->set('booking.doctor.allow_local_bypass', false);
         config()->set('cors.allowed_origins', []);
         config()->set('customer_auth.jwt_secret', '');
 

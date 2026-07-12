@@ -196,24 +196,26 @@ export function formatCustomerTableName(
   const hasZone = zoneLabel !== "Chưa có khu";
 
   if (raw) {
-    const number = trailingTableNumber(raw);
+    // Strip branch suffixes like -MS-CG or -MAIN before extracting the number
+    const baseCode = raw.split('-')[0].trim();
+    const number = trailingTableNumber(baseCode);
 
     if (number !== null) {
       if (zoneLabel.toUpperCase().startsWith("VIP")) {
         return `VIP ${number}`;
       }
 
-      return hasZone ? `${zoneLabel} - Bàn ${number}` : `Bàn ${number}`;
+      return `Bàn ${number}`;
     }
 
-    return raw;
+    return baseCode;
   }
 
   if (typeof tableId === "number" && tableId > 0) {
     if (zoneLabel.toUpperCase().startsWith("VIP")) {
       return `VIP ${tableId}`;
     }
-    return hasZone ? `${zoneLabel} - Bàn ${tableId}` : `Bàn ${tableId}`;
+    return `Bàn ${tableId}`;
   }
 
   return "Bàn chưa đặt tên";

@@ -185,7 +185,11 @@ export function DepositPanel({
       const payload = result.payment_session.provider_payload as Record<string, unknown> | null;
       const paymentUrl = typeof payload?.payment_url === 'string' ? payload.payment_url : typeof payload?.checkout_url === 'string' ? payload.checkout_url : null;
       if (paymentUrl) {
-        window.location.href = paymentUrl;
+        if (paymentUrl.startsWith('simulated://')) {
+          console.log('Simulated payment session created. URL:', paymentUrl);
+        } else {
+          window.location.href = paymentUrl;
+        }
       }
     },
     onError: handleConflict,

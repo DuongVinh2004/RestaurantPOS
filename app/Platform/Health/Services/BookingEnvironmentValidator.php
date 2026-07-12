@@ -433,9 +433,10 @@ class BookingEnvironmentValidator
                 'require_redis_for_booking_api' => $requireRedis,
             ];
 
+            $isLocalBypass = app()->environment(['local', 'development', 'testing']) && config('booking.doctor.allow_local_bypass', false);
             return $isProductionLike
                 ? $this->error('Redis is required for booking API distributed locks and idempotency in production-like environments.', $meta)
-                : $this->warning('Booking API is allowed to run without mandatory Redis; this weakens distributed locks and idempotency durability.', $meta);
+                : ($isLocalBypass ? $this->ok('Booking API is allowed to run without mandatory Redis (local bypass active).', $meta) : $this->warning('Booking API is allowed to run without mandatory Redis; this weakens distributed locks and idempotency durability.', $meta));
         }
 
         if (! is_array($redisStore)) {

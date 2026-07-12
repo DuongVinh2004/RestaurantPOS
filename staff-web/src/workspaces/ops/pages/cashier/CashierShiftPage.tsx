@@ -75,8 +75,8 @@ export function CashierShiftPage() {
   const [closeForm] = Form.useForm<CloseShiftValues>();
 
   const currentShiftQuery = useQuery({
-    queryKey: ['cashier-shift-current', branchId],
-    queryFn: () => getCurrentCashierShift(branchId ?? undefined),
+    queryKey: ['cashier-shift-current'],
+    queryFn: () => getCurrentCashierShift(),
     enabled: !!session,
     retry: (failureCount, error) => !isApiStatus(error, 404) && failureCount < 1,
   });

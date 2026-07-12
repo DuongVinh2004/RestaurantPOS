@@ -1044,9 +1044,13 @@ export function ReservationCreatePage() {
       const meta = reservation.meta as Record<string, unknown> | undefined;
       const paymentUrl = meta?.deposit_payment_url;
       if (paymentUrl && typeof paymentUrl === "string") {
-        toast.loading("Vui lòng thanh toán cọc để hoàn tất đặt bàn...");
-        window.location.href = paymentUrl;
-        return;
+        if (paymentUrl.startsWith("simulated://")) {
+          console.log("Simulated payment session created. URL:", paymentUrl);
+        } else {
+          toast.loading("Vui lòng thanh toán cọc để hoàn tất đặt bàn...");
+          window.location.href = paymentUrl;
+          return;
+        }
       }
 
       if (preorderItems.length > 0) {

@@ -171,7 +171,7 @@ class TableAvailabilityService
             'branch_id' => $branchId,
             'table_code' => (string) $row->table_code,
             'zone' => $row->zone,
-            'status' => $row->status instanceof RestaurantTableStatus ? $row->status->value : ($row->status !== null ? (string) $row->status : null),
+            'status' => RestaurantTableStatus::Available->value,
             'price' => $row->price,
             'template_id' => $row->template_id !== null ? (int) $row->template_id : null,
             'seats' => $row->seats !== null ? (int) $row->seats : null,

@@ -36,33 +36,40 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
             ? 'https://pay.vnpayment.vn/vpcpay.html'
             : 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
 
+        $ipnUrl = trim((string) ($config['ipn_url'] ?? ''));
+
         $vnpParams = [
-            'vnp_Version' => '2.1.0',
-            'vnp_TmnCode' => $tmnCode,
-            'vnp_Amount' => $amount * 100, // VNPay amount is multiplied by 100
-            'vnp_Command' => 'pay',
+            'vnp_Version'   => '2.1.0',
+            'vnp_TmnCode'   => $tmnCode,
+            'vnp_Amount'    => $amount * 100, // VNPay amount is multiplied by 100
+            'vnp_Command'   => 'pay',
             'vnp_CreateDate' => Carbon::now('UTC')->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
             'vnp_ExpireDate' => Carbon::now('UTC')->addMinutes(15)->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
-            'vnp_CurrCode' => 'VND',
-            'vnp_IpAddr' => request()->ip() === '::1' ? '127.0.0.1' : (request()->ip() ?? '127.0.0.1'),
-            'vnp_Locale' => 'vn',
+            'vnp_CurrCode'  => 'VND',
+            'vnp_IpAddr'    => request()->ip() === '::1' ? '127.0.0.1' : (request()->ip() ?? '127.0.0.1'),
+            'vnp_Locale'    => 'vn',
             'vnp_OrderInfo' => $scope === PaymentSessionScope::Deposit ? 'DepositPayment' : 'BillPayment',
             'vnp_OrderType' => 'other',
             'vnp_ReturnUrl' => $returnUrl,
-            'vnp_TxnRef' => $sessionCode,
+            'vnp_TxnRef'    => $sessionCode,
         ];
+
+        // Include IPN URL in params if configured (lets VNPay know where to send async callbacks)
+        if ($ipnUrl !== '') {
+            $vnpParams['vnp_IpnUrl'] = $ipnUrl;
+        }
 
         ksort($vnpParams);
 
+        // hashData and queryString are identical according to VNPay v2.1.0 specification
+        // BOTH must be urlencoded
         $queryParts = [];
-        $hashDataParts = [];
         foreach ($vnpParams as $key => $value) {
             $queryParts[] = urlencode($key).'='.urlencode((string) $value);
-            $hashDataParts[] = rawurlencode($key).'='.rawurlencode((string) $value);
         }
 
         $queryString = implode('&', $queryParts);
-        $hashData = implode('&', $hashDataParts);
+        $hashData    = implode('&', $queryParts);
 
         if ($hashSecret !== '') {
             $vnpSecureHash = hash_hmac('sha512', $hashData, $hashSecret);
@@ -137,14 +144,13 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
 
         ksort($vnpParams);
 
-        // Build query string according to VNPay specs
-        $queryParts = [];
+        $hashDataParts = [];
         foreach ($vnpParams as $key => $value) {
-            $queryParts[] = urlencode($key).'='.urlencode($value);
+            $hashDataParts[] = urlencode($key).'='.urlencode((string) $value);
         }
-        $queryString = implode('&', $queryParts);
+        $hashData = implode('&', $hashDataParts);
 
-        $expected = hash_hmac('sha512', $queryString, $secret);
+        $expected = hash_hmac('sha512', $hashData, $secret);
 
         return hash_equals(strtolower($expected), strtolower($secureHash));
     }

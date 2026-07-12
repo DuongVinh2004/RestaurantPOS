@@ -22,10 +22,19 @@ class EmailNotificationChannelDriver implements NotificationChannelDriver
         $subject = (string) ($dispatchPayload['subject'] ?? 'Notification');
         $body = (string) ($dispatchPayload['text_body'] ?? '');
 
-        Mail::mailer((string) config('notifications.outbox.mailer', config('mail.default')))
-            ->raw($body, function ($mail) use ($recipient, $subject): void {
-                $mail->to($recipient)->subject($subject);
-            });
+        $htmlBody = (string) ($dispatchPayload['html_body'] ?? '');
+
+        if ($htmlBody !== '') {
+            Mail::mailer((string) config('notifications.outbox.mailer', config('mail.default')))
+                ->html($htmlBody, function ($mail) use ($recipient, $subject): void {
+                    $mail->to($recipient)->subject($subject);
+                });
+        } else {
+            Mail::mailer((string) config('notifications.outbox.mailer', config('mail.default')))
+                ->raw($body, function ($mail) use ($recipient, $subject): void {
+                    $mail->to($recipient)->subject($subject);
+                });
+        }
 
         return new NotificationDeliveryResult(
             providerKey: $this->providerKey(),

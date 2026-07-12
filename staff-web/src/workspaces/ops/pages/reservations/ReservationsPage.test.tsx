@@ -13,7 +13,7 @@ const confirmActionMock = vi.hoisted(() => vi.fn(async () => true));
 const apiMocks = vi.hoisted(() => ({
   assignBestFitTable: vi.fn(),
   assignSuggestedTable: vi.fn(),
-  cancelReservation: vi.fn(),
+  updateReservationStatus: vi.fn(),
   checkInReservation: vi.fn(),
   createReservation: vi.fn(),
   getActiveOrderByReservation: vi.fn(),
@@ -182,7 +182,7 @@ describe('ReservationsPage', () => {
         row_version: 7,
       },
     });
-    apiMocks.cancelReservation.mockResolvedValue({
+    apiMocks.updateReservationStatus.mockResolvedValue({
       data: createReservationLookupEntry({
         status: 'Cancelled',
         cancelled_at: '2026-04-11T12:05:00Z',
@@ -453,7 +453,9 @@ describe('ReservationsPage', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Cancel reservation now' }));
 
     await waitFor(() => expect(confirmActionMock).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(apiMocks.cancelReservation).toHaveBeenCalledWith(91, {
+    await waitFor(() => expect(apiMocks.updateReservationStatus).toHaveBeenCalledWith(91, {
+      status: 'Cancelled',
+      force: true,
       row_version: 7,
     }));
     await waitFor(() => expect(screen.getByTestId('mutation-status-notice')).toHaveAttribute('data-phase', 'succeeded'));

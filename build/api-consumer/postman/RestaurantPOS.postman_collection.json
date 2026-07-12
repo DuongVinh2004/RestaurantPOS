@@ -628,7 +628,7 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/menu/items?service_time={{availabilityFromUtc}}&category_id={{menuCategoryId}}&preorder_only={{preorderOnly}}&q={{q}}&page={{page}}&per_page={{perPage}}",
+                        "url": "{{baseUrl}}/api/v1/menu/items?service_time={{availabilityFromUtc}}&category_id={{menuCategoryId}}&preorder_only={{preorderOnly}}&is_best_seller={{isBestSeller}}&is_combo={{isCombo}}&q={{q}}&page={{page}}&per_page={{perPage}}&filter={{filter}}",
                         "description": "Return the customer-facing menu catalog slice that is valid for the selected service time, category filter, and preorder visibility filter.\n\nSignature: `GET api/v1/menu/items`\nAuth mode: `public`\nContract grade: `full`"
                     },
                     "response": []
@@ -1620,7 +1620,7 @@
                                 "type": "text"
                             }
                         ],
-                        "url": "{{baseUrl}}/api/v1/staff/menu/items?service_time={{availabilityFromUtc}}&category_id={{menuCategoryId}}&preorder_only={{preorderOnly}}&q={{q}}&page={{page}}&per_page={{perPage}}",
+                        "url": "{{baseUrl}}/api/v1/staff/menu/items?service_time={{availabilityFromUtc}}&category_id={{menuCategoryId}}&preorder_only={{preorderOnly}}&is_best_seller={{isBestSeller}}&is_combo={{isCombo}}&q={{q}}&page={{page}}&per_page={{perPage}}&filter={{filter}}",
                         "description": "Return the staff ordering menu catalog slice for active dine-in order composition using the same price-effective visibility rules as customer menu reads.\n\nSignature: `GET api/v1/staff/menu/items`\nAuth mode: `staff_api_key`\nContract grade: `full`"
                     },
                     "response": []

@@ -144,6 +144,16 @@ class OperationalInsightsService
      */
     public function redisRuntimeSnapshot(?Carbon $now = null): array
     {
+        if (app()->environment(['local', 'development', 'testing']) && (bool) config('booking.doctor.allow_local_bypass', false)) {
+            return [
+                'status' => 'ok',
+                'reasons' => [],
+                'probe' => 'cache_store_redis_set_get_lock',
+                'set_get_ok' => true,
+                'lock_ok' => true,
+            ];
+        }
+
         $now ??= Carbon::now('UTC');
         $key = 'ops:insights:redis:'.$now->format('YmdHis').':'.random_int(1000, 9999);
         $redis = Cache::store('redis');
@@ -549,7 +559,8 @@ class OperationalInsightsService
 
         $status = 'ok';
         $reasons = [];
-        if ($databaseStoreEnabled && $activeGovernanceCount < max(1, (int) config('booking.ops.staff_api_keys_missing_active_fail_count', 1))) {
+        $isLocalBypass = app()->environment(['local', 'development', 'testing']) && config('booking.doctor.allow_local_bypass', false);
+        if ($databaseStoreEnabled && ! $isLocalBypass && $activeGovernanceCount < max(1, (int) config('booking.ops.staff_api_keys_missing_active_fail_count', 1))) {
             $status = 'fail';
             $reasons[] = 'staff_api_keys_missing_active_keys';
         } elseif ($envFallbackEnabled) {

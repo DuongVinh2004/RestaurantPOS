@@ -777,6 +777,7 @@ class NotificationOutboxService
             'payload' => $payload,
             'subject' => $this->resolveSubject((string) $message->template_key, $payload),
             'text_body' => $this->renderEmailBody((string) $message->template_key, $payload),
+            'html_body' => $this->renderHtmlBody((string) $message->template_key, $payload),
         ];
     }
 
@@ -1204,6 +1205,102 @@ class NotificationOutboxService
                 "\nNếu bạn chưa thể đến ngay, vui lòng liên hệ nhà hàng để được hỗ trợ."),
             default => 'Thông báo từ hệ thống nhà hàng.',
         };
+    }
+
+    private function renderHtmlBody(string $templateKey, array $payload): string
+    {
+        $customerName = (string) ($payload['customer_name'] ?? 'Quý khách');
+        $reservationCode = (string) ($payload['reservation_code'] ?? 'N/A');
+        $startTime = (string) ($payload['start_time_local'] ?? $payload['start_time_utc'] ?? '');
+        $endTime = (string) ($payload['end_time_local'] ?? $payload['end_time_utc'] ?? '');
+        $guestCount = (string) ($payload['guest_count'] ?? '');
+        $customerPhone = (string) ($payload['guest_phone'] ?? $payload['customer_phone'] ?? '');
+        $tables = implode(', ', array_filter(array_map('strval', (array) ($payload['table_labels'] ?? []))));
+        $notes = trim((string) ($payload['notes'] ?? ''));
+        $currency = (string) ($payload['bill_currency'] ?? 'VND');
+
+        $viewData = [
+            'restaurantName' => (string) ($payload['restaurant_name'] ?? config('app.name', 'RestaurantPOS')),
+            'greeting' => "Xin chào {$customerName}",
+            'title' => 'Thông báo',
+            'intro' => '',
+            'fields' => [],
+            'message_body' => '',
+            'action_url' => '',
+            'action_text' => '',
+            'policies' => [],
+        ];
+
+        if ($templateKey === 'reservation.created') {
+            $viewData['title'] = 'Xác nhận đặt bàn thành công';
+            $viewData['intro'] = 'Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi. Đặt bàn của bạn đã được hệ thống xác nhận.';
+            $viewData['fields'] = [
+                'Mã đặt bàn' => $reservationCode,
+                'Thời gian' => "{$startTime} đến {$endTime}",
+                'Số khách' => $guestCount,
+            ];
+            if ($customerPhone !== '') {
+                $viewData['fields']['Số điện thoại'] = $customerPhone;
+            }
+            if ($tables !== '') {
+                $viewData['fields']['Bàn'] = $tables;
+            }
+            if ($notes !== '') {
+                $viewData['fields']['Ghi chú của khách'] = $notes;
+            }
+            if (isset($payload['deposit_required_amount']) && $payload['deposit_required_amount'] > 0) {
+                $depositReq = number_format((float)$payload['deposit_required_amount'], 0, '.', ',');
+                $depositPaid = number_format((float)($payload['paid_amount'] ?? 0), 0, '.', ',');
+                $viewData['fields']['Số tiền cần cọc'] = "{$depositReq} {$currency}";
+                $viewData['fields']['Đã thanh toán'] = "{$depositPaid} {$currency}";
+            }
+            
+            $branchId = (int) ($payload['branch_id'] ?? 1);
+            $branchMaps = [
+                1 => 'https://maps.google.com/?q=Chi+nhanh+chinh',
+                2 => 'https://maps.google.com/?q=Chi+nhanh+2',
+                3 => 'https://maps.google.com/?q=Chi+nhanh+3',
+            ];
+            $viewData['action_url'] = $branchMaps[$branchId] ?? 'https://maps.google.com';
+            $viewData['action_text'] = 'Xem chỉ đường tới chi nhánh';
+            
+            $viewData['policies'] = [
+                'Nhà hàng xin phép giữ bàn tối đa 30 phút so với giờ đặt. Nếu quý khách đến muộn hơn, vui lòng gọi Hotline để được hỗ trợ.',
+                'Quý khách muốn thay đổi thông tin hoặc hủy bàn, vui lòng thông báo trước ít nhất 2 giờ để nhà hàng chuẩn bị tốt nhất.'
+            ];
+            
+            $viewData['message_body'] = "Chúng tôi rất mong được đón tiếp bạn tại nhà hàng. Chúc bạn một ngày tốt lành!";
+        } else {
+            // Generic fallback for other templates
+            $textBody = $this->renderEmailBody($templateKey, $payload);
+            $lines = explode("\n\n", $textBody);
+            
+            if (count($lines) >= 3) {
+                $viewData['greeting'] = array_shift($lines);
+                $viewData['message_body'] = array_pop($lines);
+                
+                $middleLines = explode("\n", implode("\n\n", $lines));
+                if (implode('', $middleLines) !== '') {
+                    $viewData['intro'] = array_shift($middleLines);
+                    foreach ($middleLines as $line) {
+                        if (str_contains($line, ':')) {
+                            [$key, $val] = explode(':', $line, 2);
+                            $viewData['fields'][trim($key)] = trim($val);
+                        } else {
+                            $viewData['intro'] .= "\n" . $line;
+                        }
+                    }
+                }
+            } else {
+                $viewData['message_body'] = $textBody;
+            }
+        }
+
+        try {
+            return view('emails.notification', $viewData)->render();
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 
     private function recordMetric(string $metric, array $labels = [], int $by = 1): void

@@ -1359,33 +1359,41 @@ export function TableBoardPage() {
               </Typography.Text>
             </div>
 
-            {selectedTable.reservation ? (
-              <Card size="small" type="inner" className="staff-table-board-inspector-section" title="Thông tin đặt bàn">
+            {(selectedTable.reservations && selectedTable.reservations.length > 0
+              ? selectedTable.reservations
+              : selectedTable.reservation
+                ? [selectedTable.reservation]
+                : []
+            ).map((res, idx) => (
+              <Card key={res.reservation_id} size="small" type="inner" className="staff-table-board-inspector-section" title={idx === 0 && selectedTable.active_order ? "Khách đặt bàn hiện tại" : "Thông tin đặt bàn"}>
                 <Space orientation="vertical" size={8}>
                   <div className="staff-table-board-reservation-summary">
                     <div>
                       <span>Tên khách</span>
-                      <strong>{getReservationGuestLabel(selectedTable.reservation)}</strong>
+                      <strong>{getReservationGuestLabel(res)}</strong>
                     </div>
                     <div>
                       <span>Điện thoại</span>
-                      <strong>{getReservationGuestPhone(selectedTable.reservation)}</strong>
+                      <strong>{getReservationGuestPhone(res)}</strong>
                     </div>
                     <div>
                       <span>Số khách</span>
-                      <strong>{selectedTable.reservation.guest_count}</strong>
+                      <strong>{res.guest_count}</strong>
                     </div>
                   </div>
                   <Space wrap size={8}>
-                    <Typography.Text type="secondary">{selectedTable.reservation.reservation_code}</Typography.Text>
-                    {isReservationSnapshotOnlyGuest(selectedTable.reservation) ? (
+                    <Typography.Text type="secondary">{res.reservation_code}</Typography.Text>
+                    {isReservationSnapshotOnlyGuest(res) ? (
                       <StatusChip label={RESERVATION_SNAPSHOT_GUEST_LABEL} tone="processing" variant="freshness" />
                     ) : null}
                   </Space>
                   <Space wrap>
-                    <StatusChip label={selectedTable.reservation.status} tone={reservationTone(selectedTable.reservation.status)} />
+                    <StatusChip label={res.status} tone={reservationTone(res.status)} />
                     <Typography.Text type="secondary">
-                      {selectedTable.reservation.guest_count} khách
+                      {res.guest_count} khách
+                    </Typography.Text>
+                    <Typography.Text type="secondary">
+                      {res.start_time ? `Từ ${formatDateTime(res.start_time).split(' ')[1]}` : ''}
                     </Typography.Text>
                   </Space>
                   <div className="staff-action-row">
@@ -1394,33 +1402,37 @@ export function TableBoardPage() {
                             navigate(`${staffRoutePaths.ops.reservations}?${buildJourneySearch({
                           source: 'board',
                           tableId: selectedTable.table_id,
-                          tableIds: selectedTable.reservation?.table_ids,
-                          reservationId: selectedTable.reservation?.reservation_id,
-                          reservationRowVersion: selectedTable.reservation?.row_version,
+                          tableIds: res.table_ids,
+                          reservationId: res.reservation_id,
+                          reservationRowVersion: res.row_version,
                         })}`)
                       }
                     >
                       Mở đặt bàn
                     </Button>
-                    <Button
-                      type="primary"
-                      onClick={() => handleCheckIn(selectedTable)}
-                      loading={checkInMutation.isPending}
-                      disabled={!selectedTable.actions.check_in?.available}
-                    >
-                      Check-in khách
-                    </Button>
-                    <Button
-                      onClick={openMoveTableFormForSelectedTable}
-                      loading={moveTableMutation.isPending}
-                      disabled={!selectedTable.actions.move_table?.available || moveTableTargetOptions.length === 0}
-                    >
-                      Chuyển bàn
-                    </Button>
+                    {idx === 0 ? (
+                      <>
+                        <Button
+                          type="primary"
+                          onClick={() => handleCheckIn(selectedTable)}
+                          loading={checkInMutation.isPending}
+                          disabled={!selectedTable.actions.check_in?.available}
+                        >
+                          Check-in khách
+                        </Button>
+                        <Button
+                          onClick={openMoveTableFormForSelectedTable}
+                          loading={moveTableMutation.isPending}
+                          disabled={!selectedTable.actions.move_table?.available || moveTableTargetOptions.length === 0}
+                        >
+                          Chuyển bàn
+                        </Button>
+                      </>
+                    ) : null}
                   </div>
                 </Space>
               </Card>
-            ) : null}
+            ))}
 
             {selectedTable.active_order ? (
               <Card size="small" type="inner" className="staff-table-board-inspector-section" title="Đơn đang phục vụ">

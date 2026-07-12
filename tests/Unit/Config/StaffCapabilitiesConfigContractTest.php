@@ -39,8 +39,8 @@ class StaffCapabilitiesConfigContractTest extends TestCase
         $this->assertContains('cashier.shift.manage', config('staff_capabilities.role_capabilities.Cashier'));
         $this->assertSame(['kitchen.manage'], array_values((array) config('staff_capabilities.role_capabilities.Kitchen')));
         $this->assertNotContains('kitchen.manage', config('staff_capabilities.role_capabilities.Staff'));
-        $this->assertNotContains('cashier.shift.manage', config('staff_capabilities.role_capabilities.Staff'));
-        $this->assertNotContains('settlement.manage', config('staff_capabilities.role_capabilities.Staff'));
+        $this->assertContains('cashier.shift.manage', config('staff_capabilities.role_capabilities.Staff'));
+        $this->assertContains('settlement.manage', config('staff_capabilities.role_capabilities.Staff'));
         $this->assertNotContains('payment.refund', config('staff_capabilities.role_capabilities.Staff'));
         $this->assertNotContains('reporting.view', config('staff_capabilities.role_capabilities.Staff'));
         $this->assertNotContains('audit.view', config('staff_capabilities.role_capabilities.Staff'));

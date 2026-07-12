@@ -4,6 +4,7 @@ import Link from "next/link";
 import { AlertTriangle, CheckCircle2, Clock3, ExternalLink, RefreshCw } from "lucide-react";
 import { AppButton, AppCard, StatusPill } from "@/components/customer/ui";
 import { StatusBadge } from "@/components/status/status-badge";
+import { toast } from "sonner";
 import { asRecord, stringValue } from "@/lib/contracts/loose";
 import { formatDateTime, formatMoney } from "@/lib/contracts/format";
 import type { CustomerBillPaymentSession, CustomerDepositPaymentSession } from "@/lib/contracts/generated/restaurantpos-sdk";
@@ -76,7 +77,7 @@ export function PaymentSessionCard({
   const expiryLabel = session.provider_expires_at ? formatDateTime(session.provider_expires_at) : null;
   const lastCheckedLabel = session.last_reconciled_at ? formatDateTime(session.last_reconciled_at) : null;
   const actionPending = refreshPending || confirmPending;
-  const paymentLinks = getPaymentProviderLinks(session.provider_payload);
+  const paymentLinks = getPaymentProviderLinks(session.provider_payload, policy);
   const lifecycleTone = getLifecycleTone(policy.lifecycle);
 
   return (
@@ -127,12 +128,17 @@ export function PaymentSessionCard({
 
         {paymentLinks.length > 0 ? (
           <div className="flex flex-wrap gap-2">
-            {paymentLinks.map((link) => (
+            {paymentLinks.map((link) => link.href ? (
               <AppButton key={link.href} asChild variant="outline">
                 <Link href={link.href} target="_blank" rel="noreferrer">
                   <ExternalLink className="h-4 w-4" />
                   {link.label}
                 </Link>
+              </AppButton>
+            ) : (
+              <AppButton key={link.label} variant="outline" onClick={link.onClick}>
+                <ExternalLink className="h-4 w-4" />
+                {link.label}
               </AppButton>
             ))}
           </div>
@@ -162,20 +168,35 @@ export function PaymentSessionCard({
   );
 }
 
-function getPaymentProviderLinks(payload: Record<string, unknown> | null | undefined): Array<{ label: string; href: string }> {
+function getPaymentProviderLinks(payload: Record<string, unknown> | null | undefined, policy: PaymentSessionPolicy): Array<{ label: string; href?: string; onClick?: () => void }> {
   const record = asRecord(payload);
 
   if (!record) {
     return [];
   }
 
-  const candidates = [
-    { label: "Mở thanh toán", href: stringValue(record, ["checkout_url", "payment_url", "redirect_url"]) },
+  const checkoutUrl = stringValue(record, ["checkout_url", "payment_url", "redirect_url"]);
+  
+  const checkoutAction = (() => {
+    if (policy.refreshMode === "stopped") return null;
+    if (checkoutUrl?.startsWith("simulated://")) {
+      return { label: "Mở thanh toán", onClick: () => toast.info("Đây là phiên thanh toán giả lập. Hãy dùng API confirm để hoàn tất.") };
+    }
+    if (isSafeHttpUrl(checkoutUrl)) {
+      return { label: "Mở thanh toán", href: checkoutUrl };
+    }
+    return null;
+  })();
+
+  const receipts = [
     { label: "Xem biên nhận", href: stringValue(record, ["receipt_url", "receipt_link"]) },
     { label: "Xem hóa đơn", href: stringValue(record, ["invoice_url", "invoice_link"]) },
-  ];
+  ].filter((link): link is { label: string; href: string } => isSafeHttpUrl(link.href));
 
-  return candidates.filter((candidate): candidate is { label: string; href: string } => isSafeHttpUrl(candidate.href));
+  return [
+    ...(checkoutAction ? [checkoutAction] : []),
+    ...receipts
+  ];
 }
 
 function isSafeHttpUrl(value: string | null): value is string {

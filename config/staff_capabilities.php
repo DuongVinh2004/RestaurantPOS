@@ -38,7 +38,7 @@ return [
         8 => ['*'], // Quản lý
         6 => ['cashier.shift.manage', 'settlement.manage'], // Thu ngân
         7 => ['kitchen.manage'], // Bếp
-        2 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release'], // Nhân viên
+        2 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release', 'cashier.shift.manage', 'settlement.manage'], // Nhân viên
         4 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release'], // Phục vụ
         5 => ['conversation.manage', 'table.board.view', 'reservation.manage', 'order.manage', 'voucher.manage', 'loyalty.view', 'loyalty.redeem', 'waiting_list.manage', 'table.release'], // Tiếp thực
     ],
@@ -87,6 +87,8 @@ return [
             'loyalty.redeem',
             'waiting_list.manage',
             'table.release',
+            'cashier.shift.manage',
+            'settlement.manage',
         ],
         'Server' => [
             'conversation.manage',

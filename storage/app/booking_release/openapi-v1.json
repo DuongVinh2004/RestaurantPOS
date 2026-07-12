@@ -10651,6 +10651,34 @@
                         ]
                     },
                     {
+                        "name": "is_best_seller",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "nullable": true
+                        },
+                        "description": "nullable, boolean",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    {
+                        "name": "is_combo",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "nullable": true
+                        },
+                        "description": "nullable, boolean",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    {
                         "name": "q",
                         "in": "query",
                         "required": false,
@@ -10698,6 +10726,20 @@
                             "integer",
                             "min:1",
                             "max:100"
+                        ]
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "nullable": true
+                        },
+                        "description": "nullable, array",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
                         ]
                     }
                 ],
@@ -20872,6 +20914,34 @@
                         ]
                     },
                     {
+                        "name": "is_best_seller",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "nullable": true
+                        },
+                        "description": "nullable, boolean",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    {
+                        "name": "is_combo",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean",
+                            "nullable": true
+                        },
+                        "description": "nullable, boolean",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    {
                         "name": "q",
                         "in": "query",
                         "required": false,
@@ -20919,6 +20989,20 @@
                             "integer",
                             "min:1",
                             "max:100"
+                        ]
+                    },
+                    {
+                        "name": "filter",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "nullable": true
+                        },
+                        "description": "nullable, array",
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
                         ]
                     }
                 ],
@@ -36272,8 +36356,9 @@
                     },
                     "guest_name": {
                         "type": "string",
+                        "nullable": true,
                         "x-laravel-rules": [
-                            "prohibited",
+                            "nullable",
                             "string",
                             "max:200"
                         ],
@@ -36281,8 +36366,9 @@
                     },
                     "guest_phone": {
                         "type": "string",
+                        "nullable": true,
                         "x-laravel-rules": [
-                            "prohibited",
+                            "nullable",
                             "string",
                             "max:50"
                         ],
@@ -36290,8 +36376,9 @@
                     },
                     "guest_email": {
                         "type": "string",
+                        "nullable": true,
                         "x-laravel-rules": [
-                            "prohibited",
+                            "nullable",
                             "email:rfc",
                             "max:200"
                         ],
@@ -36431,17 +36518,17 @@
                         "exists:branches,branch_id"
                     ],
                     "guest_name": [
-                        "prohibited",
+                        "nullable",
                         "string",
                         "max:200"
                     ],
                     "guest_phone": [
-                        "prohibited",
+                        "nullable",
                         "string",
                         "max:50"
                     ],
                     "guest_email": [
-                        "prohibited",
+                        "nullable",
                         "email:rfc",
                         "max:200"
                     ],
@@ -43801,6 +43888,22 @@
                             "boolean"
                         ]
                     },
+                    "is_best_seller": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
+                    "is_combo": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "boolean"
+                        ]
+                    },
                     "q": {
                         "type": "string",
                         "nullable": true,
@@ -43832,6 +43935,34 @@
                         ],
                         "minimum": 1,
                         "maximum": 100
+                    },
+                    "filter": {
+                        "type": "object",
+                        "nullable": true,
+                        "x-laravel-rules": [
+                            "nullable",
+                            "array"
+                        ],
+                        "properties": {
+                            "is_best_seller": {
+                                "type": "boolean",
+                                "nullable": true,
+                                "x-laravel-rules": [
+                                    "nullable",
+                                    "boolean"
+                                ]
+                            },
+                            "is_combo": {
+                                "type": "boolean",
+                                "nullable": true,
+                                "x-laravel-rules": [
+                                    "nullable",
+                                    "boolean"
+                                ]
+                            }
+                        },
+                        "required": [],
+                        "additionalProperties": false
                     }
                 },
                 "required": [],
@@ -43850,6 +43981,14 @@
                         "nullable",
                         "boolean"
                     ],
+                    "is_best_seller": [
+                        "nullable",
+                        "boolean"
+                    ],
+                    "is_combo": [
+                        "nullable",
+                        "boolean"
+                    ],
                     "q": [
                         "nullable",
                         "string",
@@ -43865,6 +44004,18 @@
                         "integer",
                         "min:1",
                         "max:100"
+                    ],
+                    "filter": [
+                        "nullable",
+                        "array"
+                    ],
+                    "filter.is_best_seller": [
+                        "nullable",
+                        "boolean"
+                    ],
+                    "filter.is_combo": [
+                        "nullable",
+                        "boolean"
                     ]
                 }
             },

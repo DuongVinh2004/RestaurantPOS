@@ -4,13 +4,13 @@ import { Button, Card, Form, Input, Select, Space, Table, Typography, message, S
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ReservationEnvelope, StaffReservationLookupEntry } from '../../../../shared/api/sdk';
 import {
-  cancelReservation,
   checkInReservation,
   createReservation,
   getActiveOrderByReservation,
   getReservationDetail,
   getTableBoard,
   listReservations,
+  updateReservationStatus,
 } from '../../../../shared/api/staff-api';
 import { formatApiError, formatStaffFacingApiError } from '../../../../shared/api/errors';
 import { formatDateTime } from '../../../../shared/utils/format';
@@ -412,7 +412,9 @@ export function ReservationsPage() {
       );
     },
     mutationFn: async (reservation: ReservationEnvelope['data']) =>
-      cancelReservation(reservation.reservation_id, {
+      updateReservationStatus(reservation.reservation_id, {
+        status: 'Cancelled',
+        force: true,
         row_version: reservation.row_version,
       }),
     onSuccess: async (reservationEnvelope) => {

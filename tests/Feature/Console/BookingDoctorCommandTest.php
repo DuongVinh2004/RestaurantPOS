@@ -24,10 +24,12 @@ class BookingDoctorCommandTest extends TestCase
         config()->set('booking.idempotency_required_scopes', ['reservations', 'staff.checkout']);
         config()->set('booking.scheduler_heartbeat_ttl_seconds', 300);
         config()->set('booking.scheduler_heartbeat_stale_seconds', 180);
+        config()->set('booking.doctor.allow_local_bypass', false);
         config()->set('booking.reservation_lock_ttl_seconds', 60);
         config()->set('booking.reservation_lock_wait_seconds', 10);
         config()->set('booking.reservation_lock_prefix', 'booking:lock:table');
         config()->set('booking.reservation_lock_reservation_prefix', 'booking:lock:reservation');
+        config()->set('booking.ops_heartbeat_store', 'redis');
         config()->set('booking.require_redis_for_booking_api', true);
         config()->set('cache.stores.redis', [
             'driver' => 'array',

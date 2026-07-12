@@ -101,20 +101,21 @@ final class VNPayPaymentProviderAdapterTest extends TestCase
         // Sort parameters by key
         ksort($vnpParams);
 
-        // Build query string
-        $queryParts = [];
+        // VNPay spec says hashData must be urlencoded
+        // Build hash from urlencoded key=value pairs
+        $hashDataParts = [];
         foreach ($vnpParams as $key => $value) {
-            $queryParts[] = urlencode($key).'='.urlencode($value);
+            $hashDataParts[] = urlencode($key).'='.urlencode((string) $value);
         }
-        $queryString = implode('&', $queryParts);
+        $hashData = implode('&', $hashDataParts);
 
-        // VNPay uses HMAC-SHA512
-        $secureHash = hash_hmac('sha512', $queryString, $secret);
+        // VNPay uses HMAC-SHA512 over raw hashData
+        $secureHash = hash_hmac('sha512', $hashData, $secret);
 
         // Add signature to parameters
         $vnpParams['vnp_SecureHash'] = $secureHash;
 
-        // Construct raw query string payload
+        // Construct raw query string payload (VNPay sends URL-encoded IPN body)
         $rawQueryParts = [];
         foreach ($vnpParams as $key => $value) {
             $rawQueryParts[] = urlencode($key).'='.urlencode($value);
@@ -143,12 +144,15 @@ final class VNPayPaymentProviderAdapterTest extends TestCase
 
         ksort($vnpParams);
 
-        $queryParts = [];
+        ksort($vnpParams);
+
+        // FIX: VNPay spec says hashData must be raw (no URL encoding)
+        $hashDataParts = [];
         foreach ($vnpParams as $key => $value) {
-            $queryParts[] = urlencode($key).'='.urlencode($value);
+            $hashDataParts[] = $key.'='.$value;
         }
-        $queryString = implode('&', $queryParts);
-        $secureHash = hash_hmac('sha512', $queryString, $secret);
+        $hashData = implode('&', $hashDataParts);
+        $secureHash = hash_hmac('sha512', $hashData, $secret);
 
         $vnpParams['vnp_SecureHash'] = $secureHash;
 

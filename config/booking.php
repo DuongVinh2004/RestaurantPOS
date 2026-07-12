@@ -259,6 +259,7 @@ return [
     ],
 
     // Reservation locks and runtime coordination.
+    'ops_heartbeat_store' => (string) env('BOOKING_OPS_HEARTBEAT_STORE', $defaultRealtimeCacheStore),
     'require_redis_for_booking_api' => (bool) env('REQUIRE_REDIS_FOR_BOOKING_API', true),
     'scheduler_heartbeat_ttl_seconds' => (int) env('SCHEDULER_HEARTBEAT_TTL_SECONDS', 300),
     'scheduler_heartbeat_stale_seconds' => (int) env('SCHEDULER_HEARTBEAT_STALE_SECONDS', 180),

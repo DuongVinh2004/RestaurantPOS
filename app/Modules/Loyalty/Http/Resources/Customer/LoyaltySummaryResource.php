@@ -15,7 +15,7 @@ class LoyaltySummaryResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
-        $transactions = LoyaltyPointTransactionResource::collection(collect((array) data_get($this->resource, 'transactions', [])))->resolve($request);
+        $transactions = LoyaltyPointTransactionResource::collection(collect(data_get($this->resource, 'transactions', [])))->resolve($request);
 
         return [
             'user' => data_get($this->resource, 'user'),

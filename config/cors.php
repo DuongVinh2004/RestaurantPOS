@@ -41,6 +41,6 @@ return [
 
     'max_age' => 7200,
 
-    'supports_credentials' => false,
+    'supports_credentials' => env('CORS_SUPPORTS_CREDENTIALS', false),
 
 ];

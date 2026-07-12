@@ -67,7 +67,7 @@ class ReservationLockService
 
     /**
      * --- BƯỚC 3: ĐỘNG CƠ KHÓA (CORE LOCKING ENGINE) ---
-     * Đây là nơi thể hiện trình độ Senior/Principal của người viết ra nó.
+     
      */
     public function withLockKeys(array $keys, Closure $callback): mixed
     {

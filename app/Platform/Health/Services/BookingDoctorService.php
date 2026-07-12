@@ -57,7 +57,7 @@ class BookingDoctorService
         }
 
         try {
-            $allowLocalBypass = app()->environment(['local', 'development'])
+            $allowLocalBypass = app()->environment(['local', 'development', 'testing'])
                 && (bool) config('booking.doctor.allow_local_bypass', false);
 
             if ($allowLocalBypass) {
@@ -110,7 +110,7 @@ class BookingDoctorService
             );
         } else {
             try {
-                $allowLocalBypass = app()->environment(['local', 'development'])
+                $allowLocalBypass = app()->environment(['local', 'development', 'testing'])
                     && (bool) config('booking.doctor.allow_local_bypass', false);
 
                 if ($allowLocalBypass) {

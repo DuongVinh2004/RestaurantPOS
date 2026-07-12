@@ -209,6 +209,11 @@ export function OrderWorkspacePage() {
   const [routeOrderRecoveryEnabled, setRouteOrderRecoveryEnabled] = useState(false);
   const [orderMutationFeedback, setOrderMutationFeedback] = useState<OrderMutationFeedback | null>(null);
   const [editItemForm] = Form.useForm<EditItemValues>();
+
+  // Mount form instance even if drawer is closed to prevent warnings
+  useEffect(() => {
+    editItemForm.resetFields();
+  }, [editItemForm]);
   const [menuDrawerOpen, setMenuDrawerOpen] = useState(false);
   const [itemDetailDrawerOpen, setItemDetailDrawerOpen] = useState(false);
 
@@ -614,10 +619,17 @@ export function OrderWorkspacePage() {
     onSuccess: async (result, values) => {
       clearMenuDraft(values.menu_item_id);
       syncOrderMutationEnvelope(result.orderEnvelope);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
-        queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
-      ]);
+      
+      const newRowVersion = result.orderEnvelope.data.row_version;
+      if (newRowVersion !== null && newRowVersion !== undefined) {
+        dispatchMutation.mutate(newRowVersion);
+      } else {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
+          queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
+        ]);
+      }
+      
       if (result.orderItemId) {
         setSelectedItemId(result.orderItemId);
       }
@@ -654,10 +666,17 @@ export function OrderWorkspacePage() {
     },
     onSuccess: async (orderEnvelope) => {
       syncOrderMutationEnvelope(orderEnvelope);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
-        queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
-      ]);
+      
+      const newRowVersion = orderEnvelope.data.row_version;
+      if (newRowVersion !== null && newRowVersion !== undefined) {
+        dispatchMutation.mutate(newRowVersion);
+      } else {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ['order-detail', resolvedOrderId] }),
+          queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
+        ]);
+      }
+      
       message.success('Đã cập nhật dòng món đã chọn.');
     },
     onError: async (error) => {
@@ -700,21 +719,21 @@ export function OrderWorkspacePage() {
   });
 
   const dispatchMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (overrideRowVersion?: number) => {
       if (!resolvedOrderId) {
         throw new Error('Chọn hoặc tạo một đơn hàng đang phục vụ trước khi chuyển bếp.');
       }
 
-      if (resolvedOrderRowVersion === null || resolvedOrderRowVersion === undefined) {
+      const effectiveRowVersion = overrideRowVersion ?? resolvedOrderRowVersion;
+      if (effectiveRowVersion === null || effectiveRowVersion === undefined) {
         throw new Error('Hãy tải lại đơn hàng để lấy phiên bản mới nhất trước khi chuyển bếp.');
       }
 
       return dispatchKitchenOrder(resolvedOrderId, {
-        row_version: resolvedOrderRowVersion,
+        row_version: effectiveRowVersion,
       });
     },
-    onSuccess: async (dispatchEnvelope) => {
-      const dispatchedStationId = dispatchEnvelope.data[0]?.station?.station_id;
+    onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['kitchen-stations'] }),
         queryClient.invalidateQueries({ queryKey: ['kitchen-tickets'] }),
@@ -722,16 +741,6 @@ export function OrderWorkspacePage() {
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
       ]);
       message.success('Đã chuyển đơn hàng sang bếp.');
-      navigate(`${staffRoutePaths.kitchen.landing}?${buildJourneySearch({
-        source: 'order',
-        tableId: primaryTableId ?? undefined,
-        tableIds: resolvedTableIds,
-        reservationId: reservationId ?? undefined,
-        reservationRowVersion: reservationRowVersion ?? reservationDetailQuery.data?.data.row_version ?? undefined,
-        orderId: resolvedOrderId ?? undefined,
-        orderRowVersion: resolvedOrderRowVersion ?? undefined,
-        stationId: dispatchedStationId,
-      })}`);
     },
     onError: (error) => {
       message.error(formatApiError(error, 'Không thể chuyển đơn hàng sang bếp.'));
@@ -746,7 +755,7 @@ export function OrderWorkspacePage() {
     });
 
     if (confirmed) {
-      await dispatchMutation.mutateAsync();
+      await dispatchMutation.mutateAsync(undefined);
     }
   }
 
@@ -1015,7 +1024,7 @@ export function OrderWorkspacePage() {
                 />
               ) : null}
 
-              <Card bodyStyle={{ padding: 0 }} bordered={false} style={{ overflow: 'hidden' }}>
+              <Card styles={{ body: { padding: 0 } }} variant="borderless" style={{ overflow: 'hidden' }}>
                 {orderDetailQuery.data.data.items.length === 0 ? (
                   <EmptyBlock
                     title="Chưa có dòng món nào"
@@ -1121,6 +1130,10 @@ export function OrderWorkspacePage() {
         resolvedOrderId={resolvedOrderId}
         paymentMergeLocked={paymentMergeLocked}
       />
+      {/* Hidden form to suppress useForm warning when drawer is closed */}
+      <div style={{ display: 'none' }}>
+        <Form form={editItemForm} />
+      </div>
       <OrderItemDetailDrawer
         open={itemDetailDrawerOpen}
         onClose={() => setItemDetailDrawerOpen(false)}
