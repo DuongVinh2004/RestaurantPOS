@@ -798,9 +798,9 @@ export type CreatePurchaseOrderReceiptRequest = {
 export type CreateReservationRequest = {
   user_id?: (number) | null;
   branch_id?: (number) | null;
-  guest_name?: string;
-  guest_phone?: string;
-  guest_email?: string;
+  guest_name?: (string) | null;
+  guest_phone?: (string) | null;
+  guest_email?: (string) | null;
   start_time: string;
   end_time: string;
   guest_count: number;
@@ -1837,9 +1837,12 @@ export type GetV1MenuItemsQueryParams = {
   service_time?: (string) | null;
   category_id?: (number) | null;
   preorder_only?: (boolean) | null;
+  is_best_seller?: (boolean) | null;
+  is_combo?: (boolean) | null;
   q?: (string) | null;
   page?: (number) | null;
   per_page?: (number) | null;
+  filter?: (Array<Record<string, never>>) | null;
 };
 
 export type GetV1ReservationsIdBenefitsPreviewPathParams = {
@@ -2027,9 +2030,12 @@ export type GetV1StaffMenuItemsQueryParams = {
   service_time?: (string) | null;
   category_id?: (number) | null;
   preorder_only?: (boolean) | null;
+  is_best_seller?: (boolean) | null;
+  is_combo?: (boolean) | null;
   q?: (string) | null;
   page?: (number) | null;
   per_page?: (number) | null;
+  filter?: (Array<Record<string, never>>) | null;
 };
 
 export type GetV1StaffOrdersOrderIdPathParams = {
