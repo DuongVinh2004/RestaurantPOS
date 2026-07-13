@@ -1274,11 +1274,11 @@ class NotificationOutboxService
             // Generic fallback for other templates
             $textBody = $this->renderEmailBody($templateKey, $payload);
             $lines = explode("\n\n", $textBody);
-            
+
             if (count($lines) >= 3) {
                 $viewData['greeting'] = array_shift($lines);
                 $viewData['message_body'] = array_pop($lines);
-                
+
                 $middleLines = explode("\n", implode("\n\n", $lines));
                 if (implode('', $middleLines) !== '') {
                     $viewData['intro'] = array_shift($middleLines);
@@ -1287,7 +1287,7 @@ class NotificationOutboxService
                             [$key, $val] = explode(':', $line, 2);
                             $viewData['fields'][trim($key)] = trim($val);
                         } else {
-                            $viewData['intro'] .= "\n" . $line;
+                            $viewData['intro'] .= "\n".$line;
                         }
                     }
                 }
@@ -1301,7 +1301,7 @@ class NotificationOutboxService
             $viewTemplate = 'emails.notification';
 
             return view($viewTemplate, $viewData)->render();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return '';
         }
     }
