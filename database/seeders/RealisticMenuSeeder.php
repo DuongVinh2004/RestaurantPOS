@@ -21,7 +21,7 @@ class RealisticMenuSeeder extends Seeder
             ['name' => 'Tráng Miệng', 'sort_order' => 6],
             ['name' => 'Thức Uống', 'sort_order' => 7],
         ];
-        
+
         $categoryIds = [];
         foreach ($categories as $cat) {
             $existing = DB::table('menu_categories')->where('name', $cat['name'])->first();

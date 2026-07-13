@@ -69,7 +69,7 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
         }
 
         $queryString = implode('&', $queryParts);
-        $hashData    = implode('&', $queryParts);
+        $hashData = implode('&', $queryParts);
 
         if ($hashSecret !== '') {
             $vnpSecureHash = hash_hmac('sha512', $hashData, $hashSecret);

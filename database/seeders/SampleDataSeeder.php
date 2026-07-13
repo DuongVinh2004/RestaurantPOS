@@ -17,7 +17,7 @@ class SampleDataSeeder extends Seeder
             ['name' => 'Món Chính', 'sort_order' => 2],
             ['name' => 'Thức Uống', 'sort_order' => 3],
         ];
-        
+
         $categoryIds = [];
         foreach ($categories as $cat) {
             $existing = DB::table('menu_categories')->where('name', $cat['name'])->first();
@@ -74,7 +74,7 @@ class SampleDataSeeder extends Seeder
                 'name' => 'Bia Heineken',
                 'description' => 'Bia Heineken lon 330ml',
                 'price' => 35000,
-            ]
+            ],
         ];
 
         foreach ($items as $item) {
@@ -114,7 +114,7 @@ class SampleDataSeeder extends Seeder
                 $templateIds[$tpl['capacity']] = DB::table('table_templates')->insertGetId([
                     'template_code' => $tpl['code'],
                     'seats' => $tpl['capacity'],
-                    'description' => 'Bàn ' . $tpl['capacity'] . ' người',
+                    'description' => 'Bàn '.$tpl['capacity'].' người',
                 ]);
             } else {
                 $templateIds[$tpl['capacity']] = $existing->template_id;
@@ -137,7 +137,7 @@ class SampleDataSeeder extends Seeder
 
                 foreach ($tables as $tbl) {
                     DB::table('restaurant_tables')->insert([
-                        'table_code' => $tbl['code'] . '-' . $branch->branch_code,
+                        'table_code' => $tbl['code'].'-'.$branch->branch_code,
                         'branch_id' => $branch->branch_id,
                         'template_id' => $templateIds[$tbl['capacity']],
                         'zone' => $tbl['zone'],

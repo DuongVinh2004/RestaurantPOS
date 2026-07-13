@@ -150,12 +150,12 @@ $items = [
 // 3. Upsert items
 // ---------------------------------------------------------------------------
 $inserted = 0;
-$updated  = 0;
-$skipped  = 0;
+$updated = 0;
+$skipped = 0;
 
 foreach ($items as [$code,$cat,$name,$desc,$price,$cmpPrice,$img,$avail,$preorder,$bs,$combo,$quota,$cutoff,$ssize]) {
-    if (!isset($catMap[$cat])) {
-        echo "  SKIP (no cat): $code → $cat" . PHP_EOL;
+    if (! isset($catMap[$cat])) {
+        echo "  SKIP (no cat): $code → $cat".PHP_EOL;
         $skipped++;
         continue;
     }
@@ -163,18 +163,18 @@ foreach ($items as [$code,$cat,$name,$desc,$price,$cmpPrice,$img,$avail,$preorde
 
     $exists = DB::table('menu_items')->where('code', $code)->first();
     $data = [
-        'category_id'             => $catId,
-        'name'                    => $name,
-        'description'             => $desc,
-        'img_url'                 => $img,
-        'is_available'            => $avail,
-        'is_preorder_enabled'     => $preorder,
-        'is_best_seller'          => $bs,
-        'is_combo'                => $combo,
-        'preorder_quota_per_day'  => $quota,
+        'category_id' => $catId,
+        'name' => $name,
+        'description' => $desc,
+        'img_url' => $img,
+        'is_available' => $avail,
+        'is_preorder_enabled' => $preorder,
+        'is_best_seller' => $bs,
+        'is_combo' => $combo,
+        'preorder_quota_per_day' => $quota,
         'preorder_cutoff_minutes' => $cutoff,
         'compare_at_price_amount' => $cmpPrice,
-        'serving_size'            => $ssize,
+        'serving_size' => $ssize,
     ];
 
     if ($exists) {
@@ -186,7 +186,7 @@ foreach ($items as [$code,$cat,$name,$desc,$price,$cmpPrice,$img,$avail,$preorde
     }
 }
 
-echo "Items: $inserted inserted, $updated updated, $skipped skipped" . PHP_EOL;
+echo "Items: $inserted inserted, $updated updated, $skipped skipped".PHP_EOL;
 
 // ---------------------------------------------------------------------------
 // 4. Insert prices (only where no active price exists)
@@ -194,45 +194,45 @@ echo "Items: $inserted inserted, $updated updated, $skipped skipped" . PHP_EOL;
 $priceInserted = 0;
 foreach ($items as [$code,$cat,$name,$desc,$price]) {
     $item = DB::table('menu_items')->where('code', $code)->first(['item_id']);
-    if (!$item) continue;
+    if (! $item) continue;
     $hasPrice = DB::table('menu_item_prices')
         ->where('item_id', $item->item_id)
         ->where('currency', 'VND')
         ->whereNull('effective_to')
         ->exists();
-    if (!$hasPrice) {
+    if (! $hasPrice) {
         DB::table('menu_item_prices')->insert([
-            'item_id'        => $item->item_id,
-            'price'          => $price,
-            'currency'       => 'VND',
+            'item_id' => $item->item_id,
+            'price' => $price,
+            'currency' => 'VND',
             'effective_from' => '2026-06-20 00:00:00',
-            'effective_to'   => null,
+            'effective_to' => null,
         ]);
         $priceInserted++;
     }
 }
-echo "Prices inserted: $priceInserted" . PHP_EOL;
+echo 'Prices inserted: '.$priceInserted.PHP_EOL;
 
 // ---------------------------------------------------------------------------
 // 5. Combo components (INSERT IGNORE equivalent)
 // ---------------------------------------------------------------------------
 function insertComboComponents(string $comboCode, array $componentCodes, array $quantities = []): int {
     $combo = DB::table('menu_items')->where('code', $comboCode)->first(['item_id']);
-    if (!$combo) return 0;
+    if (! $combo) return 0;
     $count = 0;
     foreach ($componentCodes as $cpCode) {
         $cp = DB::table('menu_items')->where('code', $cpCode)->first(['item_id']);
-        if (!$cp) continue;
+        if (! $cp) continue;
         $qty = $quantities[$cpCode] ?? 1;
         $exists = DB::table('menu_item_combo_components')
             ->where('combo_item_id', $combo->item_id)
             ->where('component_item_id', $cp->item_id)
             ->exists();
-        if (!$exists) {
+        if (! $exists) {
             DB::table('menu_item_combo_components')->insert([
-                'combo_item_id'    => $combo->item_id,
-                'component_item_id'=> $cp->item_id,
-                'quantity'         => $qty,
+                'combo_item_id' => $combo->item_id,
+                'component_item_id' => $cp->item_id,
+                'quantity' => $qty,
             ]);
             $count++;
         }
@@ -264,18 +264,18 @@ $compCount += insertComboComponents('MS-SET-CHAY', [
     'MS-DAU-HU-RANG-MUOI','MS-DAU-HU-SOT-NAM','MS-NAM-KHO-TIEU',
     'MS-CANH-RAU-CU-HAT-SEN','MS-TAU-HU-NUOC-DUONG','MS-TRA-SEN-NONG'
 ], ['MS-TRA-SEN-NONG'=>2]);
-echo "Combo components inserted: $compCount" . PHP_EOL;
+echo 'Combo components inserted: '.$compCount.PHP_EOL;
 
 // ---------------------------------------------------------------------------
 // 6. Final counts
 // NOTE: Step 1a already hid old conflicting categories (id=1, id=2).
 //       Do NOT run any further cleanup on id=1 here — it is now 'Mon Chinh'.
 // ---------------------------------------------------------------------------
-$finalItems  = DB::table('menu_items')->where('is_available', 1)->count();
-$finalBS     = DB::table('menu_items')->where('is_best_seller', 1)->count();
-$finalCombo  = DB::table('menu_items')->where('is_combo', 1)->count();
-$finalComps  = DB::table('menu_item_combo_components')->count();
-$finalCats   = DB::table('menu_categories')->where('is_deleted', 0)->count();
+$finalItems = DB::table('menu_items')->where('is_available', 1)->count();
+$finalBS = DB::table('menu_items')->where('is_best_seller', 1)->count();
+$finalCombo = DB::table('menu_items')->where('is_combo', 1)->count();
+$finalComps = DB::table('menu_item_combo_components')->count();
+$finalCats = DB::table('menu_categories')->where('is_deleted', 0)->count();
 $finalPrices = DB::table('menu_item_prices')
     ->join('menu_items', 'menu_item_prices.item_id', '=', 'menu_items.item_id')
     ->where('menu_items.is_available', 1)
@@ -283,16 +283,16 @@ $finalPrices = DB::table('menu_item_prices')
     ->count();
 
 echo PHP_EOL;
-echo "=== FINAL COUNTS ===" . PHP_EOL;
-echo "  Items available   : $finalItems  (expect 66)" . PHP_EOL;
-echo "  Best sellers      : $finalBS  (expect 13)" . PHP_EOL;
-echo "  Set/Combo         : $finalCombo  (expect 6)" . PHP_EOL;
-echo "  Combo components  : $finalComps  (expect 41)" . PHP_EOL;
-echo "  Active categories : $finalCats  (expect 8)" . PHP_EOL;
-echo "  Active prices     : $finalPrices  (expect 66)" . PHP_EOL;
+echo '=== FINAL COUNTS ==='.PHP_EOL;
+echo "  Items available   : $finalItems  (expect 66)".PHP_EOL;
+echo "  Best sellers      : $finalBS  (expect 13)".PHP_EOL;
+echo "  Set/Combo         : $finalCombo  (expect 6)".PHP_EOL;
+echo "  Combo components  : $finalComps  (expect 41)".PHP_EOL;
+echo "  Active categories : $finalCats  (expect 8)".PHP_EOL;
+echo "  Active prices     : $finalPrices  (expect 66)".PHP_EOL;
 
 if ($finalItems >= 60 && $finalBS >= 9 && $finalCombo === 6 && $finalComps >= 30 && $finalCats === 8) {
-    echo PHP_EOL . "  ✅ SUCCESS" . PHP_EOL;
+    echo PHP_EOL.'  ✅ SUCCESS'.PHP_EOL;
 } else {
-    echo PHP_EOL . "  ⚠️  CHECK ABOVE — some counts off" . PHP_EOL;
+    echo PHP_EOL.'  ⚠️  CHECK ABOVE — some counts off'.PHP_EOL;
 }

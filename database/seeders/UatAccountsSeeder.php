@@ -78,12 +78,12 @@ class UatAccountsSeeder extends Seeder
             }
 
             $branchId = $branchIds[$userData['branch_code']];
-            
+
             $assignment = DB::table('staff_branch_assignments')
                 ->where('user_id', $userId)
                 ->where('branch_id', $branchId)
                 ->first();
-                
+
             if (! $assignment) {
                 DB::table('staff_branch_assignments')->insert([
                     'user_id' => $userId,
