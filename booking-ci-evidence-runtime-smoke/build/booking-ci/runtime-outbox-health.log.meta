@@ -1,0 +1,5 @@
+step_id=runtime-outbox-health
+step_name=runtime notification outbox health
+command=php artisan notifications:outbox-health --json | tee build/booking-ci/runtime-outbox-health.json
+timeout_seconds=180
+exit_code=0

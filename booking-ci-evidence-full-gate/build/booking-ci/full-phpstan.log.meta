@@ -1,0 +1,5 @@
+step_id=full-phpstan
+step_name=phpstan evidence lane
+command=BOOKING_PHPSTAN_MEMORY_LIMIT=3G bash scripts/ci/booking-phpstan.sh
+timeout_seconds=2400
+exit_code=0

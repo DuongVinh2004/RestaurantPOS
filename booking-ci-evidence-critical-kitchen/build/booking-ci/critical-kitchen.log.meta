@@ -1,0 +1,5 @@
+step_id=critical-kitchen
+step_name=critical-kitchen-kds
+command=composer test:kitchen
+timeout_seconds=1800
+exit_code=0

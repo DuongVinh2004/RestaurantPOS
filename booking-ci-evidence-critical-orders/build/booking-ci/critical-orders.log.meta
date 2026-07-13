@@ -1,0 +1,5 @@
+step_id=critical-orders
+step_name=critical-orders
+command=composer test:orders
+timeout_seconds=1800
+exit_code=0

@@ -1,0 +1,5 @@
+step_id=smoke-heartbeat-touch-before-reliability
+step_name=booking smoke scheduler heartbeat touch before reliability
+command=php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch-before-reliability.json
+timeout_seconds=120
+exit_code=0

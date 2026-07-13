@@ -1,0 +1,155 @@
+{
+    "ok": true,
+    "suite": "round5",
+    "description": "Canonical Round 5 financial integration gate for checkout, loyalty, voucher, refund, payment provider/webhook, deposit payment sessions, bill self-payment, idempotency, and reservation regressions.",
+    "definition_path": "tests/fixtures/round5_gate_suite.json",
+    "snapshot_path": "storage/app/booking_release/round5_gate_snapshot.json",
+    "tests": [
+        {
+            "key": "staff_checkout_financial_matrix",
+            "path": "tests/Feature/Staff/StaffCheckoutFinancialIntegrationMatrixTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 2068,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckoutFinancialIntegrationMatrixTest\r\n  ✓ refund cancel after completed settlement restores loyalty voucher and payment state                          0.42s  \r\n  ✓ partial refund after completed settlement keeps voucher and loyalty redemption but reconciles earn points    0.14s  \r\n  ✓ refund cancel allows confirmed reservation with existing deposit payment                                     0.09s  \r\n  ✓ voucher only completed reservation refund cancel restores voucher without loyalty side effects               0.13s  \r\n  ✓ refund cancel replays same idempotency key without double loyalty or voucher release                         0.15s  \r\n  ✓ finalize replays same idempotency key without double loyalty earn or voucher consume                         0.13s  \r\n\r\n  Tests:    6 passed (72 assertions)\r\n  Duration: 1.33s"
+        },
+        {
+            "key": "staff_checkout_financial_outbox_and_coverage",
+            "path": "tests/Feature/Staff/StaffCheckoutFinancialOutboxAndCoverageTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 2293,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckoutFinancialOutboxAndCoverageTest\r\n  ✓ loyalty only completed reservation refund cancel restores points and outbox state                            0.21s  \r\n  ✓ deposit only completed reservation refund cancel restores payment state and outbox                           0.12s  \r\n  ✓ voucher and deposit completed reservation refund cancel restores voucher and deposit state                   0.13s  \r\n  ✓ loyalty and deposit partial refund after completed reconciles earn without releasing redemption              0.12s  \r\n  ✓ voucher and loyalty completed reservation refund cancel without deposit restores points and voucher          0.14s  \r\n  ✓ refund cancel emits reservation cancelled but not payment refunded outbox                                    0.11s  \r\n  ✓ partial payment then finalize emits single checkout outbox and settles remaining due                         0.12s  \r\n  ✓ refund after finalize without cancel keeps completed status and emits single refund outbox                   0.12s  \r\n\r\n  Tests:    8 passed (77 assertions)\r\n  Duration: 1.24s"
+        },
+        {
+            "key": "staff_checkout_idempotency_replay",
+            "path": "tests/Feature/Staff/StaffCheckoutIdempotencyReplayServiceTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 1243,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckoutIdempotencyReplayServiceTest\r\n  ✓ pay order replays same payment and returns completed order status when fully settled                         0.15s  \r\n  ✓ refund reservation replays existing refund rows for same idempotency key                                     0.10s  \r\n\r\n  Tests:    2 passed (8 assertions)\r\n  Duration: 0.36s"
+        },
+        {
+            "key": "staff_checkout_concurrency_guard",
+            "path": "tests/Feature/Staff/StaffCheckoutConcurrencyGuardFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 105685,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckoutConcurrencyGuardFlowTest\r\n  ✓ pay endpoint rejects duplicate transaction code for same provider across distinct requests                  12.55s  \r\n  ✓ pay endpoint allows same transaction code when provider differs                                             12.30s  \r\n  ✓ finalize endpoint rejects second non replay request after settlement is completed                           12.27s  \r\n  ✓ finalize mutation bumps versions and rejects stale refund cancel request                                    12.28s  \r\n  ✓ refund cancel accepts fresh row version after finalize mutation and bumps version again                     12.24s  \r\n  ✓ refund endpoint rejects over refund when distinct idempotency keys target same source payment               12.30s  \r\n  ✓ refund endpoint allows second distinct request only for remaining balance on same source payment            18.45s  \r\n  ✓ refund endpoint rejects duplicate transaction code for same provider across distinct requests               12.32s  \r\n\r\n  Tests:    8 passed (50 assertions)\r\n  Duration: 104.85s"
+        },
+        {
+            "key": "staff_checkout_refund_and_cancel",
+            "path": "tests/Feature/Staff/StaffCheckoutRefundAndCancelServiceTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 635,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckoutRefundAndCancelServiceTest\r\n  ✓ refund cancel requires at least one existing payment                                                         0.08s  \r\n  ✓ cancel after payment clears stale lifecycle timestamps                                                       0.07s  \r\n\r\n  Tests:    2 passed (7 assertions)\r\n  Duration: 0.24s"
+        },
+        {
+            "key": "staff_checkout_refund_lifecycle",
+            "path": "tests/Feature/Staff/StaffCheckoutRefundLifecycleTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 612,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckoutRefundLifecycleTest\r\n  ✓ partial deposit refund updates reservation snapshot and links refund to source payment                       0.08s  \r\n\r\n  Tests:    1 passed (6 assertions)\r\n  Duration: 0.15s"
+        },
+        {
+            "key": "payment_provider_webhook_flow",
+            "path": "tests/Feature/Payments/PaymentProviderWebhookFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 62152,
+            "output_tail": "PASS  Tests\\Feature\\Payments\\PaymentProviderWebhookFlowTest\r\n  ✓ deposit webhook applies payment once and duplicate delivery is idempotent                                   12.32s  \r\n  ✓ webhook rejects invalid signature                                                                            6.15s  \r\n  ✓ webhook rejects disabled provider configuration                                                              6.15s  \r\n  ✓ unknown webhook event type is ignored but receipt is persisted                                               6.17s  \r\n  ✓ webhook marks receipt failed when referenced session cannot be found                                         6.13s  \r\n  ✓ webhook without declared scope marks receipt failed when session cannot be resolved                          6.15s  \r\n  ✓ webhook with invalid declared scope marks receipt failed cleanly                                             6.15s  \r\n  ✓ terminal session regression event is ignored state safely                                                    6.17s  \r\n  ✓ bill webhook applies final payment without breaking settlement domain                                        6.15s  \r\n\r\n  Tests:    9 passed (57 assertions)\r\n  Duration: 61.62s"
+        },
+        {
+            "key": "customer_deposit_payment_session",
+            "path": "tests/Feature/Reservation/CustomerReservationDepositPaymentSessionFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 135531,
+            "output_tail": "PASS  Tests\\Feature\\Reservation\\CustomerReservationDepositPaymentSessionFlowTest\r\n  ✓ owner can create and show customer deposit payment session                                                  12.29s  \r\n  ✓ session linked customer can create show and confirm deposit payment session                                 24.44s  \r\n  ✓ wrong owner cannot access customer deposit payment session                                                  12.22s  \r\n  ✓ unlinked session cannot access customer deposit payment session                                             12.34s  \r\n  ✓ create rejects when reservation does not require deposit or is already fully paid                           12.25s  \r\n  ✓ duplicate create with same idempotency key replays single session                                           12.27s  \r\n  ✓ successful confirm applies real deposit payment and confirm replay does not double apply                    18.39s  \r\n  ✓ pending or failed confirmation does not update real paid state                                              18.34s  \r\n  ✓ customer generated deposit payment remains refundable via existing staff refund flow                        12.22s  \r\n\r\n  Tests:    9 passed (64 assertions)\r\n  Duration: 134.84s"
+        },
+        {
+            "key": "customer_bill_self_payment",
+            "path": "tests/Feature/Reservation/CustomerReservationOrderBillSelfPaymentFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 141494,
+            "output_tail": "PASS  Tests\\Feature\\Reservation\\CustomerReservationOrderBillSelfPaymentFlowTest\r\n  ✓ owner can view active order and bill preview                                                                12.29s  \r\n  ✓ wrong owner cannot view customer order or bill preview                                                      12.20s  \r\n  ✓ wrong owner cannot access customer bill payment session                                                     12.23s  \r\n  ✓ no active order returns null and bill preview remains meaningful                                            12.20s  \r\n  ✓ bill payment session create rejects when bill is not locked or already settled                              12.22s  \r\n  ✓ duplicate create and confirm do not double apply final payment                                              30.63s  \r\n  ✓ refresh after applied bill session is a safe noop                                                           18.32s  \r\n  ✓ pending or failed confirmation does not apply real final payment                                            18.40s  \r\n  ✓ customer bill self payment keeps existing staff finalize flow working                                       12.32s  \r\n\r\n  Tests:    9 passed (84 assertions)\r\n  Duration: 140.91s"
+        },
+        {
+            "key": "loyalty_sync_services",
+            "path": "tests/Unit/Services/Loyalty/LoyaltySyncServicesTest.php",
+            "category": "unit",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 1031,
+            "output_tail": "PASS  Tests\\Unit\\Services\\Loyalty\\LoyaltySyncServicesTest\r\n  ✓ adjustment service writes ledger and updates points                                                          0.08s  \r\n  ✓ completion and refund sync services award then reverse earn and release redemption on cancel                 0.08s  \r\n  ✓ refund sync service is idempotent when cancelled flow is replayed                                            0.07s  \r\n  ✓ refund sync keeps earn points when only deposit net changes after completion                                 0.06s  \r\n\r\n  Tests:    4 passed (15 assertions)\r\n  Duration: 0.36s"
+        },
+        {
+            "key": "payment_capture_service",
+            "path": "tests/Unit/Services/Staff/PaymentCaptureServiceTest.php",
+            "category": "unit",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 402,
+            "output_tail": "PASS  Tests\\Unit\\Services\\Staff\\PaymentCaptureServiceTest\r\n  ✓ determine payment status marks partial until remaining due is covered                                        0.02s  \r\n  ✓ is settled uses same tolerance as checkout flow                                                              0.01s  \r\n\r\n  Tests:    2 passed (6 assertions)\r\n  Duration: 0.11s"
+        },
+        {
+            "key": "refund_execution_service",
+            "path": "tests/Unit/Services/Staff/RefundExecutionServiceTest.php",
+            "category": "unit",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 414,
+            "output_tail": "PASS  Tests\\Unit\\Services\\Staff\\RefundExecutionServiceTest\r\n  ✓ build refund plan rejects amount exceeding available scope                                                   0.02s  \r\n  ✓ allocate refund payments prefers latest captured payment first                                               0.01s  \r\n\r\n  Tests:    2 passed (6 assertions)\r\n  Duration: 0.12s"
+        },
+        {
+            "key": "generic_http_hmac_payment_provider_adapter",
+            "path": "tests/Unit/Services/PaymentIntegration/GenericHttpHmacPaymentProviderAdapterTest.php",
+            "category": "unit",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 619,
+            "output_tail": "PASS  Tests\\Unit\\Services\\PaymentIntegration\\GenericHttpHmacPaymentProviderAdapterTest\r\n  ✓ create session posts to provider and normalizes response                                                     0.05s  \r\n  ✓ parse webhook normalizes mapped status and generated event code                                              0.01s  \r\n  ✓ parse webhook treats default completed event as succeeded without explicit status                            0.01s  \r\n  ✓ supported webhook event types respect configured allow list case insensitively                               0.01s  \r\n  ✓ supported webhook event types allow any non empty event when allow list is empty                             0.01s  \r\n\r\n  Tests:    5 passed (19 assertions)\r\n  Duration: 0.19s"
+        },
+        {
+            "key": "reservation_http_flow",
+            "path": "tests/Feature/Reservation/ReservationHttpFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 98825,
+            "output_tail": "PASS  Tests\\Feature\\Reservation\\ReservationHttpFlowTest\r\n  ✓ authenticated customer can create and view reservation with owner scope                                     12.29s  \r\n  ✓ authenticated customer can claim guest hold and backfill hold owner on reservation create                    6.17s  \r\n  ✓ authenticated customer cannot create reservation from hold owned by another customer                         6.15s  \r\n  ✓ session only guest hold without user binding still cannot create reservation                                 6.12s  \r\n  ✓ session owned hold can create and view reservation with session scope and redacted identity                 12.24s  \r\n  ✓ staff can create reservation for customer and view with staff scope                                         12.23s  \r\n  ✓ staff create requires user id for staff requests                                                             6.17s  \r\n  ✓ authenticated customer create rejects table with insufficient capacity                                       6.16s  \r\n  ✓ authenticated customer create rejects overlapping reservation                                                6.15s  \r\n  ✓ session create rejects hold owned by different session                                                       6.09s  \r\n  ✓ staff can view reservation with staff scope and identity fields                                              6.13s  \r\n  ✓ authenticated unrelated customer cannot view other users reservation                                         6.15s  \r\n  ✓ unlinked session cannot view reservation                                                                     6.12s  \r\n\r\n  Tests:    13 passed (83 assertions)\r\n  Duration: 98.25s"
+        },
+        {
+            "key": "reservation_status_http_flow",
+            "path": "tests/Feature/Reservation/ReservationStatusHttpFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 43974,
+            "output_tail": "PASS  Tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest\r\n  ✓ staff can cancel confirmed reservation with row version                                                      6.23s  \r\n  ✓ status update rejects stale row version                                                                      6.17s  \r\n  ✓ generic status endpoint rejects completed transition                                                         6.15s  \r\n  ✓ checked in reservation cancel requires force true                                                            6.13s  \r\n  ✓ checked in reservation force cancel releases tables when unpaid                                              6.13s  \r\n  ✓ confirmed reservation cancel rejects when final payments exist                                               6.17s  \r\n  ✓ staff can mark confirmed reservation as no show and cancel active orders                                     6.16s  \r\n\r\n  Tests:    7 passed (26 assertions)\r\n  Duration: 43.25s"
+        }
+    ],
+    "summary": {
+        "total": 15,
+        "passed": 15,
+        "failed": 0
+    },
+    "meta": {
+        "generated_at_utc": "2026-04-03T12:57:38+00:00",
+        "environment": "local",
+        "definition_sha256": "588bd4e91d879c01467edce09c85c820ea972fc33e19db12f39781dd51ede067",
+        "write_requested": true
+    }
+}

@@ -1,0 +1,101 @@
+{
+    "ok": true,
+    "suite": "core_ops",
+    "description": "Canonical core operations gate for table availability, table holds, reservation lifecycle, staff floor mutations, and waiting-list regressions.",
+    "definition_path": "tests/fixtures/core_ops_gate_suite.json",
+    "snapshot_path": "storage/app/booking_release/core_ops_gate_snapshot.json",
+    "tests": [
+        {
+            "key": "table_availability_feature",
+            "path": "tests/Feature/Table/TableAvailabilityFeatureTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 33746,
+            "output_tail": "PASS  Tests\\Feature\\Table\\TableAvailabilityFeatureTest\r\n  ✓ available endpoint excludes overlaps and keeps own session hold visible for same session                     8.38s  \r\n  ✓ available endpoint hides same hold without matching session context                                          8.14s  \r\n  ✓ available endpoint applies turnover buffer and filters blocked and maintenance tables                        8.20s  \r\n  ✓ available endpoint real time window only returns tables currently marked available                           8.18s  \r\n\r\n  Tests:    4 passed (16 assertions)\r\n  Duration: 33.05s"
+        },
+        {
+            "key": "table_hold_http_flow",
+            "path": "tests/Feature/Table/TableHoldHttpFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 49897,
+            "output_tail": "PASS  Tests\\Feature\\Table\\TableHoldHttpFlowTest\r\n  ✓ session can create show refresh and cancel hold via http flow                                               24.57s  \r\n  ✓ hold create is idempotent and show rejects wrong session                                                    18.41s  \r\n  ✓ refresh rejects stale row version                                                                            6.18s  \r\n\r\n  Tests:    3 passed (30 assertions)\r\n  Duration: 49.26s"
+        },
+        {
+            "key": "reservation_http_flow",
+            "path": "tests/Feature/Reservation/ReservationHttpFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 99669,
+            "output_tail": "PASS  Tests\\Feature\\Reservation\\ReservationHttpFlowTest\r\n  ✓ authenticated customer can create and view reservation with owner scope                                     12.38s  \r\n  ✓ authenticated customer can claim guest hold and backfill hold owner on reservation create                    6.22s  \r\n  ✓ authenticated customer cannot create reservation from hold owned by another customer                         6.24s  \r\n  ✓ session only guest hold without user binding still cannot create reservation                                 6.16s  \r\n  ✓ session owned hold can create and view reservation with session scope and redacted identity                 12.29s  \r\n  ✓ staff can create reservation for customer and view with staff scope                                         12.34s  \r\n  ✓ staff create requires user id for staff requests                                                             6.18s  \r\n  ✓ authenticated customer create rejects table with insufficient capacity                                       6.14s  \r\n  ✓ authenticated customer create rejects overlapping reservation                                                6.22s  \r\n  ✓ session create rejects hold owned by different session                                                       6.22s  \r\n  ✓ staff can view reservation with staff scope and identity fields                                              6.19s  \r\n  ✓ authenticated unrelated customer cannot view other users reservation                                         6.18s  \r\n  ✓ unlinked session cannot view reservation                                                                     6.17s  \r\n\r\n  Tests:    13 passed (83 assertions)\r\n  Duration: 99.00s"
+        },
+        {
+            "key": "reservation_status_http_flow",
+            "path": "tests/Feature/Reservation/ReservationStatusHttpFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 44229,
+            "output_tail": "PASS  Tests\\Feature\\Reservation\\ReservationStatusHttpFlowTest\r\n  ✓ staff can cancel confirmed reservation with row version                                                      6.26s  \r\n  ✓ status update rejects stale row version                                                                      6.16s  \r\n  ✓ generic status endpoint rejects completed transition                                                         6.18s  \r\n  ✓ checked in reservation cancel requires force true                                                            6.23s  \r\n  ✓ checked in reservation force cancel releases tables when unpaid                                              6.25s  \r\n  ✓ confirmed reservation cancel rejects when final payments exist                                               6.20s  \r\n  ✓ staff can mark confirmed reservation as no show and cancel active orders                                     6.16s  \r\n\r\n  Tests:    7 passed (26 assertions)\r\n  Duration: 43.53s"
+        },
+        {
+            "key": "staff_check_in_flow",
+            "path": "tests/Feature/Staff/StaffCheckInFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 43989,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffCheckInFlowTest\r\n  ✓ staff can check in confirmed reservation via http flow                                                       6.30s  \r\n  ✓ check in rejects request outside grace window                                                                6.19s  \r\n  ✓ check in rejects assigned tables with overlapping active hold                                                6.18s  \r\n  ✓ check in rejects attempt to change assigned tables                                                           6.15s  \r\n  ✓ check in rejects stale row version                                                                           6.17s  \r\n  ✓ check in is idempotent when reservation is already checked in                                               12.26s  \r\n\r\n  Tests:    6 passed (30 assertions)\r\n  Duration: 43.36s"
+        },
+        {
+            "key": "staff_reschedule_flow",
+            "path": "tests/Feature/Staff/StaffReservationRescheduleFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 44162,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffReservationRescheduleFlowTest\r\n  ✓ staff can reschedule and reassign tables via http flow                                                       6.22s  \r\n  ✓ reschedule rejects blocked target table                                                                      6.24s  \r\n  ✓ reschedule rejects target tables with overlapping reservation                                                6.15s  \r\n  ✓ reschedule rejects target tables without enough capacity                                                     6.19s  \r\n  ✓ reschedule rejects stale row version                                                                         6.19s  \r\n  ✓ reschedule rejects checked in reservation                                                                    6.19s  \r\n  ✓ reschedule request requires at least one mutable field                                                       6.21s  \r\n\r\n  Tests:    7 passed (28 assertions)\r\n  Duration: 43.51s"
+        },
+        {
+            "key": "staff_move_table_flow",
+            "path": "tests/Feature/Staff/StaffMoveTableFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 44041,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffMoveTableFlowTest\r\n  ✓ staff can move checked in reservation to available target table                                              6.27s  \r\n  ✓ move table rejects non available target table                                                                6.16s  \r\n  ✓ move table rejects when from table is not assigned to reservation                                            6.17s  \r\n  ✓ move table rejects target table with overlapping hold                                                        6.16s  \r\n  ✓ move table rejects stale row version                                                                         6.20s  \r\n  ✓ move table rejects blocked target table                                                                      6.20s  \r\n  ✓ move table rejects when reservation is not checked in                                                        6.12s  \r\n\r\n  Tests:    7 passed (27 assertions)\r\n  Duration: 43.39s"
+        },
+        {
+            "key": "staff_table_release_http_flow",
+            "path": "tests/Feature/Staff/StaffTableReleaseHttpFlowTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 13216,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffTableReleaseHttpFlowTest\r\n  ✓ staff can release idle occupied table via http flow                                                          6.26s  \r\n  ✓ release rejects table with active checked in reservation                                                     6.19s  \r\n\r\n  Tests:    2 passed (9 assertions)\r\n  Duration: 12.54s"
+        },
+        {
+            "key": "staff_waiting_list_lifecycle",
+            "path": "tests/Feature/Staff/StaffWaitingListLifecycleTest.php",
+            "category": "feature",
+            "ok": true,
+            "exit_code": 0,
+            "duration_ms": 105799,
+            "output_tail": "PASS  Tests\\Feature\\Staff\\StaffWaitingListLifecycleTest\r\n  ✓ staff can create notify and seat waiting list entry via http flow                                           18.49s  \r\n  ✓ staff can cancel notified waiting list entry and release hold                                               12.36s  \r\n  ✓ waiting list notify rejects table with insufficient capacity                                                 6.20s  \r\n  ✓ waiting list notify rejects table already held by another session                                            6.19s  \r\n  ✓ waiting list notify rejects stale row version                                                                6.20s  \r\n  ✓ waiting list seat rejects stale row version                                                                 12.34s  \r\n  ✓ expire notified entries returns entry to waiting and cancels hold                                            6.20s  \r\n  ✓ waiting list seat rejects expired notify window even if hold is still open                                  12.32s  \r\n  ✓ renotify resets customer response state and replaces hold                                                   12.35s  \r\n  ✓ staff waiting list index includes hold lifecycle orchestration and summary meta                             12.43s  \r\n\r\n  Tests:    10 passed (71 assertions)\r\n  Duration: 105.16s"
+        }
+    ],
+    "summary": {
+        "total": 9,
+        "passed": 9,
+        "failed": 0
+    },
+    "meta": {
+        "generated_at_utc": "2026-04-03T13:08:06+00:00",
+        "environment": "local",
+        "definition_sha256": "d1a0a21f6771264ea5c761d13550a06ce33b2c7f08899b894721f7fa10ffe772",
+        "write_requested": true
+    }
+}

@@ -1,0 +1,5 @@
+step_id=smoke-release-manifest
+step_name=booking release manifest smoke
+command=php artisan booking:release-manifest --verify-frozen --json | tee build/booking-ci/booking-release-manifest-smoke.json
+timeout_seconds=180
+exit_code=0

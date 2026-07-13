@@ -1,0 +1,5 @@
+step_id=phpstan-version
+step_name=phpstan version
+command=vendor/bin/phpstan --version
+timeout_seconds=60
+exit_code=0

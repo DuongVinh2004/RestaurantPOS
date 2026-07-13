@@ -1,0 +1,5 @@
+step_id=critical-money
+step_name=critical-money-cashier
+command=composer test:money
+timeout_seconds=2400
+exit_code=0

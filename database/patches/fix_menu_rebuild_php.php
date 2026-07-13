@@ -216,7 +216,8 @@ echo 'Prices inserted: '.$priceInserted.PHP_EOL;
 // ---------------------------------------------------------------------------
 // 5. Combo components (INSERT IGNORE equivalent)
 // ---------------------------------------------------------------------------
-function insertComboComponents(string $comboCode, array $componentCodes, array $quantities = []): int {
+function insertComboComponents(string $comboCode, array $componentCodes, array $quantities = []): int
+{
     $combo = DB::table('menu_items')->where('code', $comboCode)->first(['item_id']);
     if (! $combo) return 0;
     $count = 0;
@@ -242,28 +243,28 @@ function insertComboComponents(string $comboCode, array $componentCodes, array $
 
 $compCount = 0;
 $compCount += insertComboComponents('MS-SET-TRUA-VP', [
-    'MS-COM-SUON-MAT-ONG','MS-CANH-RAU-NGOT-THIT','MS-TRA-SEN-LANH'
+    'MS-COM-SUON-MAT-ONG', 'MS-CANH-RAU-NGOT-THIT', 'MS-TRA-SEN-LANH',
 ]);
 $compCount += insertComboComponents('MS-SET-GIA-DINH', [
-    'MS-COM-GA-LA-SEN','MS-BO-LUC-LAC-SOT-TIEU','MS-TOM-SOT-ME','MS-CA-KHO-NIEU-DAT',
-    'MS-CANH-CHUA-CA-LOC','MS-RAU-CU-XAO-TOI','MS-CHE-SEN-LONG-NHAN','MS-TRA-SEN-LANH'
-], ['MS-CHE-SEN-LONG-NHAN'=>2,'MS-TRA-SEN-LANH'=>4]);
+    'MS-COM-GA-LA-SEN', 'MS-BO-LUC-LAC-SOT-TIEU', 'MS-TOM-SOT-ME', 'MS-CA-KHO-NIEU-DAT',
+    'MS-CANH-CHUA-CA-LOC', 'MS-RAU-CU-XAO-TOI', 'MS-CHE-SEN-LONG-NHAN', 'MS-TRA-SEN-LANH',
+], ['MS-CHE-SEN-LONG-NHAN' => 2, 'MS-TRA-SEN-LANH' => 4]);
 $compCount += insertComboComponents('MS-SET-HEN-HO', [
-    'MS-GOI-NGO-SEN-BO-TAI','MS-BO-LUC-LAC-SOT-TIEU','MS-VIT-AP-CHAO-SOT-ME','MS-PANNA-COTTA-DUA','MS-TRA-SEN-LANH'
-], ['MS-TRA-SEN-LANH'=>2]);
+    'MS-GOI-NGO-SEN-BO-TAI', 'MS-BO-LUC-LAC-SOT-TIEU', 'MS-VIT-AP-CHAO-SOT-ME', 'MS-PANNA-COTTA-DUA', 'MS-TRA-SEN-LANH',
+], ['MS-TRA-SEN-LANH' => 2]);
 $compCount += insertComboComponents('MS-SET-BEP-TRUONG', [
-    'MS-NEM-SEN-GION','MS-GOI-CUON-TOM-THIT','MS-CA-KHO-NIEU-DAT',
-    'MS-SUON-BO-NUONG-BISTRO','MS-TOM-SOT-ME','MS-CANH-CHUA-CA-LOC','MS-CHE-SEN-LONG-NHAN'
+    'MS-NEM-SEN-GION', 'MS-GOI-CUON-TOM-THIT', 'MS-CA-KHO-NIEU-DAT',
+    'MS-SUON-BO-NUONG-BISTRO', 'MS-TOM-SOT-ME', 'MS-CANH-CHUA-CA-LOC', 'MS-CHE-SEN-LONG-NHAN',
 ]);
 $compCount += insertComboComponents('MS-SET-CUOI-TUAN', [
-    'MS-COM-GA-LA-SEN','MS-BO-LUC-LAC-SOT-TIEU','MS-TOM-SOT-ME','MS-VIT-AP-CHAO-SOT-ME',
-    'MS-GA-NUONG-MAT-ONG','MS-MUC-XAO-SA-TE','MS-CANH-CHUA-CA-LOC','MS-RAU-CU-XAO-TOI',
-    'MS-NAM-KHO-TIEU','MS-CHE-SEN-LONG-NHAN','MS-BANH-FLAN-CA-PHE','MS-TRA-SEN-LANH'
-], ['MS-TRA-SEN-LANH'=>6,'MS-CHE-SEN-LONG-NHAN'=>2]);
+    'MS-COM-GA-LA-SEN', 'MS-BO-LUC-LAC-SOT-TIEU', 'MS-TOM-SOT-ME', 'MS-VIT-AP-CHAO-SOT-ME',
+    'MS-GA-NUONG-MAT-ONG', 'MS-MUC-XAO-SA-TE', 'MS-CANH-CHUA-CA-LOC', 'MS-RAU-CU-XAO-TOI',
+    'MS-NAM-KHO-TIEU', 'MS-CHE-SEN-LONG-NHAN', 'MS-BANH-FLAN-CA-PHE', 'MS-TRA-SEN-LANH',
+], ['MS-TRA-SEN-LANH' => 6, 'MS-CHE-SEN-LONG-NHAN' => 2]);
 $compCount += insertComboComponents('MS-SET-CHAY', [
-    'MS-DAU-HU-RANG-MUOI','MS-DAU-HU-SOT-NAM','MS-NAM-KHO-TIEU',
-    'MS-CANH-RAU-CU-HAT-SEN','MS-TAU-HU-NUOC-DUONG','MS-TRA-SEN-NONG'
-], ['MS-TRA-SEN-NONG'=>2]);
+    'MS-DAU-HU-RANG-MUOI', 'MS-DAU-HU-SOT-NAM', 'MS-NAM-KHO-TIEU',
+    'MS-CANH-RAU-CU-HAT-SEN', 'MS-TAU-HU-NUOC-DUONG', 'MS-TRA-SEN-NONG',
+], ['MS-TRA-SEN-NONG' => 2]);
 echo 'Combo components inserted: '.$compCount.PHP_EOL;
 
 // ---------------------------------------------------------------------------
