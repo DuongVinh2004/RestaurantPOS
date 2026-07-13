@@ -1249,12 +1249,12 @@ class NotificationOutboxService
                 $viewData['fields']['Ghi chú của khách'] = $notes;
             }
             if (isset($payload['deposit_required_amount']) && $payload['deposit_required_amount'] > 0) {
-                $depositReq = number_format((float)$payload['deposit_required_amount'], 0, '.', ',');
-                $depositPaid = number_format((float)($payload['paid_amount'] ?? 0), 0, '.', ',');
+                $depositReq = number_format((float) $payload['deposit_required_amount'], 0, '.', ',');
+                $depositPaid = number_format((float) ($payload['paid_amount'] ?? 0), 0, '.', ',');
                 $viewData['fields']['Số tiền cần cọc'] = "{$depositReq} {$currency}";
                 $viewData['fields']['Đã thanh toán'] = "{$depositPaid} {$currency}";
             }
-            
+
             $branchId = (int) ($payload['branch_id'] ?? 1);
             $branchMaps = [
                 1 => 'https://maps.google.com/?q=Chi+nhanh+chinh',
@@ -1263,13 +1263,13 @@ class NotificationOutboxService
             ];
             $viewData['action_url'] = $branchMaps[$branchId] ?? 'https://maps.google.com';
             $viewData['action_text'] = 'Xem chỉ đường tới chi nhánh';
-            
+
             $viewData['policies'] = [
                 'Nhà hàng xin phép giữ bàn tối đa 30 phút so với giờ đặt. Nếu quý khách đến muộn hơn, vui lòng gọi Hotline để được hỗ trợ.',
-                'Quý khách muốn thay đổi thông tin hoặc hủy bàn, vui lòng thông báo trước ít nhất 2 giờ để nhà hàng chuẩn bị tốt nhất.'
+                'Quý khách muốn thay đổi thông tin hoặc hủy bàn, vui lòng thông báo trước ít nhất 2 giờ để nhà hàng chuẩn bị tốt nhất.',
             ];
-            
-            $viewData['message_body'] = "Chúng tôi rất mong được đón tiếp bạn tại nhà hàng. Chúc bạn một ngày tốt lành!";
+
+            $viewData['message_body'] = 'Chúng tôi rất mong được đón tiếp bạn tại nhà hàng. Chúc bạn một ngày tốt lành!';
         } else {
             // Generic fallback for other templates
             $textBody = $this->renderEmailBody($templateKey, $payload);

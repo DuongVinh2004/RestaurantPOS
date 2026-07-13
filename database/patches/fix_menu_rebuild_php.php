@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Fix: Re-insert all 66 menu items using pure PHP (no TEMPORARY TABLE).
  * Safe to run multiple times (updateOrInsert = upsert by code).
@@ -13,7 +14,7 @@
 
 use Illuminate\Support\Facades\DB;
 
-echo "=== Menu Rebuild Fix (PHP) v2 ===" . PHP_EOL;
+echo '=== Menu Rebuild Fix (PHP) v2 ==='.PHP_EOL;
 
 // ---------------------------------------------------------------------------
 // 1a. Hide old conflicting categories (Vietnamese diacritics → clean names)
@@ -21,7 +22,7 @@ echo "=== Menu Rebuild Fix (PHP) v2 ===" . PHP_EOL;
 // id=2: 'Đồ Uống' → replaced by id=9 'Do Uong'
 // id=1: 'Món Chính' → replaced by id=1 renamed to 'Mon Chinh'
 DB::table('menu_categories')->where('category_id', 2)->update(['is_deleted' => 1]);
-echo "  Hidden: Đồ Uống (id=2)" . PHP_EOL;
+echo '  Hidden: Đồ Uống (id=2)'.PHP_EOL;
 
 // ---------------------------------------------------------------------------
 // 1b. Re-activate needed categories by known ID (bypass UNIQUE key issue)
@@ -41,7 +42,7 @@ foreach ($reactivations as $id => $meta) {
         'is_deleted' => 0,
         'sort_order' => $meta['sort_order'],
     ]);
-    echo ($rows ? '  RE-ACTIVATED' : '  NOT FOUND') . ": {$meta['name']} (id=$id)" . PHP_EOL;
+    echo ($rows ? '  RE-ACTIVATED' : '  NOT FOUND').": {$meta['name']} (id=$id)".PHP_EOL;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,15 +53,15 @@ $catMap = DB::table('menu_categories')
     ->pluck('category_id', 'name')
     ->toArray();
 
-echo PHP_EOL . "Active categories (" . count($catMap) . "):" . PHP_EOL;
+echo PHP_EOL.'Active categories ('.count($catMap).'):'.PHP_EOL;
 foreach ($catMap as $name => $id) {
-    echo "  $id | $name" . PHP_EOL;
+    echo "  $id | $name".PHP_EOL;
 }
 
 // Sanity check
 $missing = array_diff(['Khai Vi','Canh & Sup','Mon Chinh','Com & Mi','Rau & Chay','Trang Miem','Do Uong','Set & Combo'], array_keys($catMap));
-if (!empty($missing)) {
-    echo PHP_EOL . '  ⚠️ MISSING categories: ' . implode(', ', $missing) . PHP_EOL;
+if (! empty($missing)) {
+    echo PHP_EOL.'  ⚠️ MISSING categories: '.implode(', ', $missing).PHP_EOL;
     exit(1);
 }
 
