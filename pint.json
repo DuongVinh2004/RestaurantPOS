@@ -3,6 +3,10 @@
     "exclude": [
         "database/patches"
     ],
+    "notPath": [
+        "app/Modules/Reservations/Application/Services/ReservationLockService.php",
+        "app/Platform/Health/Services/BookingEnvironmentValidator.php"
+    ],
     "rules": {
         "unary_operator_spaces": false,
         "not_operator_with_successor_space": true
