@@ -89,7 +89,7 @@ final class ApiLiveRuntimeRegressionGateTest extends TestCase
 
     public function test_live_authenticated_hold_to_reservation_flow_smoke_survives_runtime_surface(): void
     {
-        $sessionId = 'sess-live-runtime-gate-' . uniqid();
+        $sessionId = 'sess-live-runtime-gate-'.uniqid();
         $customerPassword = 'RuntimeGate!123';
         $customerId = $this->createUser([
             'role_name' => 'Customer',
@@ -101,7 +101,7 @@ final class ApiLiveRuntimeRegressionGateTest extends TestCase
 
         $holdCreate = $this->withHeaders($this->withIdempotencyKey([
             'Accept' => 'application/json',
-        ], 'gate-live-runtime-hold-create-' . uniqid()))
+        ], 'gate-live-runtime-hold-create-'.uniqid()))
             ->postJson('/api/v1/table-holds', [
                 'session_id' => $sessionId,
                 'start_time' => $start->toIso8601String(),
@@ -136,7 +136,7 @@ final class ApiLiveRuntimeRegressionGateTest extends TestCase
             'X-Session-Id' => (string) $login->json('data.session_id'),
         ];
 
-        $reservationCreate = $this->withHeaders($this->withIdempotencyKey($customerHeaders, 'gate-live-runtime-reservation-create-' . uniqid()))
+        $reservationCreate = $this->withHeaders($this->withIdempotencyKey($customerHeaders, 'gate-live-runtime-reservation-create-'.uniqid()))
             ->postJson('/api/v1/reservations', [
                 'hold_id' => $holdId,
                 'session_id' => (string) $login->json('data.session_id'),

@@ -39,19 +39,19 @@ class VNPayPaymentProviderAdapter implements PaymentProviderAdapter
         $ipnUrl = trim((string) ($config['ipn_url'] ?? ''));
 
         $vnpParams = [
-            'vnp_Version'   => '2.1.0',
-            'vnp_TmnCode'   => $tmnCode,
-            'vnp_Amount'    => $amount * 100, // VNPay amount is multiplied by 100
-            'vnp_Command'   => 'pay',
+            'vnp_Version' => '2.1.0',
+            'vnp_TmnCode' => $tmnCode,
+            'vnp_Amount' => $amount * 100, // VNPay amount is multiplied by 100
+            'vnp_Command' => 'pay',
             'vnp_CreateDate' => Carbon::now('UTC')->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
             'vnp_ExpireDate' => Carbon::now('UTC')->addMinutes(15)->setTimezone('Asia/Ho_Chi_Minh')->format('YmdHis'),
-            'vnp_CurrCode'  => 'VND',
-            'vnp_IpAddr'    => request()->ip() === '::1' ? '127.0.0.1' : (request()->ip() ?? '127.0.0.1'),
-            'vnp_Locale'    => 'vn',
+            'vnp_CurrCode' => 'VND',
+            'vnp_IpAddr' => request()->ip() === '::1' ? '127.0.0.1' : (request()->ip() ?? '127.0.0.1'),
+            'vnp_Locale' => 'vn',
             'vnp_OrderInfo' => $scope === PaymentSessionScope::Deposit ? 'DepositPayment' : 'BillPayment',
             'vnp_OrderType' => 'other',
             'vnp_ReturnUrl' => $returnUrl,
-            'vnp_TxnRef'    => $sessionCode,
+            'vnp_TxnRef' => $sessionCode,
         ];
 
         // Include IPN URL in params if configured (lets VNPay know where to send async callbacks)

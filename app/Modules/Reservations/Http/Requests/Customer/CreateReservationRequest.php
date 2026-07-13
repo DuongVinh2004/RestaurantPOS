@@ -3,11 +3,8 @@
 namespace App\Modules\Reservations\Http\Requests\Customer;
 
 use App\Support\Auth\RequestActorContext;
-use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 
 class CreateReservationRequest extends FormRequest
 {
