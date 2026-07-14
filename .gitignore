@@ -32,6 +32,7 @@
 /customer-web/out/
 /build/booking-ci/
 /build/booking-go-live/
+/booking-ci-evidence-*/
 
 # Tool/cache artifacts
 .phpunit.result.cache
