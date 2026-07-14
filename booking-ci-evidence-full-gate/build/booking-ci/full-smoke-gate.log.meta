@@ -1,5 +1,0 @@
-step_id=full-smoke-gate
-step_name=booking smoke gate
-command=bash scripts/ci/booking-smoke-gate.sh
-timeout_seconds=1800
-exit_code=0

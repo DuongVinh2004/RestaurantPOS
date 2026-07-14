@@ -1,5 +1,0 @@
-step_id=config-contracts
-step_name=fast-config-contracts
-command=bash scripts/ci/booking-config-contracts.sh
-timeout_seconds=1800
-exit_code=0

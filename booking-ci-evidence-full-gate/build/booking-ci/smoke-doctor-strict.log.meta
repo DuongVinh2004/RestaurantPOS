@@ -1,5 +1,0 @@
-step_id=smoke-doctor-strict
-step_name=booking doctor smoke strict
-command=php artisan booking:doctor --strict --json | tee build/booking-ci/booking-doctor-smoke-strict.json
-timeout_seconds=180
-exit_code=0

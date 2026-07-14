@@ -1,5 +1,0 @@
-step_id=runtime-doctor-strict
-step_name=runtime doctor strict
-command=php artisan booking:doctor --strict --json | tee build/booking-ci/runtime-doctor-strict.json
-timeout_seconds=180
-exit_code=0

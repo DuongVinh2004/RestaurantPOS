@@ -1,5 +1,0 @@
-step_id=critical-security
-step_name=critical-security
-command=composer test:security
-timeout_seconds=1800
-exit_code=0

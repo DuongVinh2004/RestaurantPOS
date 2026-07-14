@@ -1,5 +1,0 @@
-step_id=runtime-config-clear
-step_name=runtime config clear
-command=php artisan config:clear --ansi
-timeout_seconds=120
-exit_code=0

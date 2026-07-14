@@ -1,5 +1,0 @@
-step_id=runtime-smoke
-step_name=runtime-smoke
-command=bash scripts/ci/booking-runtime-smoke.sh
-timeout_seconds=1800
-exit_code=0

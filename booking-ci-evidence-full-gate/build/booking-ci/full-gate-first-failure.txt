@@ -1,5 +1,0 @@
-step_id=full-pint
-step_name=pint style check
-exit_code=1
-command=vendor/bin/pint --test
-log=build/booking-ci/full-pint.log

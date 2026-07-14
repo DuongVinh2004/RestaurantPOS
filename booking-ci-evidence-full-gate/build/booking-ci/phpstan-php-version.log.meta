@@ -1,5 +1,0 @@
-step_id=php-version
-step_name=PHP version for phpstan
-command=php -v
-timeout_seconds=60
-exit_code=0

@@ -1,5 +1,0 @@
-step_id=runtime-reporting-snapshots-rebuild
-step_name=runtime reporting snapshots rebuild
-command=php artisan booking:reporting-snapshots:rebuild --json | tee build/booking-ci/runtime-reporting-snapshots-rebuild.json
-timeout_seconds=300
-exit_code=0

@@ -1,5 +1,0 @@
-step_id=smoke-deploy-check
-step_name=booking deploy preflight smoke
-command=php artisan booking:deploy-check --mode=preflight --json | tee build/booking-ci/booking-deploy-check-smoke-preflight.json
-timeout_seconds=240
-exit_code=0

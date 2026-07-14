@@ -1,5 +1,0 @@
-step_id=full-pint
-step_name=pint style check
-command=vendor/bin/pint --test
-timeout_seconds=600
-exit_code=1

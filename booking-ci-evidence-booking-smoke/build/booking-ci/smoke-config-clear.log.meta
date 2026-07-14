@@ -1,5 +1,0 @@
-step_id=smoke-config-clear
-step_name=booking smoke config clear
-command=php artisan config:clear --ansi && (php artisan cache:clear || true) && (php artisan route:clear || true) && (php artisan view:clear || true)
-timeout_seconds=120
-exit_code=0

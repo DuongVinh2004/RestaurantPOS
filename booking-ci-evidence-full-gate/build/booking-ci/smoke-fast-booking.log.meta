@@ -1,5 +1,0 @@
-step_id=smoke-fast-booking
-step_name=booking fast smoke tests
-command=bash scripts/ci/booking-smoke.sh
-timeout_seconds=1200
-exit_code=0

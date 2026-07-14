@@ -1,8 +1,0 @@
-{
-    "ok": true,
-    "data": {
-        "heartbeat_name": "scheduler",
-        "ttl_seconds": 300,
-        "last_run_at_utc": "2026-07-13T06:53:06+00:00"
-    }
-}

@@ -1,5 +1,0 @@
-step_id=smoke-ops
-step_name=booking ops smoke tests
-command=bash scripts/ci/booking-ops-smoke.sh
-timeout_seconds=1200
-exit_code=0

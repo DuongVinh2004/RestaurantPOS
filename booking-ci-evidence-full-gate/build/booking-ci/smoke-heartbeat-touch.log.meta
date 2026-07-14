@@ -1,5 +1,0 @@
-step_id=smoke-heartbeat-touch
-step_name=booking smoke scheduler heartbeat touch
-command=php artisan booking:ops-heartbeat:touch scheduler --json | tee build/booking-ci/booking-ops-heartbeat-touch.json
-timeout_seconds=120
-exit_code=0

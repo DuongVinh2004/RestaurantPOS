@@ -1,5 +1,0 @@
-step_id=critical-release-contract
-step_name=critical-release-contract
-command=composer test:release-contract
-timeout_seconds=2400
-exit_code=0
