@@ -96,7 +96,7 @@ export function StickyBookingSummary({
   }, [expired, remainingMs]);
 
   return (
-    <aside className={cn("w-full max-w-full rounded-3xl border bg-card/95 backdrop-blur-xl shadow-2xl sticky bottom-[5.5rem] z-40 xl:top-20 xl:self-start", className)}>
+    <aside className={cn("w-full max-w-full rounded-3xl border bg-card/95 backdrop-blur-xl shadow-2xl sticky bottom-[5.5rem] z-40 xl:sticky xl:top-20 xl:self-start", className)}>
       <div className="flex flex-col gap-4 p-4 sm:p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -116,7 +116,7 @@ export function StickyBookingSummary({
                nearlyExpired ? "border-amber-200 bg-amber-50 text-amber-800" : 
                "border-emerald-200 bg-emerald-50 text-emerald-800"
              )}>
-               <Clock3 className="h-3 w-3" />
+               {nearlyExpired ? <AlertTriangle className="h-3 w-3" /> : <Clock3 className="h-3 w-3" />}
                <span>{countdownLabel}</span>
              </div>
           ) : holdStatusLabel ? (
@@ -125,6 +125,12 @@ export function StickyBookingSummary({
             </Badge>
           ) : null}
         </div>
+
+        {holdCode ? (
+          <dl className="min-w-0">
+            <SummaryRow label="Mã giữ bàn" value={holdCode} />
+          </dl>
+        ) : null}
 
         {primaryAction ?? (
           <Button type="button" className="min-h-12 w-full rounded-full shadow-lg" disabled={primaryActionDisabled || expired} onClick={onPrimaryAction}>

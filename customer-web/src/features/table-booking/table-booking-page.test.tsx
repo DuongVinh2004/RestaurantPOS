@@ -632,7 +632,7 @@ describe("TableBookingPage", () => {
     await user.clear(guestCountInput);
     await user.type(guestCountInput, "6");
     await clickSearchButton(user);
-    await user.click(await screen.findByRole("button", { name: "Chọn Ghép Khu A - Bàn 7 + Khu A - Bàn 8" }));
+    await user.click(await screen.findByRole("button", { name: "Chọn Khu A - Ghép Bàn 7 + Bàn 8" }));
 
     await waitFor(() => {
       expect(mocks.createTableHold).toHaveBeenCalledWith(

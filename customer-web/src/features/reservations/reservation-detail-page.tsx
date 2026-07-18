@@ -190,10 +190,12 @@ export function ReservationDetailPage({ id }: { id: number }) {
         </Link>
       </Button>
 
+      <h1 className="mb-4 text-2xl font-semibold">Chi tiết lượt ghé</h1>
+
       <section className="mb-5 overflow-hidden rounded-lg border bg-card">
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between bg-teal-50/50">
           <div>
-            <h1 className="text-xl sm:text-2xl font-semibold">{formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}</h1>
+            <h2 className="text-xl sm:text-2xl font-semibold">{formatDateTime(reservation.start_time ?? reservation.booking_time ?? null)}</h2>
             <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm font-medium text-muted-foreground">
               <span className="flex items-center gap-1.5"><CalendarCheck2 className="h-4 w-4 text-teal-600" /> #{reservation.reservation_code ?? reservation.reservation_id}</span>
               <span className="flex items-center gap-1.5"><UsersRound className="h-4 w-4 text-teal-600" /> {reservation.guest_count ?? "?"} khách</span>
@@ -204,13 +206,26 @@ export function ReservationDetailPage({ id }: { id: number }) {
         </div>
         {accessState ? (
           <div className="border-t bg-secondary/20 p-3 text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">{accessState.title}:</span> {accessState.description}
+            <span className="font-medium text-foreground">{accessState.title}</span>
+            <span aria-hidden="true">: </span>
+            {accessState.description}
           </div>
         ) : null}
       </section>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <section className="space-y-5">
+          <Card className="rounded-lg" data-testid="customer-reservation-hold-summary">
+            <CardContent className="space-y-2 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold">Bàn giữ</h2>
+                <span className="rounded-full bg-secondary px-2.5 py-1 text-xs font-medium">{holdSummary.label}</span>
+              </div>
+              <p className="font-medium">{holdSummary.title}</p>
+              <p className="text-sm text-muted-foreground">{holdSummary.description}</p>
+              {holdFooter ? <p className="text-sm text-muted-foreground">{holdFooter}</p> : null}
+            </CardContent>
+          </Card>
           <section id="deposit" className="scroll-mt-24">
             <DepositPanel reservation={reservation} onReservationChanged={syncReservation} />
           </section>

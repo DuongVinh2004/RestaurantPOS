@@ -22,6 +22,8 @@ required_files=(
   app/Platform/Release/Services/ReleaseArtifactManifestService.php
   app/Platform/Release/Services/ReleasePackageService.php
   app/Platform/Release/Services/BookingDeploySafetyService.php
+  scripts/ci/booking-dependency-security-gate.sh
+  scripts/ci/dependency-security-gate.mjs
   scripts/ci/booking-full-gate.sh
   scripts/ci/booking-release-gate.sh
   scripts/release/package_release.sh

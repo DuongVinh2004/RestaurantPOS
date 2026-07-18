@@ -160,7 +160,7 @@ export function readPublicEnv(source: EnvSource = currentRuntimeEnvSource()): Pu
   const apiBaseUrl = readStringSetting(source, ["NEXT_PUBLIC_API_BASE_URL"], "http://127.0.0.1:8000");
   const enableDevMocks = readBoolSetting(source, ["NEXT_PUBLIC_ENABLE_DEV_MOCKS"], false);
   const showDevBackendStatus = readBoolSetting(source, ["NEXT_PUBLIC_SHOW_DEV_BACKEND_STATUS"], false);
-  const enablePreorder = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_PREORDER"], true);
+  const enablePreorder = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_PREORDER"], !isProduction);
   const enableMenuCategories = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_MENU_CATEGORIES"], true);
   const enableMenuItemDetail = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_MENU_ITEM_DETAIL"], true);
   const enableTableAvailability = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_TABLE_AVAILABILITY"], true);
@@ -168,19 +168,19 @@ export function readPublicEnv(source: EnvSource = currentRuntimeEnvSource()): Pu
   const enableWaitingList = readBoolSetting(
     source,
     ["NEXT_PUBLIC_FEATURE_WAITING_LIST", "NEXT_PUBLIC_ENABLE_WAITING_LIST"],
-    true,
+    false,
   );
   const enableAccountBenefits = readBoolSetting(
     source,
     ["NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS", "NEXT_PUBLIC_FEATURE_VOUCHERS"],
-    true,
+    false,
   );
   const enablePrivacyTools = readBoolSetting(
     source,
     ["NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS", "NEXT_PUBLIC_ENABLE_PRIVACY_TOOLS", "NEXT_PUBLIC_FEATURE_PRIVACY_REQUESTS"],
-    true,
+    false,
   );
-  const enableDataExport = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_DATA_EXPORT"], true);
+  const enableDataExport = readBoolSetting(source, ["NEXT_PUBLIC_FEATURE_DATA_EXPORT"], false);
 
   return envSchema.parse({
     apiBaseUrl: apiBaseUrl.value,

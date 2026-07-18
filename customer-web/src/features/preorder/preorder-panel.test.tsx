@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
 import { PreorderPanel } from "./preorder-panel";
 
 const mocks = vi.hoisted(() => ({
@@ -124,7 +125,7 @@ function renderPanel() {
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <PreorderPanel reservation={{ reservation_id: 7 } as any} />
+      <PreorderPanel reservation={{ reservation_id: 7 } as ReservationSummary} />
     </QueryClientProvider>,
   );
 }

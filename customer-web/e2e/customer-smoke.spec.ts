@@ -577,7 +577,7 @@ test("booking can create a hold and continue to reservation", async ({ page }) =
   await page.goto("/booking");
 
   await page.getByRole("button", { name: "Tìm bàn", exact: true }).click();
-  const tableOption = page.getByRole("button", { name: "Chọn Bàn 7" });
+  const tableOption = page.getByRole("button", { name: /^Chọn .+ - Bàn 7$/ });
   await expect(tableOption).toBeVisible();
   await expect(tableOption).toHaveAttribute("aria-pressed", "false");
 
@@ -624,11 +624,20 @@ test("booking can preserve preorder draft, confirm reservation, and attach preor
   await page.goto("/booking");
 
   await page.getByRole("button", { name: "Tìm bàn", exact: true }).click();
-  await page.getByRole("button", { name: "Chọn Bàn 7" }).click();
+  await page.getByRole("button", { name: /^Chọn .+ - Bàn 7$/ }).click();
   await expect(page.getByText("Mã giữ bàn")).toBeVisible();
   await page.getByRole("link", { name: "Xác nhận thông tin đặt bàn" }).click();
 
-  await expect(page.getByRole("heading", { name: "Xác nhận đặt bàn" })).toBeVisible();
+  await expect(page).toHaveURL(/\/booking\/preorder\?.*hold_id=hold-dev-1/);
+  const reservationContinueLink = page.locator('a[href^="/reservations/new?"]', {
+    hasText: "Tiếp tục đặt bàn",
+  });
+  await expect(reservationContinueLink).toBeVisible();
+  await reservationContinueLink.click();
+
+  await expect(
+    page.getByRole("heading", { name: "Thông tin liên hệ & Thanh toán cọc" }),
+  ).toBeVisible();
   await expect(page.getByText("Món đặt trước").first()).toBeVisible();
   await expect(page.getByText("Cơm gà lá sen").first()).toBeVisible();
   await page.getByLabel("Tên khách").fill("Nguyễn Minh Anh");
@@ -636,7 +645,7 @@ test("booking can preserve preorder draft, confirm reservation, and attach preor
 
   await expect(page.getByRole("button", { name: "Xem trước món" })).toHaveCount(0);
 
-  await page.getByRole("button", { name: "Xác nhận đặt bàn" }).first().click();
+  await page.getByRole("button", { name: "Hoàn tất đặt bàn" }).first().click();
   await expect(page).toHaveURL(/\/reservations\/501\?next=preorder#preorder$/);
   await expect(
     page.getByText("Mộc Sen đã giữ giỏ món của bạn. Bạn có thể xem trước và lưu món đặt trước khi sẵn sàng."),
