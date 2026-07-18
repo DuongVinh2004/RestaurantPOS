@@ -1,5 +1,0 @@
-step_id=smoke-reporting-snapshots-rebuild
-step_name=booking reporting snapshots rebuild smoke
-command=php artisan booking:reporting-snapshots:rebuild --json | tee build/booking-ci/booking-reporting-snapshots-rebuild-smoke.json
-timeout_seconds=300
-exit_code=0

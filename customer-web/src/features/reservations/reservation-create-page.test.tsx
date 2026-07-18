@@ -194,7 +194,7 @@ describe("ReservationCreatePage", () => {
     expect(screen.getByDisplayValue("Casey Nguyen")).toBeInTheDocument();
     expect(screen.getByDisplayValue("casey@example.test")).toBeInTheDocument();
 
-    await user.click(screen.getAllByRole("button", { name: "Xác nhận đặt bàn" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Hoàn tất đặt bàn" })[0]);
 
     await waitFor(() => {
       expect(mocks.createReservation).toHaveBeenCalledWith(
@@ -223,7 +223,7 @@ describe("ReservationCreatePage", () => {
 
     await screen.findByRole("region", { name: "Trạng thái giữ bàn" });
     await fillGuestContact(user);
-    await user.click(screen.getAllByRole("button", { name: "Xác nhận đặt bàn" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Hoàn tất đặt bàn" })[0]);
 
     await waitFor(() => {
       expect(mocks.refreshTableHold).toHaveBeenCalledWith("hold-123", 4);
@@ -295,9 +295,9 @@ describe("ReservationCreatePage", () => {
     await screen.findByRole("region", { name: "Trạng thái giữ bàn" });
     await fillGuestContact(user);
     await user.type(screen.getByLabelText("Ghi chú"), "Sinh nhật");
-    await user.click(screen.getAllByRole("button", { name: "Xác nhận đặt bàn" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Hoàn tất đặt bàn" })[0]);
 
-    expect(await screen.findByText("Bàn này vừa có khách khác chọn.")).toBeInTheDocument();
+    expect(await screen.findByText(/Bàn này vừa có khách khác chọn/)).toBeInTheDocument();
     expect(screen.getByDisplayValue("Demo Customer")).toBeInTheDocument();
     expect(screen.getByDisplayValue("5550100")).toBeInTheDocument();
     expect(screen.getByDisplayValue("Sinh nhật")).toBeInTheDocument();
@@ -334,7 +334,7 @@ describe("ReservationCreatePage", () => {
 
     await screen.findByText("Gỏi cuốn");
     await fillGuestContact(user);
-    await user.click(screen.getAllByRole("button", { name: "Xác nhận đặt bàn" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Hoàn tất đặt bàn" })[0]);
 
     await waitFor(() => {
       expect(mocks.createReservation).toHaveBeenCalledTimes(1);

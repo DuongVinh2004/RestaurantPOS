@@ -1,5 +1,0 @@
-step_id=full-phpunit
-step_name=full PHPUnit
-command=php artisan test --log-junit build/booking-ci/phpunit-full-junit.xml
-timeout_seconds=3600
-exit_code=0

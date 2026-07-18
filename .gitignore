@@ -32,9 +32,11 @@
 /customer-web/out/
 /build/booking-ci/
 /build/booking-go-live/
+/booking-ci-evidence-*/
 
 # Tool/cache artifacts
 .phpunit.result.cache
+/test_output.txt
 /.phpunit.cache/
 /storage/phpstan/
 /storage/phpstan/resultCache.php

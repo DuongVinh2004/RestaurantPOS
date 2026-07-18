@@ -1,5 +1,0 @@
-step_id=full-gate
-step_name=full-gate
-command=bash scripts/ci/booking-full-gate.sh
-timeout_seconds=7200
-exit_code=1

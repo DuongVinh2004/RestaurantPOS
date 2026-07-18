@@ -818,7 +818,7 @@ export function TableBookingPage() {
                   ))}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="guest_count" className="text-sm font-medium ml-1">Số khách tùy chỉnh</Label>
+                  <Label htmlFor="guest_count" className="text-sm font-medium ml-1">Số khách</Label>
                   <Input id="guest_count" type="number" min={1} className="min-h-12 rounded-xl bg-background border-transparent focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" data-testid="customer-party-size-input" {...form.register("guest_count", { valueAsNumber: true })} />
                   {form.formState.errors.guest_count ? <p className="text-[13px] font-medium text-destructive ml-1">{form.formState.errors.guest_count.message}</p> : null}
                 </div>
@@ -835,6 +835,20 @@ export function TableBookingPage() {
                   <Label htmlFor="start_time" className="text-sm font-medium ml-1">Ngày và giờ tùy chỉnh</Label>
                   <Input id="start_time" type="datetime-local" className="min-h-12 rounded-xl bg-background border-transparent focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all shadow-sm" data-testid="customer-date-input" {...form.register("start_time")} />
                   {form.formState.errors.start_time ? <p className="text-[13px] font-medium text-destructive ml-1">{form.formState.errors.start_time.message}</p> : null}
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2" aria-label="Chọn ngày nhanh">
+                  {quickDateOptions.map((option) => (
+                    <Button
+                      key={option.key}
+                      type="button"
+                      variant={activeQuickDate === option.key ? "default" : "outline"}
+                      className="min-h-10 rounded-full px-4"
+                      aria-pressed={activeQuickDate === option.key}
+                      onClick={() => form.setValue("start_time", option.getValue(startTimeValue), { shouldDirty: true, shouldValidate: true })}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
                 </div>
                 <div className="mt-4">
                   <TimeSlotGrid
@@ -941,7 +955,7 @@ export function TableBookingPage() {
                         <button
                           type="button"
                           key={choice.key}
-                          aria-label={`Chọn ${choice.title}`}
+                          aria-label={`Chọn ${choice.zoneLabel} - ${choice.title}`}
                           aria-pressed={selected}
                           disabled={searchMutation.isPending || holdSelectionMutation.isPending || cancelHoldMutation.isPending}
                           className={`min-h-36 rounded-lg border bg-card p-4 text-left transition ${

@@ -1,5 +1,0 @@
-step_id=runtime-smoke-tests
-step_name=runtime MySQL Redis smoke tests
-command=php artisan test tests/Feature/Runtime --log-junit build/booking-ci/runtime-smoke-junit.xml
-timeout_seconds=1200
-exit_code=0

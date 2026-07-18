@@ -146,7 +146,7 @@ export function PreorderCartPanel({
         <>
           <div className={cn(compact ? "flex-1 min-h-0 overflow-y-auto" : "flex flex-col")}>
             <div
-              className={cn("divide-y", compact ? "max-h-none shrink-0" : "max-h-[32rem] overflow-y-auto")}
+              className={cn("divide-y", compact ? "max-h-none shrink-0 overflow-y-auto" : "max-h-[32rem] overflow-y-auto")}
               aria-label="Danh sách món trong giỏ đặt trước"
             >
               {cart.items.map((item) => {
@@ -282,7 +282,7 @@ export function PreorderCartPanel({
                 <PriceText amount={subtotal.amount} currency={subtotal.currency} className="text-xl" />
               </div>
               <p className="text-right text-sm text-muted-foreground">
-                <span className="font-medium">{submitItems.length}</span> món có thể gửi
+                <span className="font-medium">{submitItems.length} món có thể gửi</span>
                 <span className="block font-medium">{availableQuantity} phần</span>
               </p>
             </div>

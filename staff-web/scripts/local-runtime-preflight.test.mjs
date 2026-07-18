@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   buildHealthUrl,
@@ -44,7 +45,7 @@ describe('local runtime preflight helpers', () => {
       repoRoot: 'C:/repo',
       envFilePath: 'C:/repo/.env',
     })).toMatchObject({
-      repoRoot: 'C:\\repo',
+      repoRoot: resolve('C:/repo'),
       envFilePath: 'C:/repo/.env',
       healthUrl: 'https://staging.example.test/api/v1/health',
       healthUrlSource: 'api-url',

@@ -4,27 +4,27 @@ import { readPublicEnv, readPublicEnvDiagnostics } from "./env";
 const mutableEnv = process.env as Record<string, string | undefined>;
 const originalPreorder = mutableEnv.NEXT_PUBLIC_FEATURE_PREORDER;
 const originalWaitingList = mutableEnv.NEXT_PUBLIC_FEATURE_WAITING_LIST;
+const originalAccountBenefits = mutableEnv.NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS;
+const originalPrivacyTools = mutableEnv.NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS;
+const originalDataExport = mutableEnv.NEXT_PUBLIC_FEATURE_DATA_EXPORT;
 const originalNodeEnv = mutableEnv.NODE_ENV;
+
+function restoreEnv(key: string, originalValue: string | undefined): void {
+  if (originalValue === undefined) {
+    delete mutableEnv[key];
+  } else {
+    mutableEnv[key] = originalValue;
+  }
+}
 
 describe("public env", () => {
   afterEach(() => {
-    if (originalPreorder === undefined) {
-      delete mutableEnv.NEXT_PUBLIC_FEATURE_PREORDER;
-    } else {
-      mutableEnv.NEXT_PUBLIC_FEATURE_PREORDER = originalPreorder;
-    }
-
-    if (originalWaitingList === undefined) {
-      delete mutableEnv.NEXT_PUBLIC_FEATURE_WAITING_LIST;
-    } else {
-      mutableEnv.NEXT_PUBLIC_FEATURE_WAITING_LIST = originalWaitingList;
-    }
-
-    if (originalNodeEnv === undefined) {
-      delete mutableEnv.NODE_ENV;
-    } else {
-      mutableEnv.NODE_ENV = originalNodeEnv;
-    }
+    restoreEnv("NEXT_PUBLIC_FEATURE_PREORDER", originalPreorder);
+    restoreEnv("NEXT_PUBLIC_FEATURE_WAITING_LIST", originalWaitingList);
+    restoreEnv("NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS", originalAccountBenefits);
+    restoreEnv("NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS", originalPrivacyTools);
+    restoreEnv("NEXT_PUBLIC_FEATURE_DATA_EXPORT", originalDataExport);
+    restoreEnv("NODE_ENV", originalNodeEnv);
   });
 
   it("reads preorder rollout from direct NEXT_PUBLIC env values", () => {
@@ -53,10 +53,16 @@ describe("public env", () => {
     mutableEnv.NODE_ENV = "production";
     delete mutableEnv.NEXT_PUBLIC_FEATURE_PREORDER;
     delete mutableEnv.NEXT_PUBLIC_FEATURE_WAITING_LIST;
+    delete mutableEnv.NEXT_PUBLIC_FEATURE_ACCOUNT_BENEFITS;
+    delete mutableEnv.NEXT_PUBLIC_FEATURE_PRIVACY_TOOLS;
+    delete mutableEnv.NEXT_PUBLIC_FEATURE_DATA_EXPORT;
 
     const env = readPublicEnv();
 
     expect(env.enablePreorder).toBe(false);
     expect(env.enableWaitingList).toBe(false);
+    expect(env.enableAccountBenefits).toBe(false);
+    expect(env.enablePrivacyTools).toBe(false);
+    expect(env.enableDataExport).toBe(false);
   });
 });

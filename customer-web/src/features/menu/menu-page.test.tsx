@@ -54,6 +54,10 @@ vi.mock("@/features/branch/hooks", () => ({
   useBranchSelection: () => mocks.branchSelection,
 }));
 
+vi.mock("@/providers/auth-provider", () => ({
+  useAuth: () => ({ isAuthenticated: false }),
+}));
+
 vi.mock("@/lib/config/feature-flags", () => ({
   featureFlags: mocks.featureFlags,
 }));

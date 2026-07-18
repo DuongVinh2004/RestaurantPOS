@@ -6,9 +6,13 @@ This repository now carries first-class GitHub Actions workflows for booking bac
 
 - `.github/workflows/booking-ci.yml`
 - `.github/workflows/booking-release-gate.yml`
+- `.github/workflows/booking-cd.yml`
 
 The CI workflow is the default push / pull-request gate.
 The release-gate workflow is a manual promotion evidence run that preserves machine-readable release artifacts.
+The production CD workflow is manual-only and targets the GitHub Environment named `production`; it must remain protected while the adversarial audit is open.
+
+The named `dependency-security` CI job is the production dependency boundary for every pull request and push covered by `booking-ci.yml`. It installs all three npm roots, blocks unresolved production `High` or `Critical` advisories, runs customer/staff tests and production builds, and archives npm advisory plus CycloneDX SBOM evidence. The manual production workflow repeats the same gate and declares it as an explicit `needs` prerequisite of the protected deploy job.
 
 Canonical release build path used by local tooling:
 
@@ -57,6 +61,17 @@ The selector does not replace `scripts/ci/booking-full-gate.sh` or `scripts/ci/b
 
 ## CI job flow
 
+`dependency-security` runs independently of the backend matrix:
+
+1. `npm ci` at the repository root, `customer-web`, and `staff-web`
+2. `npm audit --omit=dev --audit-level=high --json` for all three roots
+3. CycloneDX JSON SBOM generation for all three roots
+4. `npm --prefix customer-web run test` and `npm --prefix customer-web run build`
+5. `npm --prefix staff-web run test` and `npm --prefix staff-web run build`
+6. upload `build/booking-ci/dependency-security/**` for 30 days even when the gate fails
+
+The policy summary keeps Low/Moderate findings visible but blocks when `high + critical > 0`. Plain `npm ci` may print dev-only advisory totals; release decisions must use the archived production audit generated with `--omit=dev`, not the install-time total.
+
 `booking-backend-ci` performs the shared bootstrap once per matrix lane:
 
 1. checkout
@@ -99,6 +114,7 @@ Windows PowerShell:
 ```powershell
 npm run runtime:up
 composer bootstrap:booking
+& 'C:\Program Files\Git\bin\bash.exe' scripts/ci/booking-dependency-security-gate.sh
 php artisan booking:doctor --json
 php artisan notifications:outbox-health --json
 php artisan booking:deploy-check --mode=preflight --strict --json
@@ -121,6 +137,7 @@ Windows `cmd.exe`:
 ```bat
 npm run runtime:up
 composer bootstrap:booking
+"C:\Program Files\Git\bin\bash.exe" scripts/ci/booking-dependency-security-gate.sh
 php artisan booking:doctor --json
 php artisan notifications:outbox-health --json
 php artisan booking:deploy-check --mode=preflight --strict --json
@@ -143,6 +160,7 @@ Linux/macOS or CI-like shells:
 ```bash
 npm run runtime:up
 composer bootstrap:booking
+bash scripts/ci/booking-dependency-security-gate.sh
 bash scripts/ci/booking-runtime-smoke.sh
 bash scripts/ci/booking-phpstan.sh
 bash scripts/ci/booking-full-gate.sh
@@ -179,6 +197,16 @@ This workflow is the canonical machine-readable evidence producer for release si
 - `customer-web` contract/lint/typecheck/test/build/Playwright smoke evidence under `storage/app/booking_release/release_loop/`
 
 For limited-production sign-off, attach one operator-supplied manual evidence JSON to the same release record. That file must record `pass` for `uat_scenario_pack_replay`, `performance_verification_report`, `payment_provider_external_e2e`, `notification_provider_external_e2e`, and `concurrency_rehearsal`. The workflow does not fabricate those external rehearsals on its own.
+
+## Production CD containment
+
+`.github/workflows/booking-cd.yml` has no `push` trigger. An operator must dispatch it manually, and the deploy job references `environment: production`. Repository administrators must configure that GitHub Environment with required reviewers and deployment-branch restrictions; merely creating an environment with no protection rules does not provide an approval gate.
+
+Before the protected deploy job can start, its `dependency-security` prerequisite checks out the dispatched revision, runs `scripts/ci/booking-dependency-security-gate.sh`, and uploads the advisory/SBOM evidence bundle. A failed install, production High/Critical advisory, customer test/build, or staff test/build prevents the deploy job from becoming eligible. Repository branch protection should also require the PR/main `dependency-security` check; that hosted control-plane setting must be verified through GitHub and is not fabricated by this repository workflow.
+
+The contained workflow builds the candidate image, runs `php artisan booking:deploy-check --mode=preflight --strict --json` in that image, and only then runs `docker-compose ... up -d`. Keep `PAYMENT_CUSTOMER_SELF_PAY_ENABLED=false` for this phase. Do not treat this workflow as the final immutable-package deployment design; that promotion redesign remains a later audit workstream.
+
+Before dispatching production CD, archive the manual release-gate evidence, record the approved commit SHA in the release ticket, and verify the `production` Environment approval. To cancel a pending deployment, reject the Environment approval. If a deployed candidate must be rolled back, use the known-good package procedure in `docs/runbooks/booking-deploy-runbook.md` rather than re-running an unreviewed branch head.
 
 ## Environment model
 

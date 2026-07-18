@@ -733,7 +733,7 @@ export function OrderWorkspacePage() {
         row_version: effectiveRowVersion,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (dispatchEnvelope) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['kitchen-stations'] }),
         queryClient.invalidateQueries({ queryKey: ['kitchen-tickets'] }),
@@ -741,6 +741,18 @@ export function OrderWorkspacePage() {
         queryClient.invalidateQueries({ queryKey: ['checkout-order-detail', resolvedOrderId] }),
       ]);
       message.success('Đã chuyển đơn hàng sang bếp.');
+      const firstTicket = dispatchEnvelope.data[0];
+      const search = buildJourneySearch({
+        source: 'kitchen',
+        tableId: tableId ?? undefined,
+        tableIds: resolvedTableIds,
+        reservationId: firstTicket?.order.reservation_id ?? reservationId ?? undefined,
+        orderId: firstTicket?.order.order_id ?? resolvedOrderId ?? undefined,
+        orderRowVersion: resolvedOrderRowVersion ?? undefined,
+        stationId: firstTicket?.station?.station_id,
+      });
+
+      navigate(`${staffRoutePaths.kitchen.landing}?${search}`);
     },
     onError: (error) => {
       message.error(formatApiError(error, 'Không thể chuyển đơn hàng sang bếp.'));

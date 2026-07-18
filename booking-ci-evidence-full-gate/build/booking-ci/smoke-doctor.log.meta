@@ -1,5 +1,0 @@
-step_id=smoke-doctor
-step_name=booking doctor smoke
-command=php artisan booking:doctor --json | tee build/booking-ci/booking-doctor-smoke.json
-timeout_seconds=180
-exit_code=0

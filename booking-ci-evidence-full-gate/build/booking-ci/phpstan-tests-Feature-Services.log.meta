@@ -1,5 +1,0 @@
-step_id=phpstan-tests-Feature-Services
-step_name=phpstan analyse tests/Feature/Services
-command=php -d memory_limit=3G vendor/bin/phpstan analyse --memory-limit=3G --no-progress tests/Feature/Services
-timeout_seconds=2400
-exit_code=0

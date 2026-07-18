@@ -1,123 +1,601 @@
 "use client";
 
-import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
+import { startTransition, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/states/state-blocks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { listMenuItems } from "@/features/menu/api";
 import { getSelfServiceBlockedState } from "@/features/reservations/self-service-boundary";
 import { getPreorderPolicy, getReservationDepositSummaryState } from "@/features/reservations/state";
+import { isConflictLikeApiError, normalizeApiError } from "@/lib/api/errors";
 import { queryKeys } from "@/lib/api/query-keys";
 import { customerWebRollout } from "@/lib/config/feature-flags";
-import { formatMoney } from "@/lib/contracts/format";
-import { getReservationPreorder } from "./api";
 import type { ReservationSummary } from "@/lib/contracts/generated/restaurantpos-sdk";
+import { formatDateTime, formatMoney } from "@/lib/contracts/format";
+import {
+  clearReservationPreorder,
+  getReservationPreorder,
+  previewReservationPreorder,
+  replaceReservationPreorder,
+  submitReservationPreorder,
+  type ReservationPreorderResult,
+} from "./api";
+import {
+  clearStoredPendingReservationPreorderDraft,
+  getReservationPreorderRecoveryMessage,
+  readStoredPendingReservationPreorderDraft,
+  type StoredPendingReservationPreorderDraft,
+} from "./reservation-draft-storage";
+import {
+  menuItemPrice,
+  normalizePreorderCart,
+  preorderCartFromReservation,
+  preorderCartQuantity,
+  preorderCartSignature,
+  type PreorderCartItem,
+  updatePreorderCartItem,
+} from "./cart";
+
+type DraftState = {
+  snapshotKey: string;
+  items: PreorderCartItem[];
+};
+
+type PreviewDraftState = {
+  snapshotKey: string;
+  cartKey: string;
+  payload: ReservationPreorderResult;
+};
 
 export function PreorderPanel({ reservation }: { reservation: ReservationSummary }) {
+  const reservationId = reservation.reservation_id;
+  const queryClient = useQueryClient();
   const preorderRollout = customerWebRollout.preorder;
+  const [cartDraft, setCartDraft] = useState<DraftState | null>(null);
+  const [previewDraft, setPreviewDraft] = useState<PreviewDraftState | null>(null);
+  const [pendingDraft, setPendingDraft] =
+    useState<StoredPendingReservationPreorderDraft | null>(null);
+  const [restoredDraftKey, setRestoredDraftKey] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [itemNotes, setItemNotes] = useState<Record<number, string>>({});
+  const [quantityInputs, setQuantityInputs] = useState<Record<number, string>>({});
   const preorderQuery = useQuery({
-    queryKey: queryKeys.reservations.preorder(reservation.reservation_id),
-    queryFn: () => getReservationPreorder(reservation.reservation_id),
+    queryKey: queryKeys.reservations.preorder(reservationId),
+    queryFn: () => getReservationPreorder(reservationId),
+    enabled: preorderRollout.enabled,
+  });
+  const menuQuery = useQuery({
+    queryKey: queryKeys.menu.items({ preorderOnly: true }),
+    queryFn: () => listMenuItems({ preorderOnly: true }),
     enabled: preorderRollout.enabled,
   });
 
-  if (!preorderRollout.enabled) return null;
+  const preorderSnapshotKey = preorderQuery.data
+    ? `${preorderQuery.data.reservation_row_version}:${preorderQuery.data.pre_order.order_row_version ?? "none"}:${preorderQuery.data.pre_order.totals.quantity}`
+    : "";
+  const baseCart = preorderQuery.data
+    ? preorderCartFromReservation(preorderQuery.data)
+    : [];
+  const cart = cartDraft?.snapshotKey === preorderSnapshotKey ? cartDraft.items : baseCart;
+  const cartItems = normalizePreorderCart(cart);
+  const baseCartKey = preorderCartSignature(baseCart);
+  const cartKey = preorderCartSignature(cartItems);
+  const previewResult =
+    previewDraft?.snapshotKey === preorderSnapshotKey && previewDraft.cartKey === cartKey
+      ? previewDraft.payload
+      : null;
+
+  const updateCartItem = (itemId: number, rawQuantity: number) => {
+    setCartDraft({
+      snapshotKey: preorderSnapshotKey,
+      items: updatePreorderCartItem(cart, itemId, rawQuantity),
+    });
+  };
+
+  const syncPreorder = async (payload: ReservationPreorderResult) => {
+    queryClient.setQueryData(queryKeys.reservations.preorder(reservationId), payload);
+    clearStoredPendingReservationPreorderDraft(reservationId);
+    setCartDraft(null);
+    setPendingDraft(null);
+    setPreviewDraft(null);
+    setRestoredDraftKey(null);
+    setQuantityInputs({});
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.reservations.detail(reservationId),
+      refetchType: "inactive",
+    });
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.reservations.lists,
+      refetchType: "inactive",
+    });
+  };
+
+  const refreshPreorder = async () => {
+    const refreshed = await preorderQuery.refetch();
+
+    if (refreshed.data) {
+      setCartDraft(null);
+      setPreviewDraft(null);
+      setQuantityInputs({});
+    }
+  };
+
+  useEffect(() => {
+    if (!preorderQuery.data) {
+      return;
+    }
+
+    const stored = readStoredPendingReservationPreorderDraft(reservationId);
+
+    if (!stored) {
+      startTransition(() => {
+        setPendingDraft(null);
+      });
+      return;
+    }
+
+    const storedItems = normalizePreorderCart(stored.items);
+    const storedKey = preorderCartSignature(storedItems);
+
+    if (storedKey === "" || storedKey === baseCartKey) {
+      clearStoredPendingReservationPreorderDraft(reservationId);
+      startTransition(() => {
+        setPendingDraft(null);
+        setRestoredDraftKey(null);
+      });
+      return;
+    }
+
+    const nextRestoredDraftKey = `${preorderSnapshotKey}:${storedKey}`;
+
+    if (restoredDraftKey === nextRestoredDraftKey) {
+      startTransition(() => {
+        setPendingDraft(stored);
+      });
+      return;
+    }
+
+    startTransition(() => {
+      setCartDraft({
+        snapshotKey: preorderSnapshotKey,
+        items: storedItems,
+      });
+      setPendingDraft(stored);
+      setPreviewDraft(null);
+      setRestoredDraftKey(nextRestoredDraftKey);
+    });
+  }, [
+    baseCartKey,
+    preorderQuery.data,
+    preorderSnapshotKey,
+    reservationId,
+    restoredDraftKey,
+  ]);
+
+  const handleMutationError = async (error: unknown) => {
+    if (isConflictLikeApiError(error)) {
+      await refreshPreorder();
+    }
+  };
+
+  const previewMutation = useMutation({
+    mutationFn: ({ items }: { items: PreorderCartItem[]; snapshotKey: string; cartKey: string }) =>
+      previewReservationPreorder(reservationId, { pre_order_items: items }),
+    onSuccess(result, variables) {
+      setPreviewDraft({
+        snapshotKey: variables.snapshotKey,
+        cartKey: variables.cartKey,
+        payload: result,
+      });
+    },
+    onError: handleMutationError,
+  });
+  const replaceMutation = useMutation({
+    mutationFn: () => {
+      if (!preorderQuery.data) {
+        throw new Error("Chưa có phiên món đặt trước để cập nhật.");
+      }
+
+      return replaceReservationPreorder(reservationId, {
+        pre_order_items: cartItems,
+        row_version: preorderQuery.data.reservation_row_version,
+        pre_order_row_version: preorderQuery.data.pre_order.order_row_version,
+      });
+    },
+    onSuccess(result) {
+      setSuccessMessage("Đã cập nhật món đặt trước thành công!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      void syncPreorder(result);
+    },
+    onError: handleMutationError,
+  });
+  const submitMutation = useMutation({
+    mutationFn: () => {
+      if (!preorderQuery.data) {
+        throw new Error("Chưa có phiên món đặt trước để gửi.");
+      }
+
+      return submitReservationPreorder(
+        reservationId,
+        preorderQuery.data.reservation_row_version,
+        preorderQuery.data.pre_order.order_row_version,
+      );
+    },
+    onSuccess(result) {
+      setSuccessMessage("Đã gửi xác nhận đặt món thành công!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      void syncPreorder(result);
+    },
+    onError: handleMutationError,
+  });
+  const clearMutation = useMutation({
+    mutationFn: () => {
+      if (!preorderQuery.data) {
+        throw new Error("Chưa có phiên món đặt trước để xóa.");
+      }
+
+      return clearReservationPreorder(
+        reservationId,
+        preorderQuery.data.reservation_row_version,
+        preorderQuery.data.pre_order.order_row_version,
+      );
+    },
+    onSuccess(result) {
+      setSuccessMessage("Đã xóa món đặt trước thành công!");
+      setTimeout(() => setSuccessMessage(null), 5000);
+      void syncPreorder(result);
+    },
+    onError: handleMutationError,
+  });
 
   const loadBoundary = preorderQuery.error
     ? getSelfServiceBlockedState("preorder", preorderQuery.error, "Chưa tải được món đặt trước")
     : null;
-    
   const preorderPolicy = preorderQuery.data ? getPreorderPolicy(preorderQuery.data) : null;
+  const actionError = previewMutation.error ?? replaceMutation.error ?? clearMutation.error;
+  const actionBoundary = actionError
+    ? getSelfServiceBlockedState(
+        "preorder",
+        actionError,
+        isConflictLikeApiError(actionError)
+          ? "Thông tin món đặt trước đã thay đổi"
+          : "Chưa cập nhật được món đặt trước",
+      )
+    : null;
   const depositSummary = getReservationDepositSummaryState(reservation);
   const isDepositPaid = depositSummary.state === "paid";
-  
-  // Disable changes if deposit is paid OR management policy restricts it.
   const canManage = Boolean(preorderQuery.data?.management_policy.can_manage) && !isDepositPaid;
+  const hasExistingPreorder = Boolean(preorderQuery.data?.pre_order.present);
+  const isDraft = preorderQuery.data?.pre_order.order_status === "draft";
+  const hasCartChanges = cartKey !== baseCartKey;
+  const previewRequired = canManage && cartItems.length > 0 && hasCartChanges && !previewResult;
+  const canRequestPreview = canManage && cartItems.length > 0 && hasCartChanges;
+  const canReplace = canManage && cartItems.length > 0 && hasCartChanges && previewResult !== null;
+  const canSubmit = canManage && hasExistingPreorder && !hasCartChanges && isDraft;
+  const mutationPending = previewMutation.isPending || replaceMutation.isPending || submitMutation.isPending || clearMutation.isPending;
+  const cartInputsDisabled = mutationPending || preorderQuery.isFetching || menuQuery.isFetching;
+  const pendingDraftMessage = pendingDraft
+    ? getReservationPreorderRecoveryMessage(pendingDraft.failure_stage)
+    : null;
+
+  if (!preorderRollout.enabled) {
+    return null;
+  }
 
   return (
     <Card className="rounded-lg" data-testid="customer-preorder-section">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+      <CardHeader>
         <CardTitle>Món đặt trước</CardTitle>
-        {canManage && (
-          <Button asChild variant="outline" size="sm" className="h-8">
-            <Link href="/menu">
-              <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Thêm món
-            </Link>
-          </Button>
-        )}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {successMessage && (
+          <div className="rounded-lg bg-green-50 p-4 text-sm text-green-800 border border-green-200" data-testid="customer-preorder-success">
+            {successMessage}
+          </div>
+        )}
+        {!!actionError && (
+          <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800 border border-red-200" data-testid="customer-preorder-error-alert">
+            {normalizeApiError(actionError).message}
+          </div>
+        )}
         {preorderQuery.isLoading ? <LoadingBlock label="Đang tải món đặt trước" /> : null}
-        
+        {menuQuery.isLoading ? <LoadingBlock label="Đang tải món có thể đặt trước" /> : null}
         {loadBoundary ? (
           loadBoundary.kind === "error" ? (
-            <ErrorState error={loadBoundary.error} title={loadBoundary.title} onRetry={() => preorderQuery.refetch()} />
+            <ErrorState
+              error={loadBoundary.error}
+              title={loadBoundary.title}
+              onRetry={() => preorderQuery.refetch()}
+            />
           ) : (
             <EmptyState title={loadBoundary.title} description={loadBoundary.description} />
           )
         ) : null}
-
+        {menuQuery.error ? (
+          <ErrorState
+            error={menuQuery.error}
+            title="Chưa tải được danh sách món"
+            onRetry={() => menuQuery.refetch()}
+          />
+        ) : null}
         {preorderQuery.data && preorderPolicy ? (
           <>
-            {preorderPolicy.hasPreorder && preorderQuery.data.pre_order.lines.length > 0 ? (
-              <div className="space-y-4 text-sm">
-                <div className="rounded-lg bg-secondary/30 p-3">
-                  <p className="font-medium">{preorderQuery.data.pre_order.totals.quantity} món đã chọn</p>
-                  <p className="text-muted-foreground">Tạm tính: {formatMoney(preorderQuery.data.pre_order.totals.subtotal, preorderQuery.data.pre_order.currency)}</p>
+            <div className="rounded-lg border bg-secondary/30 p-4 text-sm">
+              <p className="font-medium">Bạn có thể chọn món trước để Mộc Sen chuẩn bị nhanh hơn.</p>
+              <p className="mt-1 text-muted-foreground">
+                Món đặt trước có thể cần đặt cọc tùy theo giá trị đơn hoặc chính sách nhà hàng.
+                Bạn có thể bỏ qua bước này và chọn món tại nhà hàng.
+              </p>
+            </div>
+            <div className="rounded-lg bg-secondary p-4 text-sm">
+              <p className="font-medium">{preorderPolicy.title}</p>
+              <p className="mt-1 text-muted-foreground">{preorderPolicy.message}</p>
+            </div>
+
+            {preorderPolicy.hasPreorder ? (
+              <div className="space-y-3 rounded-lg border p-4 text-sm">
+                <div>
+                  <p className="font-medium">
+                    {preorderQuery.data.pre_order.totals.quantity} món đã ghi nhận
+                  </p>
+                  <p className="mt-1 text-muted-foreground">
+                    {formatMoney(
+                      preorderQuery.data.pre_order.totals.subtotal,
+                      preorderQuery.data.pre_order.currency,
+                    )}{" "}
+                    cho khung giờ {formatDateTime(preorderQuery.data.pre_order.service_time)}
+                  </p>
                 </div>
-                
-                <div className="space-y-3">
-                  {preorderQuery.data.pre_order.lines.map((line) => (
-                    <div key={line.order_item_id} className="flex items-start justify-between gap-3 border-b border-secondary pb-3 last:border-0 last:pb-0">
-                      <div className="flex items-start gap-3">
-                        {/* @ts-expect-error backend dynamic field */}
-                        {line.img_url ? (
-                          <div className="h-14 w-14 flex-shrink-0 overflow-hidden rounded-md bg-secondary">
-                            {/* @ts-expect-error backend dynamic field */}
-                            <img src={line.img_url} alt={line.name} className="h-full w-full object-cover" />
+                {isDraft ? (
+                  <div className="rounded-lg border border-dashed bg-warning/20 p-4 text-sm text-warning-foreground">
+                    Đây mới chỉ là bản nháp. Vui lòng nhấn &quot;Gửi xác nhận đặt món&quot; để nhà hàng nhận được yêu cầu.
+                  </div>
+                ) : null}
+                {preorderQuery.data.pre_order.lines.length > 0 ? (
+                  <div className="space-y-2">
+                    {preorderQuery.data.pre_order.lines.map((line) => (
+                      <div
+                        key={line.order_item_id}
+                        className="rounded-lg bg-secondary/30 p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="font-medium">{line.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {line.quantity} phần
+                              {line.notes ? ` | Ghi chú: ${line.notes}` : ""}
+                            </p>
                           </div>
-                        ) : (
-                          <div className="h-14 w-14 flex-shrink-0 rounded-md bg-secondary/50 flex items-center justify-center">
-                            <span className="text-[10px] uppercase text-muted-foreground">No img</span>
-                          </div>
-                        )}
-                        <div>
-                          <p className="font-medium text-foreground line-clamp-2">{line.name}</p>
-                          <p className="text-sm text-muted-foreground mt-0.5">
-                            {line.quantity} phần {line.notes ? `| Ghi chú: ${line.notes}` : ""}
+                          <p className="text-sm font-medium">
+                            {formatMoney(line.line_total, line.currency)}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-sm font-medium">{formatMoney(line.line_total, line.currency)}</p>
-                        {line.quantity > 1 && (
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatMoney(line.unit_price, line.currency)} / phần
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                ) : null}
+                <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                  {preorderPolicy.managementMessage}
                 </div>
-                
-                {!canManage && isDepositPaid && (
-                  <p className="text-xs text-muted-foreground italic mt-2">
-                    * Lịch đặt đã thanh toán cọc nên không thể thay đổi món đặt trước lúc này.
-                  </p>
-                )}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-4 text-center">
-                <p className="text-sm text-muted-foreground">Chưa có món đặt trước</p>
-                {canManage && (
-                  <Button asChild variant="link" className="mt-1 h-auto p-0">
-                    <Link href="/menu">Xem thực đơn ngay</Link>
-                  </Button>
-                )}
-              </div>
+              <EmptyState title={preorderPolicy.title} description={preorderPolicy.message} />
             )}
+
+            {canManage ? (
+              <div className="space-y-4 rounded-lg border p-4">
+                <div>
+                  <h3 className="font-semibold">Chọn món đặt trước</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Xem trước giỏ món trước khi lưu để Mộc Sen kiểm tra số lượng, thời gian chuẩn bị và chính sách đặt cọc nếu có.
+                  </p>
+                </div>
+                {pendingDraftMessage ? (
+                  <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    {pendingDraftMessage}
+                  </div>
+                ) : null}
+                {menuQuery.data?.length === 0 ? (
+                  <EmptyState
+                    title="Chưa có món hỗ trợ đặt trước"
+                    description="Danh sách món sẽ hiển thị khi nhà hàng bật đặt trước cho thực đơn."
+                  />
+                ) : null}
+                <div className="grid gap-3">
+                  {menuQuery.data?.map((item) => {
+                    const quantity = preorderCartQuantity(cart, item.item_id);
+                    const itemAvailable = item.is_available !== false && item.preorder.enabled !== false;
+                    const itemNote = itemNotes[item.item_id] ?? "";
+
+                    return (
+                      <div
+                        key={item.item_id}
+                        data-testid="customer-menu-item-card"
+                        className="grid gap-3 rounded-lg bg-secondary/40 p-3 sm:grid-cols-[1fr_auto] sm:items-center border border-gray-100 hover:border-indigo-100 transition-all duration-200"
+                      >
+                        <div className="space-y-2">
+                          <div>
+                            <p className="font-medium text-gray-900">{item.name}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {menuItemPrice(item)}
+                              {item.preorder.cutoff_minutes
+                                ? ` | Khóa trước ${item.preorder.cutoff_minutes} phút`
+                                : ""}
+                              {item.preorder.quota_per_day
+                                ? ` | Tối đa ${item.preorder.quota_per_day}/ngày`
+                                : ""}
+                              {!itemAvailable ? " | Tạm chưa khả dụng" : ""}
+                            </p>
+                          </div>
+                          {quantity > 0 && (
+                            <div className="flex flex-col gap-1 w-full max-w-md">
+                              <Label htmlFor={`preorder-note-${item.item_id}`} className="text-xs text-gray-500">Ghi chú món ăn</Label>
+                              <Input
+                                id={`preorder-note-${item.item_id}`}
+                                data-testid="customer-preorder-note-input"
+                                placeholder="Ghi chú (ví dụ: ít cay, nhiều đá...)"
+                                className="min-h-9 text-xs rounded-lg bg-white/80"
+                                value={itemNote}
+                                disabled={cartInputsDisabled}
+                                onChange={(e) => setItemNotes({ ...itemNotes, [item.item_id]: e.target.value })}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {quantity === 0 ? (
+                            <Button
+                              type="button"
+                              data-testid="customer-preorder-add-button"
+                              className="rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 text-sm shadow-sm transition-all duration-200"
+                              disabled={!itemAvailable || cartInputsDisabled}
+                              onClick={() => updateCartItem(item.item_id, 1)}
+                            >
+                              Thêm vào đặt trước
+                            </Button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <div className="flex flex-col gap-1 items-end">
+                                <Label htmlFor={`preorder-qty-${item.item_id}`} className="text-xs text-gray-500">Số lượng</Label>
+                                <Input
+                                  id={`preorder-qty-${item.item_id}`}
+                                  data-testid="customer-preorder-quantity-input"
+                                  aria-label={`Số lượng ${item.name}`}
+                                  type="number"
+                                  min={0}
+                                  className="min-h-10 w-20 rounded-lg text-center"
+                                  value={quantityInputs[item.item_id] ?? String(quantity)}
+                                  disabled={cartInputsDisabled}
+                                  onChange={(event) => {
+                                    const nextValue = event.target.value;
+
+                                    setQuantityInputs((current) => ({
+                                      ...current,
+                                      [item.item_id]: nextValue,
+                                    }));
+
+                                    if (nextValue !== "") {
+                                      updateCartItem(item.item_id, Number(nextValue));
+                                    }
+                                  }}
+                                  onBlur={() => {
+                                    setQuantityInputs((current) => {
+                                      const next = { ...current };
+                                      delete next[item.item_id];
+                                      return next;
+                                    });
+                                  }}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="destructive"
+                                data-testid="customer-preorder-remove-button"
+                                className="rounded-lg min-h-10 mt-5 font-semibold transition-all duration-200"
+                                disabled={cartInputsDisabled}
+                                  onClick={() => {
+                                    updateCartItem(item.item_id, 0);
+                                    setQuantityInputs((current) => {
+                                      const next = { ...current };
+                                      delete next[item.item_id];
+                                      return next;
+                                    });
+                                  }}
+                              >
+                                Xóa
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {previewRequired ? (
+                  <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                    Bạn đã thay đổi giỏ món. Vui lòng xem trước lại để kiểm tra số lượng và tổng tiền
+                    mới trước khi cập nhật món đặt trước.
+                  </div>
+                ) : null}
+                {previewResult ? (
+                  <div className="rounded-lg bg-secondary p-4 text-sm">
+                    <p className="font-medium">Bản xem trước</p>
+                    <p className="mt-1 text-muted-foreground">
+                      {previewResult.pre_order.totals.quantity} món, tạm tính{" "}
+                      {formatMoney(
+                        previewResult.pre_order.totals.subtotal,
+                        previewResult.pre_order.currency,
+                      )}
+                      .
+                    </p>
+                  </div>
+                ) : null}
+                {actionBoundary ? (
+                  actionBoundary.kind === "error" ? (
+                    <ErrorState
+                      error={actionBoundary.error}
+                      title={actionBoundary.title}
+                      onRetry={refreshPreorder}
+                    />
+                  ) : (
+                    <EmptyState
+                      title={actionBoundary.title}
+                      description={actionBoundary.description}
+                    />
+                  )
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg"
+                    disabled={!canRequestPreview || mutationPending}
+                    onClick={() => previewMutation.mutate({
+                      items: cartItems,
+                      snapshotKey: preorderSnapshotKey,
+                      cartKey,
+                    })}
+                  >
+                    {previewMutation.isPending ? "Đang xem trước" : "Xem trước món"}
+                  </Button>
+                  <Button
+                    type="button"
+                    className="rounded-lg"
+                    disabled={!canReplace || mutationPending}
+                    onClick={() => replaceMutation.mutate()}
+                  >
+                    {replaceMutation.isPending ? "Đang cập nhật" : "Cập nhật món đặt trước"}
+                  </Button>
+                  {canSubmit ? (
+                    <Button
+                      type="button"
+                      data-testid="customer-preorder-submit-button"
+                      className="rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                      disabled={mutationPending}
+                      onClick={() => submitMutation.mutate()}
+                    >
+                      {submitMutation.isPending ? "Đang gửi" : "Gửi xác nhận đặt món"}
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-lg"
+                    disabled={!hasExistingPreorder || mutationPending}
+                    onClick={() => clearMutation.mutate()}
+                  >
+                    {clearMutation.isPending ? "Đang xóa" : "Xóa món đặt trước"}
+                  </Button>
+                </div>
+              </div>
+            ) : !hasExistingPreorder && preorderQuery.data.management_policy.reasons.length > 0 ? (
+              <div className="rounded-lg border border-dashed bg-secondary/20 p-4 text-sm text-muted-foreground">
+                {preorderQuery.data.management_policy.reasons.join(". ")}
+              </div>
+            ) : null}
           </>
         ) : null}
       </CardContent>

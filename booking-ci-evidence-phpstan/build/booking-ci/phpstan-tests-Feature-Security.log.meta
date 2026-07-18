@@ -1,5 +1,0 @@
-step_id=phpstan-tests-Feature-Security
-step_name=phpstan analyse tests/Feature/Security
-command=php -d memory_limit=3G vendor/bin/phpstan analyse --memory-limit=3G --no-progress tests/Feature/Security
-timeout_seconds=2400
-exit_code=0

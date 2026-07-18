@@ -168,7 +168,7 @@ describe("guest hold to reservation session flow", () => {
     await user.type(screen.getByLabelText("Số điện thoại"), "5550100");
     await user.type(screen.getByLabelText("Email"), "guest@example.test");
     await user.type(screen.getByLabelText("Ghi chú"), "Window seat");
-    await user.click(screen.getAllByRole("button", { name: "Xác nhận đặt bàn" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "Hoàn tất đặt bàn" })[0]);
 
     await waitFor(() => {
       expect(mocks.createReservation).toHaveBeenCalledWith(

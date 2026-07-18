@@ -198,9 +198,12 @@ export function BookingPreorderPage() {
     if (isAuthenticated) {
       const localFavorites = readFavoriteMenuItemIds();
       if (localFavorites.size > 0) {
-        syncMutation.mutate(Array.from(localFavorites));
-        window.localStorage.removeItem(favoriteMenuItemsStorageKey);
-        setLocalFavoriteItemIds(new Set());
+        syncMutation.mutate(Array.from(localFavorites), {
+          onSuccess: () => {
+            window.localStorage.removeItem(favoriteMenuItemsStorageKey);
+            setLocalFavoriteItemIds(new Set());
+          },
+        });
       }
     }
   }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps

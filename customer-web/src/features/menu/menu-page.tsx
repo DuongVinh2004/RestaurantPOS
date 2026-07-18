@@ -213,9 +213,12 @@ export function MenuPage() {
     if (isAuthenticated) {
       const localFavorites = readFavoriteMenuItemIds();
       if (localFavorites.size > 0) {
-        syncMutation.mutate(Array.from(localFavorites));
-        window.localStorage.removeItem(favoriteMenuItemsStorageKey);
-        setLocalFavoriteItemIds(new Set());
+        syncMutation.mutate(Array.from(localFavorites), {
+          onSuccess: () => {
+            window.localStorage.removeItem(favoriteMenuItemsStorageKey);
+            setLocalFavoriteItemIds(new Set());
+          },
+        });
       }
     }
   }, [isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -726,7 +729,7 @@ export function MenuPage() {
                           onClick={() => addToCart(item)}
                         >
                           <Plus className="h-4 w-4 mr-1" />
-                          Thêm
+                          Thêm món
                         </AppButton>
                       ) : (
                         <AppButton asChild size="sm" className="min-h-10 text-xs rounded-full bg-primary/10 text-primary hover:bg-primary/20 shadow-none border-0">

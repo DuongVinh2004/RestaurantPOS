@@ -25,7 +25,7 @@ import { ResponsivePageShell } from "@/components/customer/layout";
 import { SelectedBranchEntry } from "@/features/branch/branch-selector";
 import { useBranchSelection } from "@/features/branch/hooks";
 import { useCustomerIdentity, useCustomerSession } from "@/features/auth/hooks";
-import { listMenuItems } from "@/features/menu/api";
+import { listMenuItems, type MenuItem } from "@/features/menu/api";
 import { MenuItemImage } from "@/features/menu/menu-item-image";
 import { useLocalPreorderCart } from "@/features/preorder/local-cart";
 import { listReservations } from "@/features/reservations/api";
@@ -50,7 +50,7 @@ export function HomePage() {
   const [guestCount, setGuestCount] = useState("2");
   const [dateKey, setDateKey] = useState("today");
   const [time, setTime] = useState("19:00");
-  const [selectedCombo, setSelectedCombo] = useState<any | null>(null);
+  const [selectedCombo, setSelectedCombo] = useState<MenuItem | null>(null);
   const [isComboModalOpen, setIsComboModalOpen] = useState(false);
 
   const featuredMenuQuery = useQuery({
@@ -77,7 +77,7 @@ export function HomePage() {
     return { comboItems: combos, bestSellerItems: bestSellers };
   }, [featuredMenuQuery.data]);
 
-  const handleAddToCart = (item: any, e: React.MouseEvent) => {
+  const handleAddToCart = (item: MenuItem, e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault();
     e.stopPropagation();
     addItem(item);
@@ -437,8 +437,8 @@ export function HomePage() {
                     <div className="space-y-3 mt-4">
                       <h4 className="font-semibold text-sm text-muted-foreground uppercase tracking-wider">Thành phần Combo</h4>
                       <ul className="space-y-3">
-                        {selectedCombo.combo_components.map((comboItem: any, idx: number) => (
-                          <li key={idx} className="flex items-start gap-3 bg-rose-50/30 p-3 rounded-xl border border-rose-900/5">
+                        {selectedCombo.combo_components.map((comboItem) => (
+                          <li key={comboItem.component_item_id} className="flex items-start gap-3 bg-rose-50/30 p-3 rounded-xl border border-rose-900/5">
                             <div className="mt-0.5 bg-white p-1.5 rounded-full shadow-sm">
                               {comboItem.name?.toLowerCase().includes("nước") || comboItem.name?.toLowerCase().includes("trà") ? (
                                 <CupSoda className="h-4 w-4 text-sky-600" />
@@ -474,7 +474,7 @@ export function HomePage() {
                     className="rounded-full bg-rose-600 hover:bg-rose-700 text-white"
                     onClick={(e) => {
                       if (selectedCombo) {
-                        handleAddToCart(selectedCombo, e as any);
+                        handleAddToCart(selectedCombo, e);
                         setIsComboModalOpen(false);
                       }
                     }}
