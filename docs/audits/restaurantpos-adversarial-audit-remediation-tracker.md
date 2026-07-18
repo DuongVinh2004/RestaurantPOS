@@ -6,7 +6,7 @@
 
 **Production decision:** `NO-GO`
 
-**Current cursor:** `B10 — dependency and CI enforcement (IN_PROGRESS; local mandatory frontend suites are green, hosted required-check proof remains outstanding). B07 remains BLOCKED on external sandbox credentials/endpoints; do not start B08.`
+**Current cursor:** `B11 — KDS substitution (READY). B07 remains BLOCKED on external sandbox credentials/endpoints; do not start B08.`
 
 **Roadmap:** [`restaurantpos-adversarial-audit-remediation-roadmap.md`](restaurantpos-adversarial-audit-remediation-roadmap.md)
 
@@ -47,7 +47,7 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 |---|---|
 | Audit target | `main@3080e439e8c715e83fb27aa39ba753a92dffc36f` |
 | Execution branch | `chore/repository-evidence-cleanup` |
-| Execution HEAD | `9e4ff0457e7c933036043a1d18f010517db38902` |
+| Execution HEAD | `f67ad505d0f4b67aac79068f587657dbe4d5b0a4` (B10 implementation and hosted-fix head; closure record follows) |
 | Worktree | Dirty by design: 64 baseline paths across 8 owned scopes plus the bounded B01-B10 remediation paths recorded in execution history |
 | Path inventory | [`restaurantpos-adversarial-audit-worktree-inventory-2026-07-15.md`](restaurantpos-adversarial-audit-worktree-inventory-2026-07-15.md) |
 | Known diff hygiene | Global `git diff --check` reports whitespace in unrelated existing `staff-web` worktree changes; the bounded B10 dependency and frontend-remediation paths pass targeted whitespace checks |
@@ -63,10 +63,10 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | Severity | Total | Open | Partial | Code fixed | Runtime verified | Closed |
 |---|---:|---:|---:|---:|---:|---:|
 | Critical | 6 | 1 | 2 | 1 | 0 | 2 |
-| High | 15 | 10 | 2 | 1 | 0 | 2 |
+| High | 15 | 10 | 1 | 1 | 0 | 3 |
 | Medium | 8 | 7 | 0 | 0 | 0 | 1 |
 | Low | 1 | 1 | 0 | 0 | 0 | 0 |
-| **Total** | **30** | **19** | **4** | **2** | **0** | **5** |
+| **Total** | **30** | **19** | **3** | **2** | **0** | **6** |
 
 `PARTIAL` does not count as remediated or release-safe.
 
@@ -84,7 +84,7 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | B07 Verified provider confirmation | `BLOCKED` | C-01, H-08 | B06 | Code/MySQL/browser gates pass; real-provider sandbox callback/reorder evidence cannot run until credentials and endpoints are supplied |
 | B08 Deposit representation | `OPEN` | C-02 | B06-B07 | Parallel/late capture reconciliation |
 | B09 Provider capture/refund | `OPEN` | C-03, M-02 | B06-B08 | Provider sandbox refund/recovery |
-| B10 Dependencies/CI | `IN_PROGRESS` | H-06 | B00 | Production High/Critical audit is clean, fail-closed CI/CD/SBOM policy is implemented, and customer/staff mandatory suites are green; hosted required-check evidence remains outstanding |
+| B10 Dependencies/CI | `CLOSED` | H-06 | B00 | Production High/Critical audit is clean; customer/staff mandatory suites and hosted `dependency-security` pass; retained audit/SBOM artifact is verified; `main` requires the exact GitHub Actions check |
 | B11 KDS substitution | `READY` | H-03 | B04 | Item/ticket/recipe consistency |
 | B12 Recipe/wastage | `OPEN` | H-12, M-06 | B11 | MySQL stock equation |
 | B13 Reporting/date/ETA | `OPEN` | H-09/H-10/H-11, M-04 | B03, B09 | Golden ledger/date/ETA dataset |
@@ -111,7 +111,7 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | H-03 | High | B11 | `OPEN` | — |
 | H-04 | High | B01/B18 | `PARTIAL` | Main-push deployment removed; manual `production` Environment and candidate preflight added; external protection proof and B18 immutable SQL-safe deploy remain |
 | H-05 | High | B19 | `OPEN` | — |
-| H-06 | High | B01/B10 | `PARTIAL` | Automatic production activation remains removed. Local production audits have zero High/Critical, the PR/main/CD gate archives advisory/SBOM evidence, and both mandatory frontend lanes are green; `main` is not branch-protected and the new hosted job has not run |
+| H-06 | High | B01/B10 | `CLOSED` | Automatic production activation remains removed. Production High/Critical audits are clean; both mandatory frontend lanes pass; hosted run `29651941195` archived audit/policy/CycloneDX evidence for all three workspaces; and `main` requires the exact GitHub Actions `dependency-security` check with strict status checks |
 | H-07 | High | B15 | `OPEN` | — |
 | H-08 | High | B06/B07 | `CODE_FIXED` | Provider sequence takes precedence over provider time; newer verified success recovers failed/cancelled/expired sessions, delayed lower sequence is ignored, and newer failure after capture preserves funds plus marks `ManualReview`. Real-provider sandbox reorder proof is externally blocked |
 | H-09 | High | B13 | `OPEN` | — |
@@ -183,7 +183,7 @@ Observed from the current lockfiles and refreshed local B10 evidence on `2026-07
 | `staff-web` | 0 | `react-router-dom@6.30.4`; no unresolved production advisory |
 | `customer-web` | 2 moderate, 0 high/critical | `next@16.2.10`; remaining Moderate report is transitive `postcss`, while the npm force proposal is a breaking downgrade and was rejected |
 
-The local policy decision is `pass` because `high + critical = 0` in all three roots. CI will regenerate and archive production audit JSON, policy summaries and CycloneDX 1.5 SBOMs under `build/booking-ci/dependency-security/**`. This remains time-sensitive and is not B10 closure evidence until a hosted run archives the advisory/SBOM artifacts and `main` requires the exact `dependency-security` check.
+The local and hosted policy decisions are `pass` because `high + critical = 0` in all three roots. Hosted run [`29651941195`](https://github.com/DuongVinh2004/RestaurantPOS/actions/runs/29651941195) archived `dependency-security-evidence-ci-29651941195` (artifact id `8431761804`, 42,654 bytes, created `2026-07-18T16:30:36Z`, expires `2026-08-17T16:30:35Z`) with the summary plus per-root production audit JSON, policy summary and CycloneDX 1.5 SBOM. The hosted SBOM SHA-256 digests are root `a91cfa9af691e6819f8d59b45fa4da7091b2baef37056bb0ecde2e085ed84542`, customer `3179246598b09385507cdd6061a4fc1df42a96b4bca1ab6a26e6189a46bf57c9`, and staff `684e25721755344eb7415d84cc3cf5a038f60f3fbba9bd07ac357c076ed178ec`. Classic protection for `main` was read back with `strict=true` and required check `dependency-security` bound to GitHub Actions app id `15368`; the existing repository ruleset was preserved.
 
 ## 10. Decision log
 
@@ -390,6 +390,18 @@ The local policy decision is `pass` because `high + critical = 0` in all three r
 - Remaining risks: B10 still cannot close until the uncommitted workflow is reviewed and run on GitHub, hosted artifact metadata proves advisory/SBOM retention, and `main` branch protection requires the exact `dependency-security` check. No commit, push, PR or repository-policy mutation was performed because the shared worktree contains unrelated user changes. Customer lint retains 26 non-blocking warnings; staff tests retain non-blocking Ant Design deprecation/chart-size warnings. B07 remains externally blocked on real-provider sandbox evidence, and production remains `NO-GO`.
 - Finding status changes: the recorded mandatory frontend exit-gate failures are resolved. B10 remains `IN_PROGRESS` and H-06 remains `PARTIAL` solely on hosted control-plane evidence; no finding closes in this follow-up.
 - Next cursor: B10 — obtain a reviewed hosted green `dependency-security` run, archived artifact metadata and owner-approved required-check protection for `main`. Do not start B08. After B10 closes, B11 remains the preferred independent cursor if it does not collide with active dirty paths.
+
+### 2026-07-18 — B10 — Hosted enforcement closure
+
+- Intent: publish the bounded B10 implementation, prove the exact dependency gate in GitHub Actions, retain its advisory/SBOM evidence, and enforce that check on `main` before advancing the remediation cursor.
+- Changed files: the reviewed B10 dependency/frontend scope was committed as `8a3b85c2775c605cb6f9ad06389203f677542e83`; `staff-web/scripts/local-runtime-preflight.test.mjs` received the cross-platform path expectation fix in `f67ad505d0f4b67aac79068f587657dbe4d5b0a4`; this tracker and `docs/audits/README.md` record closure. Existing unrelated worktree changes were preserved through selective staging.
+- Added/updated tests: the runtime-preflight test now derives the expected Windows-style fixture path with Node `path.resolve`, retaining all four assertions on Windows and Linux. No product behavior changed in the hosted-fix/closure commits.
+- Verification run: staged-snapshot dependency security passed from clean installs; customer release verification passed 53 Vitest files / 246 tests, lint with 0 errors / 26 warnings, typecheck, production build and 5/5 Chromium journeys; staff passed 89 files / 378 tests plus production build/package integrity; PHP workflow contracts passed 5 tests / 48 assertions; Node fail-closed policy passed 3/3. The first hosted run exposed the platform-specific preflight test expectation; the focused 4/4 fix passed locally, and hosted `dependency-security` job [`88099653110`](https://github.com/DuongVinh2004/RestaurantPOS/actions/runs/29651941195/job/88099653110) then passed in 4m57s.
+- Evidence paths: draft PR [`#47`](https://github.com/DuongVinh2004/RestaurantPOS/pull/47); hosted run `29651941195`; artifact `dependency-security-evidence-ci-29651941195` / id `8431761804`, containing 10 expected files and retained through `2026-08-17T16:30:35Z`; branch-protection readback `strict=true`, context `dependency-security`, GitHub Actions app id `15368`.
+- Shared seams touched: GitHub Actions CI/CD dependency prerequisites, package manifests/lockfiles, mandatory customer/staff gates, the runtime-preflight test portability boundary and `main` protection. The pre-existing repository ruleset, public routes, API contracts, capability maps, payment/provider behavior and SQL schema were not altered by closure.
+- Remaining risks: B10/H-06 are closed, but customer lint retains 26 non-blocking warnings and the customer production audit retains two Moderate advisories. Independent/no-self approval and administrator-bypass governance remain later production-control work. B07 is still externally blocked, B08 remains prohibited, and production remains `NO-GO` until the full remediation program and B20 reassessment close.
+- Finding status changes: B10 moved from `IN_PROGRESS` to `CLOSED`; H-06 moved from `PARTIAL` to `CLOSED`. Totals are now 6 closed, 2 code-fixed, 3 partial and 19 open.
+- Next cursor: B11 — KDS substitution. Keep B07 `BLOCKED` and do not start B08 until real-provider sandbox evidence is attached.
 
 ## 12. Completion record template
 

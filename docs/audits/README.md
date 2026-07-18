@@ -17,8 +17,8 @@ The audit report must remain unchanged. Progress, corrections and closure eviden
 
 - Production decision: `NO-GO`.
 - Program state: `ACTIVE`.
-- Current execution cursor: `B10 — dependency and CI enforcement`; local gates are green and hosted required-check evidence remains outstanding.
-- Findings: 30 total; 5 closed, 2 code-fixed, 4 partial and 19 open. `PARTIAL` and `CODE_FIXED` are not release-safe closure.
+- Current execution cursor: `B11 — KDS substitution (READY)`. B07 remains externally blocked; do not start B08.
+- Findings: 30 total; 6 closed, 2 code-fixed, 3 partial and 19 open. `PARTIAL` and `CODE_FIXED` are not release-safe closure.
 - Last status review: `2026-07-18`.
 
 ## Historical documents
