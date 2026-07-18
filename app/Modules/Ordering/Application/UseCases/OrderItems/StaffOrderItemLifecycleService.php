@@ -15,6 +15,7 @@ use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Application\UseCases\Inventory\OrderItemInventoryConsumptionService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
+use App\Modules\KitchenDispatch\Domain\Models\KitchenOrderItemTicket;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
@@ -84,6 +85,32 @@ class StaffOrderItemLifecycleService
                             ]);
                         }
 
+                        /** @var ReservationOrderItem|null $parentItem */
+                        $parentItem = ReservationOrderItem::query()
+                            ->with('item')
+                            ->whereKey((int) $item->parent_order_item_id)
+                            ->where('order_id', $orderId)
+                            ->lockForUpdate()
+                            ->first();
+                        if (! $parentItem instanceof ReservationOrderItem
+                            || ! $parentItem->item instanceof MenuItem
+                            || ! (bool) $parentItem->item->getAttribute('is_combo')) {
+                            throw ValidationException::withMessages([
+                                'order_item_id' => 'Component item is not attached to a valid combo parent.',
+                            ]);
+                        }
+
+                        // Lean-launch policy: once a component has ever been dispatched, its item/recipe identity is immutable.
+                        $dispatchedTicket = KitchenOrderItemTicket::query()
+                            ->where('order_item_id', $orderItemId)
+                            ->lockForUpdate()
+                            ->first();
+                        if ($dispatchedTicket instanceof KitchenOrderItemTicket) {
+                            throw ValidationException::withMessages([
+                                'order_item_id' => 'Dispatched combo components cannot be swapped. Cancel and recreate the order item instead.',
+                            ]);
+                        }
+
                         $currentStatus = $this->normalizeItemStatus($item);
                         if (in_array($currentStatus, [ReservationOrderItemStatus::Served->value, ReservationOrderItemStatus::Cancelled->value], true)) {
                             throw ValidationException::withMessages([
@@ -91,8 +118,19 @@ class StaffOrderItemLifecycleService
                             ]);
                         }
 
-                        /** @var MenuItem $newItem */
-                        $newItem = MenuItem::findOrFail($newItemId);
+                        /** @var MenuItem $currentItem */
+                        $currentItem = MenuItem::query()->lockForUpdate()->findOrFail((int) $item->item_id);
+                        /** @var MenuItem|null $newItem */
+                        $newItem = MenuItem::query()->lockForUpdate()->find($newItemId);
+                        if (! $newItem instanceof MenuItem
+                            || ! (bool) $newItem->getAttribute('is_available')
+                            || (bool) $newItem->getAttribute('is_combo')
+                            || $currentItem->category_id === null
+                            || (int) $newItem->category_id !== (int) $currentItem->category_id) {
+                            throw ValidationException::withMessages([
+                                'new_item_id' => 'Replacement must be an available non-combo item in the same menu category.',
+                            ]);
+                        }
 
                         $oldItemId = $item->item_id;
                         $oldUnitPrice = $item->unit_price ?? 0;

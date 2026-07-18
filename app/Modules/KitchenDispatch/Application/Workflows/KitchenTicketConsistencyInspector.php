@@ -6,6 +6,7 @@ namespace App\Modules\KitchenDispatch\Application\Workflows;
 
 use App\Enums\KitchenTicketStatus;
 use App\Enums\ReservationOrderItemStatus;
+use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\KitchenDispatch\Domain\Models\KitchenOrderItemTicket;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 
@@ -24,8 +25,12 @@ class KitchenTicketConsistencyInspector
      *         routing_status:string,
      *         order_item_expected_status:?string,
      *         order_item_matches_ticket:?bool,
+     *         item_matches_order_item:?bool,
+     *         category_matches_order_item:?bool,
+     *         route_matches_category:?bool,
      *         route_present:bool,
      *         route_active:?bool,
+     *         station_present:bool,
      *         station_active:?bool,
      *         station_matches_route:?bool,
      *         drift_reasons:list<string>,
@@ -44,16 +49,21 @@ class KitchenTicketConsistencyInspector
         $station = $stationLoaded ? $ticket->station : null;
 
         $routingStatus = 'active_route';
-        $routePresent = $routeLoaded ? $route !== null : $ticket->route_id !== null;
+        $routePresent = $routeLoaded ? $route !== null : $ticket->getAttribute('route_id') !== null;
+        $stationPresent = $stationLoaded ? $station !== null : $ticket->getAttribute('station_id') !== null;
         $routeActive = $routeLoaded && $route !== null ? (bool) ($route->is_active ?? false) : null;
         $stationActive = $stationLoaded && $station !== null ? (bool) ($station->is_active ?? false) : null;
-        $stationMatchesRoute = $routeLoaded && $stationLoaded && $route !== null && $station !== null
-            ? ((int) $route->station_id === (int) $station->station_id)
+        $stationMatchesRoute = $routeLoaded && $route !== null
+            ? ($stationPresent
+                && (int) $route->station_id === (int) $ticket->station_id
+                && (! $stationLoaded || (int) $station->station_id === (int) $ticket->station_id))
             : null;
 
         // Danh gia drift routing tach rieng khoi drift trang thai de caller biet can sua route hay can dong bo order item.
         if (! $routePresent) {
             $routingStatus = 'route_missing';
+        } elseif (! $stationPresent) {
+            $routingStatus = 'station_missing';
         } elseif ($routeLoaded && $routeActive === false) {
             $routingStatus = 'route_inactive';
         } elseif ($stationLoaded && $station !== null && $stationActive === false) {
@@ -66,12 +76,29 @@ class KitchenTicketConsistencyInspector
         $orderItemMatchesTicket = $orderItem instanceof ReservationOrderItem
             ? $this->orderItemStatusAcceptsTicket($this->normalizeOrderItemStatus($orderItem), $ticketStatus)
             : null;
+        $orderItemMenu = null;
+        if ($orderItem instanceof ReservationOrderItem) {
+            $orderItemMenu = $orderItem->relationLoaded('item')
+                ? $orderItem->item
+                : MenuItem::query()->find((int) $orderItem->item_id);
+        }
+        $itemMatchesOrderItem = $orderItem instanceof ReservationOrderItem
+            ? (int) $ticket->item_id === (int) $orderItem->item_id
+            : null;
+        $categoryMatchesOrderItem = $orderItemMenu instanceof MenuItem
+            ? (int) $ticket->category_id === (int) $orderItemMenu->category_id
+            : null;
+        $routeMatchesCategory = $routeLoaded && $route !== null
+            ? (int) $route->getAttribute('category_id') === (int) $ticket->category_id
+            : null;
 
         // Ticket co the dung route nhung van lech lifecycle so voi order item, vi vay sync_status duoc tinh doc lap.
         $syncStatus = 'in_sync';
         if (! $orderItem instanceof ReservationOrderItem) {
             $syncStatus = 'order_item_missing';
-        } elseif ($orderItemMatchesTicket !== true) {
+        } elseif ($orderItemMatchesTicket !== true
+            || $itemMatchesOrderItem !== true
+            || $categoryMatchesOrderItem !== true) {
             $syncStatus = 'drift_detected';
         }
 
@@ -79,10 +106,29 @@ class KitchenTicketConsistencyInspector
         if ($syncStatus === 'order_item_missing') {
             $driftReasons[] = 'order_item_missing';
         } elseif ($syncStatus === 'drift_detected') {
-            $driftReasons[] = 'order_item_ticket_mismatch';
+            if ($orderItemMatchesTicket === false) {
+                $driftReasons[] = 'order_item_ticket_mismatch';
+            }
+            if ($itemMatchesOrderItem === false) {
+                $driftReasons[] = 'ticket_item_snapshot_mismatch';
+            }
+            if ($categoryMatchesOrderItem === false) {
+                $driftReasons[] = 'ticket_category_snapshot_mismatch';
+            }
         }
 
-        if ($routingStatus !== 'active_route') {
+        if ($routeMatchesCategory === false) {
+            $routingStatus = 'route_category_mismatch';
+            $driftReasons[] = 'route_category_snapshot_mismatch';
+        }
+        if ($stationMatchesRoute === false) {
+            if ($routingStatus === 'active_route') {
+                $routingStatus = 'station_route_mismatch';
+            }
+            $driftReasons[] = 'station_route_snapshot_mismatch';
+        }
+        if ($routingStatus !== 'active_route'
+            && ! in_array($routingStatus, ['route_category_mismatch', 'station_route_mismatch'], true)) {
             $driftReasons[] = $routingStatus;
         }
 
@@ -99,8 +145,12 @@ class KitchenTicketConsistencyInspector
                 'routing_status' => $routingStatus,
                 'order_item_expected_status' => $expectedStatus?->value,
                 'order_item_matches_ticket' => $orderItemMatchesTicket,
+                'item_matches_order_item' => $itemMatchesOrderItem,
+                'category_matches_order_item' => $categoryMatchesOrderItem,
+                'route_matches_category' => $routeMatchesCategory,
                 'route_present' => $routePresent,
                 'route_active' => $routeActive,
+                'station_present' => $stationPresent,
                 'station_active' => $stationActive,
                 'station_matches_route' => $stationMatchesRoute,
                 'drift_reasons' => array_values(array_unique($driftReasons)),
@@ -114,8 +164,8 @@ class KitchenTicketConsistencyInspector
         // Redispatch chi an toan khi ticket dang sach ca ve lifecycle lan routing.
         $description = $this->describe($ticket);
 
-        return ($description['reconciliation']['sync_status'] ?? 'drift_detected') === 'in_sync'
-            && ($description['reconciliation']['routing_status'] ?? 'route_missing') === 'active_route';
+        return $description['reconciliation']['sync_status'] === 'in_sync'
+            && $description['reconciliation']['routing_status'] === 'active_route';
     }
 
     public function expectedTicketStatus(?ReservationOrderItem $orderItem): ?KitchenTicketStatus

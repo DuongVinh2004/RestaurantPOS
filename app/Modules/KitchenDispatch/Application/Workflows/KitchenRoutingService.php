@@ -310,7 +310,7 @@ class KitchenRoutingService
 
         // Ticket list sap theo trang thai operational truoc, giup man hinh KDS uu tien mon dang xu ly.
         $query = KitchenOrderItemTicket::query()
-            ->with(['station', 'route', 'orderItem', 'item.category'])
+            ->with(['station', 'route', 'orderItem.item', 'item.category'])
             ->where('station_id', $stationId)
             ->orderByRaw("CASE `ticket_status` WHEN 'Fired' THEN 1 WHEN 'Queued' THEN 2 WHEN 'Ready' THEN 3 ELSE 4 END")
             ->orderBy('ticket_id');
@@ -1008,7 +1008,7 @@ class KitchenRoutingService
         // Tra ve ticket da nap du relation de controller/resource khong can query them sau action.
         /** @var KitchenOrderItemTicket $ticket */
         $ticket = KitchenOrderItemTicket::query()
-            ->with(['station', 'route', 'orderItem', 'item.category'])
+            ->with(['station', 'route', 'orderItem.item', 'item.category'])
             ->findOrFail($ticketId);
 
         return $ticket;
