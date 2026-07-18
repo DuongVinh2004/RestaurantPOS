@@ -130,9 +130,9 @@ class DispatchKitchenOrderAction
                             'ticket_id' => (int) $ticket->ticket_id,
                             'order_item_id' => (int) $ticket->order_item_id,
                             'actor_user_id' => $actorUserId,
-                            'sync_status' => (string) ($inspection['reconciliation']['sync_status'] ?? 'unknown'),
-                            'routing_status' => (string) ($inspection['reconciliation']['routing_status'] ?? 'unknown'),
-                            'drift_reasons' => (array) ($inspection['reconciliation']['drift_reasons'] ?? []),
+                            'sync_status' => $inspection['reconciliation']['sync_status'],
+                            'routing_status' => $inspection['reconciliation']['routing_status'],
+                            'drift_reasons' => $inspection['reconciliation']['drift_reasons'],
                         ]);
 
                         throw ValidationException::withMessages([

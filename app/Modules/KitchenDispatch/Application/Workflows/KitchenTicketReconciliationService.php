@@ -26,7 +26,7 @@ class KitchenTicketReconciliationService
     {
         // Nap du quan he de inspector co the phan tich drift ma khong N+1 khi quet hang loat.
         $query = KitchenOrderItemTicket::query()
-            ->with(['station', 'route', 'orderItem']);
+            ->with(['station', 'route', 'orderItem.item']);
 
         // Bo loc cho phep quet theo station/branch cu the khi staff debug mot khu vuc bep.
         if (($filters['station_id'] ?? null) !== null) {
@@ -57,8 +57,8 @@ class KitchenTicketReconciliationService
             // Moi ticket duoc inspector cham diem mot lan, sau do report chi giu lai truong hop co drift.
             $description = $this->inspector->describe($ticket);
             $reconciliation = $description['reconciliation'];
-            $hasStatusDrift = ($reconciliation['sync_status'] ?? 'in_sync') !== 'in_sync';
-            $hasRoutingDrift = ($reconciliation['routing_status'] ?? 'active_route') !== 'active_route';
+            $hasStatusDrift = $reconciliation['sync_status'] !== 'in_sync';
+            $hasRoutingDrift = $reconciliation['routing_status'] !== 'active_route';
 
             if (! $hasStatusDrift && ! $hasRoutingDrift) {
                 continue;

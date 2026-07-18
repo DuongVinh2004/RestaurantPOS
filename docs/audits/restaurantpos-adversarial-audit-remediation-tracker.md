@@ -6,7 +6,7 @@
 
 **Production decision:** `NO-GO`
 
-**Current cursor:** `B11 — KDS substitution (READY). B07 remains BLOCKED on external sandbox credentials/endpoints; do not start B08.`
+**Current cursor:** `B12 — immutable recipe consumption and kitchen wastage (READY). B07 remains BLOCKED on external sandbox credentials/endpoints; do not start B08.`
 
 **Roadmap:** [`restaurantpos-adversarial-audit-remediation-roadmap.md`](restaurantpos-adversarial-audit-remediation-roadmap.md)
 
@@ -47,10 +47,10 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 |---|---|
 | Audit target | `main@3080e439e8c715e83fb27aa39ba753a92dffc36f` |
 | Execution branch | `chore/repository-evidence-cleanup` |
-| Execution HEAD | `f67ad505d0f4b67aac79068f587657dbe4d5b0a4` (B10 implementation and hosted-fix head; closure record follows) |
+| Execution HEAD | `e18d82f4b46aae976d3c04e30ae7841c564dc6b6` (B11 base; closure record follows) |
 | Worktree | Dirty by design: 64 baseline paths across 8 owned scopes plus the bounded B01-B10 remediation paths recorded in execution history |
 | Path inventory | [`restaurantpos-adversarial-audit-worktree-inventory-2026-07-15.md`](restaurantpos-adversarial-audit-worktree-inventory-2026-07-15.md) |
-| Known diff hygiene | Global `git diff --check` reports whitespace in unrelated existing `staff-web` worktree changes; the bounded B10 dependency and frontend-remediation paths pass targeted whitespace checks |
+| Known diff hygiene | Global `git diff --check` reports whitespace in unrelated existing `staff-web` worktree changes; the bounded B10 and B11 remediation paths pass targeted whitespace checks |
 | Audit SHA-256 | `2710F57B46A6EAC13E9C845DF86D4A7CFE4FAF4C1440D429A5E39CEA608B7C7C` |
 | PHP / Composer | PHP `8.4.0`; Composer `2.9.7` |
 | Node / npm | Node `v24.15.0`; npm `11.12.1` |
@@ -63,10 +63,10 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | Severity | Total | Open | Partial | Code fixed | Runtime verified | Closed |
 |---|---:|---:|---:|---:|---:|---:|
 | Critical | 6 | 1 | 2 | 1 | 0 | 2 |
-| High | 15 | 10 | 1 | 1 | 0 | 3 |
+| High | 15 | 9 | 1 | 1 | 0 | 4 |
 | Medium | 8 | 7 | 0 | 0 | 0 | 1 |
 | Low | 1 | 1 | 0 | 0 | 0 | 0 |
-| **Total** | **30** | **19** | **3** | **2** | **0** | **6** |
+| **Total** | **30** | **18** | **3** | **2** | **0** | **7** |
 
 `PARTIAL` does not count as remediated or release-safe.
 
@@ -85,8 +85,8 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | B08 Deposit representation | `OPEN` | C-02 | B06-B07 | Parallel/late capture reconciliation |
 | B09 Provider capture/refund | `OPEN` | C-03, M-02 | B06-B08 | Provider sandbox refund/recovery |
 | B10 Dependencies/CI | `CLOSED` | H-06 | B00 | Production High/Critical audit is clean; customer/staff mandatory suites and hosted `dependency-security` pass; retained audit/SBOM artifact is verified; `main` requires the exact GitHub Actions check |
-| B11 KDS substitution | `READY` | H-03 | B04 | Item/ticket/recipe consistency |
-| B12 Recipe/wastage | `OPEN` | H-12, M-06 | B11 | MySQL stock equation |
+| B11 KDS substitution | `CLOSED` | H-03 | B04 | Same-category available pre-dispatch swap passes; queued/fired ticket identity is immutable; item/category/route/station drift is inspectable; original recipe consumption remains aligned |
+| B12 Recipe/wastage | `READY` | H-12, M-06 | B11 | MySQL stock equation |
 | B13 Reporting/date/ETA | `OPEN` | H-09/H-10/H-11, M-04 | B03, B09 | Golden ledger/date/ETA dataset |
 | B14 Critical audit | `OPEN` | H-13, H-14 | B02 | Failure injection + PII sink tests |
 | B15 Notifications | `OPEN` | H-07, M-07, M-08 | B02 | Scheduler/worker crash drills |
@@ -108,7 +108,7 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | C-06 | Critical | B02/B18 | `PARTIAL` | Fresh bootstrap containment is MySQL-verified: 45 focused tests / 670 assertions, 240 release-contract tests / 4,164 assertions, empty/non-empty/production/wrong-target/concurrent matrix and both wrappers pass; B18 forward-only upgrade/deploy proof remains |
 | H-01 | High | B05 | `CLOSED` | VNPay validates unsigned provider minor units, requires divisibility by 100 and returns an integer VND amount; a signed callback traverses adapter, lifecycle and ledger exactly once, including replay |
 | H-02 | High | B05 | `CLOSED` | VND-only integer rules cover write requests/services, scale-zero MySQL artifacts, generated API/TypeScript contracts and both web clients; non-VND/fractional requests and legacy rows fail closed |
-| H-03 | High | B11 | `OPEN` | — |
+| H-03 | High | B11 | `CLOSED` | Component swap locks and validates its combo parent/target, rejects unavailable or cross-category targets, and fails once any KDS ticket exists. Regression proof covers queued and fired tickets, unchanged failed-mutation snapshots, original-recipe stock consumption, and inspector drift across item/category/route/station |
 | H-04 | High | B01/B18 | `PARTIAL` | Main-push deployment removed; manual `production` Environment and candidate preflight added; external protection proof and B18 immutable SQL-safe deploy remain |
 | H-05 | High | B19 | `OPEN` | — |
 | H-06 | High | B01/B10 | `CLOSED` | Automatic production activation remains removed. Production High/Critical audits are clean; both mandatory frontend lanes pass; hosted run `29651941195` archived audit/policy/CycloneDX evidence for all three workspaces; and `main` requires the exact GitHub Actions `dependency-security` check with strict status checks |
@@ -402,6 +402,18 @@ The local and hosted policy decisions are `pass` because `high + critical = 0` i
 - Remaining risks: B10/H-06 are closed, but customer lint retains 26 non-blocking warnings and the customer production audit retains two Moderate advisories. Independent/no-self approval and administrator-bypass governance remain later production-control work. B07 is still externally blocked, B08 remains prohibited, and production remains `NO-GO` until the full remediation program and B20 reassessment close.
 - Finding status changes: B10 moved from `IN_PROGRESS` to `CLOSED`; H-06 moved from `PARTIAL` to `CLOSED`. Totals are now 6 closed, 2 code-fixed, 3 partial and 19 open.
 - Next cursor: B11 — KDS substitution. Keep B07 `BLOCKED` and do not start B08 until real-provider sandbox evidence is attached.
+
+### 2026-07-18 — B11 — KDS-safe component substitution
+
+- Intent: prevent a combo component mutation from splitting the order item, dispatched KDS snapshot and inventory recipe while retaining a narrow, valid pre-dispatch substitution path for the lean launch.
+- Changed files: `app/Modules/Ordering/Application/UseCases/OrderItems/StaffOrderItemLifecycleService.php`; `app/Modules/KitchenDispatch/Application/Workflows/KitchenTicketConsistencyInspector.php`; `app/Modules/KitchenDispatch/Application/Workflows/KitchenTicketReconciliationService.php`; `app/Modules/KitchenDispatch/Application/Workflows/KitchenRoutingService.php`; new `tests/Feature/Staff/KdsComponentSubstitutionSafetyTest.php`; this tracker; and `docs/audits/README.md`. No schema, route, config, controller, request, resource or generated API artifact changed.
+- Added/updated tests: the new five-case suite proves available same-category swap succeeds before dispatch; unavailable and cross-category targets fail without mutation; both queued-after-dispatch and fired/in-progress tickets make the component immutable; failed swaps preserve order item, ticket, stock and audit snapshots; serving afterward consumes only the original item recipe; and legacy item/category/route/station drift is surfaced by the inspector and reconciliation scan.
+- Verification run: regression-first execution reproduced four intended failures while the existing valid pre-dispatch case passed. Final B11 suite passed 5 tests / 51 assertions; combined combo coverage passed 7 / 70; `composer test:orders` passed 48 / 227; `composer test:kitchen` passed 48 / 534; targeted Pint and PHPStan passed with zero errors; bounded diff hygiene passed. The verification recommender identified only order-lifecycle and kitchen/KDS domains with no schema/runtime escalation.
+- Evidence paths: `tests/Feature/Staff/KdsComponentSubstitutionSafetyTest.php`; the transaction guard in `StaffOrderItemLifecycleService::swapComponent`; snapshot truth in `KitchenTicketConsistencyInspector::describe`; and the B11 output recorded in the active Codex task.
+- Shared seams touched: none. Existing dirty B04 changes in `DispatchKitchenOrderAction`/`StaffKitchenDispatchFoundationFlowTest` and B05 money-contract changes in the order-item request/lifecycle test were preserved and excluded from the B11 patch.
+- Remaining risks: B12 still owns immutable order-time recipe snapshots, wastage and MySQL stock-equation proof; B11 intentionally does not build a broad post-dispatch rerouting workflow. A dedicated parallel MySQL dispatch-vs-swap race was not added because B11 changes no schema and both mutations serialize on the existing order transaction lock; the required sequential queued/fired and inventory invariants pass. B07 remains externally blocked, B08 remains prohibited, and production remains `NO-GO`.
+- Finding status changes: B11 moved from `READY` to `CLOSED`; H-03 moved from `OPEN` to `CLOSED`. Totals are now 7 closed, 2 code-fixed, 3 partial and 18 open; B12 moved from `OPEN` to `READY`.
+- Next cursor: B12 — immutable recipe consumption and kitchen wastage. Keep B07 `BLOCKED` and do not start B08 until real-provider sandbox evidence is attached.
 
 ## 12. Completion record template
 
