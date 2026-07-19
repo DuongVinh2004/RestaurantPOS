@@ -198,6 +198,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
+        $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $ingredientId,
@@ -339,6 +340,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
+        $this->refreshOrderItemRecipeSnapshot($orderItemId);
 
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-insufficient'))
             ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
@@ -388,6 +390,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'ml',
             'sort_order' => 2,
         ]);
+        $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $riceIngredientId,
@@ -435,6 +438,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
+        $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $ingredientId,
@@ -502,6 +506,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
+        $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $referenceId = $orderItemId.':'.$recipeLineId.':'.$ingredientId;
 
         $this->createIngredientStockMovement([
@@ -571,6 +576,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
+        $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $ingredientId,

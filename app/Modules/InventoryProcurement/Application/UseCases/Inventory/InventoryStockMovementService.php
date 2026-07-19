@@ -22,6 +22,7 @@ class InventoryStockMovementService
         'PurchaseReceipt',
         'ReservationOrderItemConsumption',
         'ReservationOrderItemReturn',
+        'ReservationOrderItemWastage',
     ];
 
     public function __construct(

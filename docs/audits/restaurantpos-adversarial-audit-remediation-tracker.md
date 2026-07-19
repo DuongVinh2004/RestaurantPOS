@@ -6,13 +6,13 @@
 
 **Production decision:** `NO-GO`
 
-**Current cursor:** `B12 — immutable recipe consumption and kitchen wastage (READY). B07 remains BLOCKED on external sandbox credentials/endpoints; do not start B08.`
+**Current cursor:** `B14 — durable and sanitized critical audit (READY). B13 remains dependency-blocked by B09; B07 remains BLOCKED on external sandbox credentials/endpoints, so do not start B08.`
 
 **Roadmap:** [`restaurantpos-adversarial-audit-remediation-roadmap.md`](restaurantpos-adversarial-audit-remediation-roadmap.md)
 
 **Source audit:** [`restaurantpos-exhaustive-adversarial-audit-2026-07-14.md`](restaurantpos-exhaustive-adversarial-audit-2026-07-14.md)
 
-**Last updated:** `2026-07-18`
+**Last updated:** `2026-07-19`
 
 ## 1. How Codex continues the program
 
@@ -47,10 +47,10 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 |---|---|
 | Audit target | `main@3080e439e8c715e83fb27aa39ba753a92dffc36f` |
 | Execution branch | `chore/repository-evidence-cleanup` |
-| Execution HEAD | `e18d82f4b46aae976d3c04e30ae7841c564dc6b6` (B11 base; closure record follows) |
+| Execution HEAD | `215e0e62` (B12 base; closure record follows) |
 | Worktree | Dirty by design: 64 baseline paths across 8 owned scopes plus the bounded B01-B10 remediation paths recorded in execution history |
 | Path inventory | [`restaurantpos-adversarial-audit-worktree-inventory-2026-07-15.md`](restaurantpos-adversarial-audit-worktree-inventory-2026-07-15.md) |
-| Known diff hygiene | Global `git diff --check` reports whitespace in unrelated existing `staff-web` worktree changes; the bounded B10 and B11 remediation paths pass targeted whitespace checks |
+| Known diff hygiene | Global `git diff --check` reports whitespace in unrelated existing `staff-web` worktree changes; the bounded B10-B12 remediation paths pass targeted whitespace checks |
 | Audit SHA-256 | `2710F57B46A6EAC13E9C845DF86D4A7CFE4FAF4C1440D429A5E39CEA608B7C7C` |
 | PHP / Composer | PHP `8.4.0`; Composer `2.9.7` |
 | Node / npm | Node `v24.15.0`; npm `11.12.1` |
@@ -63,10 +63,10 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | Severity | Total | Open | Partial | Code fixed | Runtime verified | Closed |
 |---|---:|---:|---:|---:|---:|---:|
 | Critical | 6 | 1 | 2 | 1 | 0 | 2 |
-| High | 15 | 9 | 1 | 1 | 0 | 4 |
-| Medium | 8 | 7 | 0 | 0 | 0 | 1 |
+| High | 15 | 8 | 1 | 1 | 0 | 5 |
+| Medium | 8 | 6 | 0 | 0 | 0 | 2 |
 | Low | 1 | 1 | 0 | 0 | 0 | 0 |
-| **Total** | **30** | **18** | **3** | **2** | **0** | **7** |
+| **Total** | **30** | **16** | **3** | **2** | **0** | **9** |
 
 `PARTIAL` does not count as remediated or release-safe.
 
@@ -86,9 +86,9 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | B09 Provider capture/refund | `OPEN` | C-03, M-02 | B06-B08 | Provider sandbox refund/recovery |
 | B10 Dependencies/CI | `CLOSED` | H-06 | B00 | Production High/Critical audit is clean; customer/staff mandatory suites and hosted `dependency-security` pass; retained audit/SBOM artifact is verified; `main` requires the exact GitHub Actions check |
 | B11 KDS substitution | `CLOSED` | H-03 | B04 | Same-category available pre-dispatch swap passes; queued/fired ticket identity is immutable; item/category/route/station drift is inspectable; original recipe consumption remains aligned |
-| B12 Recipe/wastage | `READY` | H-12, M-06 | B11 | MySQL stock equation |
+| B12 Recipe/wastage | `CLOSED` | H-12, M-06 | B11 | Order-time recipe snapshot, auditable retry-safe KDS wastage and parallel MySQL receive/consume/adjust stock equation pass |
 | B13 Reporting/date/ETA | `OPEN` | H-09/H-10/H-11, M-04 | B03, B09 | Golden ledger/date/ETA dataset |
-| B14 Critical audit | `OPEN` | H-13, H-14 | B02 | Failure injection + PII sink tests |
+| B14 Critical audit | `READY` | H-13, H-14 | B02 | Failure injection + PII sink tests |
 | B15 Notifications | `OPEN` | H-07, M-07, M-08 | B02 | Scheduler/worker crash drills |
 | B16 Cashier reconciliation | `OPEN` | M-01 | B09 | Independent manager matrix |
 | B17 Contract/encoding gates | `OPEN` | M-03, L-01 | B00 | Green truthful parity/encoding gates |
@@ -117,7 +117,7 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | H-09 | High | B13 | `OPEN` | — |
 | H-10 | High | B13 | `OPEN` | — |
 | H-11 | High | B13 | `OPEN` | — |
-| H-12 | High | B12 | `OPEN` | — |
+| H-12 | High | B12 | `CLOSED` | Every new order item commits an ordered recipe-line JSON snapshot; post-order recipe edits cannot change serve-time stock movement, combo components own their snapshots, pre-dispatch substitution refreshes the replacement snapshot, and replay emits exactly one stable consumption movement |
 | H-13 | High | B14 | `OPEN` | — |
 | H-14 | High | B14 | `OPEN` | — |
 | H-15 | High | B19 | `OPEN` | — |
@@ -126,7 +126,7 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | M-03 | Medium | B17 | `OPEN` | — |
 | M-04 | Medium | B13 | `OPEN` | — |
 | M-05 | Medium | B03 | `CLOSED` | Central fail-closed customer role-ID guard is enforced for reservation/waitlist attachment, waitlist seat role drift and loyalty adjust/completion award under locked user rows; Customer/Admin/Staff/deleted/nonexistent matrix is green on SQLite and MySQL |
-| M-06 | Medium | B12 | `OPEN` | — |
+| M-06 | Medium | B12 | `CLOSED` | `InProgress → Cancelled` records a negative `Wastage` ledger movement from the committed recipe with staff actor and stable reference; direct pre-start cancellation remains movement-free, Served remains terminal, and replay cannot duplicate wastage |
 | M-07 | Medium | B15 | `OPEN` | — |
 | M-08 | Medium | B15 | `OPEN` | — |
 | L-01 | Low | B17 | `OPEN` | — |
@@ -414,6 +414,18 @@ The local and hosted policy decisions are `pass` because `high + critical = 0` i
 - Remaining risks: B12 still owns immutable order-time recipe snapshots, wastage and MySQL stock-equation proof; B11 intentionally does not build a broad post-dispatch rerouting workflow. A dedicated parallel MySQL dispatch-vs-swap race was not added because B11 changes no schema and both mutations serialize on the existing order transaction lock; the required sequential queued/fired and inventory invariants pass. B07 remains externally blocked, B08 remains prohibited, and production remains `NO-GO`.
 - Finding status changes: B11 moved from `READY` to `CLOSED`; H-03 moved from `OPEN` to `CLOSED`. Totals are now 7 closed, 2 code-fixed, 3 partial and 18 open; B12 moved from `OPEN` to `READY`.
 - Next cursor: B12 — immutable recipe consumption and kitchen wastage. Keep B07 `BLOCKED` and do not start B08 until real-provider sandbox evidence is attached.
+
+### 2026-07-19 — B12 — immutable recipe consumption and kitchen wastage
+
+- Intent: make the recipe sold with an order item the immutable source for inventory movement, and give post-start kitchen cancellation an auditable, replay-safe stock consequence.
+- Changed files: new `app/Modules/Ordering/Application/Services/OrderItemRecipeSnapshotService.php`; order-item model, table-order and lifecycle services; inventory consumption and stock-movement services; SQL patch `2026_07_19_000071_order_item_recipe_snapshot.sql`; canonical schema/dump, release config/verifier/bootstrap docs; new immutable-recipe/wastage and MySQL stock-equation tests plus their runner; focused fixture/schema updates; this tracker; and `docs/audits/README.md`. No route, controller, request, response resource or generated API contract changed.
+- Added/updated tests: the new HTTP/service regression suite proves recipe edits before order commit are captured, edits after commit/dispatch/serve cannot change consumption, Served replay is a no-op, and `InProgress → Cancelled` records exactly one actor-attributed wastage movement from the committed snapshot. Existing direct-cancel and Served-terminal cases complete the KDS cancellation matrix. The MySQL-only race launches real procurement receive, snapshot consumption and adjustment concurrently, replays the receive/consume calls, and proves `120 + 50 - 80 - 30 = 60` with one movement per reference.
+- Verification run: regression-first execution reproduced the missing snapshot and missing wastage failures. Final B12 suite passed 2 tests / 19 assertions; `composer test:inventory` passed 27 / 276; `composer test:orders` passed 48 / 227; `composer test:kitchen` passed 48 / 534; focused release parity passed 29 / 344; `composer test:release-contract` passed 246 / 4,250; bounded Pint and production PHPStan passed. Guarded bootstrap of disposable MySQL 8 database `restaurantpos_b12_20260719220155` applied the schema, all 71 present patches and release verifier; the MySQL race passed 1 / 27 and the B12 plus existing consumption HTTP lane passed 5 / 44. The disposable database was removed after proof.
+- Evidence paths: `reservation_order_items.recipe_snapshot`; stable `ReservationOrderItemConsumption`/`ReservationOrderItemWastage` references in the inventory ledger; the B12 patch and release verifier; `tests/Feature/Staff/ImmutableRecipeSnapshotAndKitchenWastageTest.php`; `tests/Feature/Inventory/InventoryStockEquationMysqlConcurrencyTest.php`; and this completion record. The immutable source audit remains unchanged at SHA-256 `2710F57B46A6EAC13E9C845DF86D4A7CFE4FAF4C1440D429A5E39CEA608B7C7C`.
+- Shared seams touched: SQL-first schema/dump/config/verifier/docs and `BuildsBookingScenario` were updated only for the B12 snapshot contract. Existing dirty B01-B07 money, provider, bootstrap and test-fixture edits remain outside the B12 patch; the frozen release manifest is regenerated from the isolated committed B12 tree instead of the mixed worktree.
+- Remaining risks: pre-existing legacy order items can only be backfilled with the recipe visible at deployment because no historical version exists; the patch documents this approximation and freezes it before new code deploys. Runtime proof covered MySQL and the touched inventory/order/KDS slice, not Redis or scheduler because B12 adds no Redis/scheduled behavior. B07 remains externally blocked, B08 remains prohibited, B13 remains dependency-blocked by B09, and production remains `NO-GO`.
+- Finding status changes: B12 moved from `READY` to `CLOSED`; H-12 and M-06 moved from `OPEN` to `CLOSED`. Totals are now 9 closed, 2 code-fixed, 3 partial and 16 open; B14 moved from `OPEN` to `READY`.
+- Next cursor: B14 — durable and sanitized critical audit. Keep B07 `BLOCKED`, do not start B08, and leave B13 open until B09 closes.
 
 ## 12. Completion record template
 

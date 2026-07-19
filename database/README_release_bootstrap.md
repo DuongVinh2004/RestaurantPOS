@@ -65,8 +65,11 @@ The current SQL-first release contract also assumes the April 5 foundations are 
 - cashier shift optimistic-write triggers (`trg_cashier_shifts__bi_row_version`, `trg_cashier_shifts__bu_row_version`) from `database/patches/2026_04_27_000059_cashier_shift_row_version.sql`
 - per-staff branch assignment foundation (`staff_branch_assignments`)
 - completed paid on-spot service reservations carry `final_bill_amount`, `bill_currency`, and `billed_at`
+- immutable order-item recipe snapshots (`reservation_order_items.recipe_snapshot`) are backfilled by patch `2026_07_19_000071_order_item_recipe_snapshot.sql`; serve and post-start cancellation stock movements must consume this committed snapshot rather than the live recipe
 - data lifecycle / privacy (`customer_privacy_requests`, `users.privacy_anonymized_at`)
 - feature flags (`feature_flags`)
+
+Patch `2026_07_19_000071_order_item_recipe_snapshot.sql` freezes legacy open-order recipes at upgrade time, makes the JSON snapshot mandatory, and adds an array-shape database check. Apply it before deploying code that writes new order items.
 
 ## Portability rules
 

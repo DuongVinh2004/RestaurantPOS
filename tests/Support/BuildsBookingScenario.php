@@ -1191,6 +1191,7 @@ trait BuildsBookingScenario
                 $table->string('currency', 10)->default('VND');
                 $table->decimal('line_total', 12, 2)->default(0);
                 $table->string('item_name_snapshot')->nullable();
+                $table->json('recipe_snapshot')->nullable();
                 $table->string('status', 20)->default('Ordered');
                 $table->string('notes')->nullable();
                 $table->unsignedInteger('updated_by')->nullable();
@@ -1203,6 +1204,12 @@ trait BuildsBookingScenario
         if (Schema::hasTable('reservation_order_items') && ! Schema::hasColumn('reservation_order_items', 'parent_order_item_id')) {
             Schema::table('reservation_order_items', function (Blueprint $table): void {
                 $table->unsignedInteger('parent_order_item_id')->nullable()->after('item_id');
+            });
+        }
+
+        if (Schema::hasTable('reservation_order_items') && ! Schema::hasColumn('reservation_order_items', 'recipe_snapshot')) {
+            Schema::table('reservation_order_items', function (Blueprint $table): void {
+                $table->json('recipe_snapshot')->nullable()->after('item_name_snapshot');
             });
         }
 
@@ -2708,6 +2715,7 @@ SQL);
             'currency' => 'VND',
             'line_total' => round($quantity * $unitPrice, 2),
             'item_name_snapshot' => 'Snapshot '.$itemId,
+            'recipe_snapshot' => json_encode($this->recipeSnapshotForMenuItem($itemId), JSON_THROW_ON_ERROR),
             'status' => 'Ordered',
             'notes' => null,
             'updated_by' => null,
@@ -2717,6 +2725,41 @@ SQL);
         ], $overrides);
 
         return (int) DB::table('reservation_order_items')->insertGetId($payload);
+    }
+
+    protected function refreshOrderItemRecipeSnapshot(int $orderItemId): void
+    {
+        $itemId = (int) DB::table('reservation_order_items')
+            ->where('order_item_id', $orderItemId)
+            ->value('item_id');
+
+        DB::table('reservation_order_items')
+            ->where('order_item_id', $orderItemId)
+            ->update([
+                'recipe_snapshot' => json_encode($this->recipeSnapshotForMenuItem($itemId), JSON_THROW_ON_ERROR),
+            ]);
+    }
+
+    /**
+     * @return list<array{recipe_line_id:int,ingredient_id:int,quantity:string,unit_code:string,sort_order:int,recipe_row_version:int}>
+     */
+    private function recipeSnapshotForMenuItem(int $itemId): array
+    {
+        return DB::table('menu_item_recipes')
+            ->where('item_id', $itemId)
+            ->orderBy('sort_order')
+            ->orderBy('recipe_line_id')
+            ->get()
+            ->map(static fn ($line): array => [
+                'recipe_line_id' => (int) $line->recipe_line_id,
+                'ingredient_id' => (int) $line->ingredient_id,
+                'quantity' => number_format((float) $line->quantity, 3, '.', ''),
+                'unit_code' => (string) $line->unit_code,
+                'sort_order' => (int) $line->sort_order,
+                'recipe_row_version' => (int) $line->row_version,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

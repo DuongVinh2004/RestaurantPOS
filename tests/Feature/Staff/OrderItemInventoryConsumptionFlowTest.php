@@ -200,16 +200,6 @@ class OrderItemInventoryConsumptionFlowTest extends TestCase
             'row_version' => 1,
         ]);
         $itemId = $this->createMenuItem();
-        $orderItemId = $this->createOrderItem([
-            'order_id' => $orderId,
-            'item_id' => $itemId,
-            'quantity' => 1,
-            'unit_price' => '50000',
-            'currency' => 'VND',
-            'line_total' => '50000',
-            'status' => 'Ordered',
-            'row_version' => 1,
-        ]);
         $ingredientId = $this->createIngredient([
             'code' => $ingredientCode,
             'name' => $ingredientCode.' Ingredient',
@@ -221,6 +211,16 @@ class OrderItemInventoryConsumptionFlowTest extends TestCase
             'quantity' => $recipeQuantity,
             'unit_code' => 'g',
             'sort_order' => 1,
+        ]);
+        $orderItemId = $this->createOrderItem([
+            'order_id' => $orderId,
+            'item_id' => $itemId,
+            'quantity' => 1,
+            'unit_price' => '50000',
+            'currency' => 'VND',
+            'line_total' => '50000',
+            'status' => 'Ordered',
+            'row_version' => 1,
         ]);
         $branchId = (int) $this->table('reservations')->where('reservation_id', $reservationId)->value('branch_id');
         $this->createIngredientStockMovement([

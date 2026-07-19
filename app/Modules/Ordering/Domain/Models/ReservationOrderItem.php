@@ -6,6 +6,7 @@ namespace App\Modules\Ordering\Domain\Models;
 
 use App\Enums\ReservationOrderItemStatus;
 use App\Modules\Catalog\Domain\Models\MenuItem;
+use App\Modules\Ordering\Application\Services\OrderItemRecipeSnapshotService;
 use App\SharedKernel\Money\Money;
 use App\Support\Persistence\HasRowVersion;
 use Illuminate\Database\Eloquent\Model;
@@ -27,6 +28,7 @@ class ReservationOrderItem extends Model
         'currency',
         'line_total',
         'item_name_snapshot',
+        'recipe_snapshot',
         'status',
         'notes',
         'updated_by',
@@ -41,6 +43,7 @@ class ReservationOrderItem extends Model
         'currency' => 'string',
         'line_total' => 'decimal:0',
         'item_name_snapshot' => 'string',
+        'recipe_snapshot' => 'array',
         'status' => ReservationOrderItemStatus::class,
         'notes' => 'string',
         'created_at' => 'datetime',
@@ -51,6 +54,14 @@ class ReservationOrderItem extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (self $model): void {
+            if ($model->getAttribute('recipe_snapshot') !== null) {
+                return;
+            }
+
+            app(OrderItemRecipeSnapshotService::class)->assignSnapshot($model);
+        });
+
         static::saving(function (self $model): void {
             if (
                 $model->exists

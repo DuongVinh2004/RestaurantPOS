@@ -15,6 +15,7 @@ use App\Modules\BranchScheduling\Domain\Models\RestaurantTable;
 use App\Modules\Catalog\Domain\Models\MenuItem;
 use App\Modules\Catalog\Domain\Models\MenuItemPrice;
 use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
+use App\Modules\Ordering\Application\Services\OrderItemRecipeSnapshotService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Payments\Domain\Models\ReservationBillPaymentSession;
@@ -39,12 +40,16 @@ class StaffTableOrderService
 
     private readonly BranchContextService $branchContextService;
 
+    private readonly OrderItemRecipeSnapshotService $orderItemRecipeSnapshotService;
+
     public function __construct(
         private readonly ReservationLockService $locks,
         ?BranchContextService $branchContextService = null,
         private readonly ?StaffBranchContextService $staffBranchContextService = null,
+        ?OrderItemRecipeSnapshotService $orderItemRecipeSnapshotService = null,
     ) {
         $this->branchContextService = $branchContextService ?? app(BranchContextService::class);
+        $this->orderItemRecipeSnapshotService = $orderItemRecipeSnapshotService ?? app(OrderItemRecipeSnapshotService::class);
     }
 
     /**
@@ -724,6 +729,18 @@ class StaffTableOrderService
             ]);
         }
 
+        $snapshotItemIds = $itemIds;
+        foreach ($menuItems as $menuItem) {
+            if (! (bool) $menuItem->getAttribute('is_combo') || ! $menuItem->relationLoaded('comboComponents')) {
+                continue;
+            }
+
+            foreach ($menuItem->comboComponents as $component) {
+                $snapshotItemIds[] = (int) $component->getAttribute('component_item_id');
+            }
+        }
+        $recipeSnapshots = $this->orderItemRecipeSnapshotService->snapshotsForItemIds($snapshotItemIds);
+
         $incomingCurrencies = [];
         foreach ($normalized as $row) {
             $priceRow = $priceRows->get((int) $row['item_id']);
@@ -786,6 +803,7 @@ class StaffTableOrderService
             $oi->currency = $currency;
             $oi->line_total = number_format($unitPrice * $qty, 0, '.', '');
             $oi->item_name_snapshot = $itemName !== '' ? $itemName : null;
+            $oi->recipe_snapshot = $recipeSnapshots[$itemId] ?? [];
             $oi->notes = $note !== '' ? $note : null;
             $oi->status = ReservationOrderItemStatus::Ordered;
             $oi->updated_by = $staffUserId;
@@ -812,6 +830,7 @@ class StaffTableOrderService
                     $coi->line_total = number_format(0, 0, '.', '');
                     $componentName = $component->componentItem ? (string) $component->componentItem->name : '';
                     $coi->item_name_snapshot = $componentName !== '' ? $componentName : null;
+                    $coi->recipe_snapshot = $recipeSnapshots[(int) $component->getAttribute('component_item_id')] ?? [];
                     $coi->notes = null;
                     $coi->status = ReservationOrderItemStatus::Ordered;
                     $coi->updated_by = $staffUserId;
