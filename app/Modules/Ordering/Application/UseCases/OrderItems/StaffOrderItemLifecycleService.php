@@ -16,6 +16,7 @@ use App\Modules\FloorOperations\Application\Queries\StaffBranchContextService;
 use App\Modules\InventoryProcurement\Application\UseCases\Inventory\OrderItemInventoryConsumptionService;
 use App\Modules\KitchenDispatch\Application\Workflows\KitchenRoutingService;
 use App\Modules\KitchenDispatch\Domain\Models\KitchenOrderItemTicket;
+use App\Modules\Ordering\Application\Services\OrderItemRecipeSnapshotService;
 use App\Modules\Ordering\Domain\Models\ReservationOrder;
 use App\Modules\Ordering\Domain\Models\ReservationOrderItem;
 use App\Modules\Ordering\Domain\Policies\ReservationOrderItemStatusTransitionPolicy;
@@ -43,15 +44,19 @@ class StaffOrderItemLifecycleService
 
     private readonly StaffBranchContextService $staffBranchContextService;
 
+    private readonly OrderItemRecipeSnapshotService $orderItemRecipeSnapshotService;
+
     public function __construct(
         private readonly ReservationLockService $locks,
         private readonly OrderItemInventoryConsumptionService $orderItemInventoryConsumptionService,
         private readonly KitchenRoutingService $kitchenRoutingService,
         ?ReservationBranchScopeService $reservationBranchScopeService = null,
         ?StaffBranchContextService $staffBranchContextService = null,
+        ?OrderItemRecipeSnapshotService $orderItemRecipeSnapshotService = null,
     ) {
         $this->reservationBranchScopeService = $reservationBranchScopeService ?? app(ReservationBranchScopeService::class);
         $this->staffBranchContextService = $staffBranchContextService ?? app(StaffBranchContextService::class);
+        $this->orderItemRecipeSnapshotService = $orderItemRecipeSnapshotService ?? app(OrderItemRecipeSnapshotService::class);
     }
 
     public function swapComponent(
@@ -138,6 +143,7 @@ class StaffOrderItemLifecycleService
 
                         $item->item_id = $newItem->item_id;
                         $item->item_name_snapshot = $newItem->name;
+                        $this->orderItemRecipeSnapshotService->assignSnapshot($item);
 
                         if ($unitPriceOverride !== null) {
                             $item->unit_price = Money::formatMinor(Money::minorUnits($unitPriceOverride, true));

@@ -304,6 +304,7 @@ return [
         '2026_06_14_000066_menu_combo_and_favorites.sql',
         '2026_06_20_000067_professional_menu_rebuild.sql',
         '2026_06_21_000068_update_menu_vietnamese_accents.sql',
+        '2026_07_19_000071_order_item_recipe_snapshot.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

@@ -915,6 +915,7 @@ CREATE TABLE `reservation_order_items` (
   `currency` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'VND',
   `line_total` decimal(14,2) NOT NULL DEFAULT '0.00',
   `item_name_snapshot` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `recipe_snapshot` json DEFAULT NULL,
   `status` enum('Ordered','InProgress','Served','Cancelled') CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Ordered',
   `notes` varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `updated_by` int unsigned DEFAULT NULL,
@@ -926,7 +927,8 @@ CREATE TABLE `reservation_order_items` (
   KEY `fk_reservation_order_items__item_id__menu_items` (`item_id`),
   KEY `idx_reservation_order_items__updated_by` (`updated_by`),
   CONSTRAINT `chk_reservation_order_items__qty_positive` CHECK ((`quantity` > 0)),
-  CONSTRAINT `chk_reservation_order_items__line_total_matches` CHECK ((`line_total` = round((`unit_price` * `quantity`),2)))
+  CONSTRAINT `chk_reservation_order_items__line_total_matches` CHECK ((`line_total` = round((`unit_price` * `quantity`),2))),
+  CONSTRAINT `chk_reservation_order_items__recipe_snapshot_array` CHECK (((`recipe_snapshot` is null) or (json_type(`recipe_snapshot`) = _utf8mb4'ARRAY')))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;

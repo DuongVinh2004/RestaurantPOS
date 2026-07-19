@@ -30,6 +30,39 @@ DEALLOCATE PREPARE verify_stmt;
 SET @stmt := IF(
     EXISTS (
         SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = DATABASE()
+          AND table_name = 'reservation_order_items'
+          AND column_name = 'recipe_snapshot'
+          AND data_type = 'json'
+          AND is_nullable = 'NO'
+    ),
+    'SELECT "reservation_order_items.recipe_snapshot:ok"',
+    'SELECT * FROM __missing_restore_contract_reservation_order_items_recipe_snapshot__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+        FROM information_schema.table_constraints
+        WHERE constraint_schema = DATABASE()
+          AND table_name = 'reservation_order_items'
+          AND constraint_name = 'chk_reservation_order_items__recipe_snapshot_array'
+          AND constraint_type = 'CHECK'
+    ),
+    'SELECT "reservation_order_items.recipe_snapshot_array:ok"',
+    'SELECT * FROM __missing_restore_contract_reservation_order_items_recipe_snapshot_array__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
+    EXISTS (
+        SELECT 1
         FROM information_schema.table_constraints
         WHERE constraint_schema = DATABASE()
           AND table_name = 'reservation_order_items'
