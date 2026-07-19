@@ -68,6 +68,7 @@ final class ReservationCancellationServiceTest extends TestCase
             $table->string('currency')->default('VND');
             $table->decimal('line_total', 14, 2)->default(10);
             $table->string('item_name_snapshot')->nullable();
+            $table->json('recipe_snapshot')->nullable();
             $table->string('status')->default('Pending');
             $table->unsignedInteger('updated_by')->nullable();
             $table->unsignedBigInteger('row_version')->default(1);

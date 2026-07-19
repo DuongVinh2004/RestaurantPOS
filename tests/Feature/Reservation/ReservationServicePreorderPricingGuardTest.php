@@ -102,6 +102,16 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             $table->timestamps();
         });
 
+        Schema::create('menu_item_recipes', function (Blueprint $table): void {
+            $table->increments('recipe_line_id');
+            $table->unsignedInteger('item_id');
+            $table->unsignedInteger('ingredient_id');
+            $table->decimal('quantity', 14, 3);
+            $table->string('unit_code', 20);
+            $table->unsignedInteger('sort_order')->default(0);
+            $table->unsignedBigInteger('row_version')->default(1);
+        });
+
         Schema::create('menu_item_prices', function (Blueprint $table): void {
             $table->increments('price_id');
             $table->unsignedInteger('item_id');
@@ -162,6 +172,7 @@ class ReservationServicePreorderPricingGuardTest extends TestCase
             $table->string('currency', 10)->default('VND');
             $table->decimal('line_total', 14, 2)->default(0);
             $table->string('item_name_snapshot')->nullable();
+            $table->json('recipe_snapshot')->nullable();
             $table->string('status');
             $table->string('notes')->nullable();
             $table->unsignedInteger('updated_by')->nullable();

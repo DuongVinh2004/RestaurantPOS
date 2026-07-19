@@ -379,6 +379,7 @@ class BookingDeploySafetyServiceTest extends TestCase
                 'unit_price' => 100,
                 'currency' => 'VND',
                 'line_total' => 200,
+                'recipe_snapshot' => '[]',
                 'status' => 'Ordered',
                 'created_at' => now('UTC'),
                 'updated_at' => now('UTC'),
