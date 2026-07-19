@@ -26,6 +26,15 @@ Each audit row is normalized around these fields:
 
 `audit_log_subjects` stores additional subjects that belong to the same mutation, such as `reservation_order`, `payment`, `restaurant_table`, `waiting_list`, or `cashier_shift`.
 
+## Durability Classes
+
+Audit events are classified centrally as either critical or best effort.
+
+- Critical: payment capture, refund, cashier-shift, inventory ingredient, and staff API-key mutations. The business mutation and its `audit_logs`/`audit_log_subjects` evidence share the same database transaction. A missing table, rejected insert, invalid audit shape, or call outside an active transaction aborts the mutation.
+- Best effort: lower-risk operational telemetry. Sink failure emits a warning but does not abort its caller.
+
+Critical failures emit `critical_audit_persistence_failed` to `AUDIT_FAILURE_ALERT_CHANNEL` (the `audit_alert` stack by default). The alert contains only event/action names, exception type, request correlation, and transaction level; it deliberately excludes SQL exception messages and business payloads. Operators must collect every channel named by `AUDIT_ALERT_LOG_STACK`.
+
 ## Actor Taxonomy
 
 - `staff_user`
@@ -119,11 +128,15 @@ Do not persist high-risk request material such as:
 - idempotency keys
 - request-context phone or email values
 
+`AuditEvent` builds one envelope and passes it through the shared sanitizer before either the structured database recorder or the audit file sink sees it. HTTP request audit logging uses the same sanitizer. Guest/contact fields, IP addresses, credentials, provider payloads, and raw request bodies are redacted. Customer session identifiers are replaced with `hmac-sha256:<digest>` using `AUDIT_HASH_KEY`, with `APP_KEY` as fallback, so incidents can be correlated without retaining the source identifier.
+
+Set `AUDIT_HASH_KEY` to a dedicated high-entropy secret in production-like environments. Rotating it intentionally breaks correlation with hashes produced by the previous key, so record the rotation time in the incident log without recording either key.
+
 Audit summaries should prefer business identifiers, amounts, statuses, scope markers, reasons, and row versions over raw payload copies.
 
 ## Retention And Redaction
 
-Current code supports recorder-level redaction. For go-live operations, keep these principles:
+Current code sanitizes before all audit sinks. For go-live operations, keep these principles:
 
 - keep hot audit data long enough for operational triage
 - retain payment, refund, cashier, and webhook events per internal finance policy
@@ -136,3 +149,4 @@ Prefer targeted exports by subject, action, and date range over dumping the full
 - The audit trail is not intended to capture every low-value legacy event.
 - Some system-level events remain legitimately global and may not carry branch metadata.
 - Branch fallback works for the current high-value operational subjects, not for every possible legacy entity type.
+- Best-effort telemetry is not guaranteed to have a structured database row; only events in the central critical classification are fail-closed.

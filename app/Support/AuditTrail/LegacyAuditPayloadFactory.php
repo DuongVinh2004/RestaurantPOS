@@ -41,6 +41,9 @@ final class LegacyAuditPayloadFactory
             'staff.reservation.refund_cancelled' => $this->refundCancelled($context),
             'staff.cashier_shift.opened' => $this->cashierShiftOpened($context),
             'staff.cashier_shift.closed' => $this->cashierShiftClosed($context),
+            'staff_api_key_issued' => $this->staffApiKeyMutation($context, 'issued'),
+            'staff_api_key_revoked' => $this->staffApiKeyMutation($context, 'revoked'),
+            'staff_api_key_rotated' => $this->staffApiKeyRotated($context),
             'payment_provider_webhook' => $this->paymentWebhook($context),
             default => null,
         };
@@ -738,6 +741,60 @@ final class LegacyAuditPayloadFactory
                 'refund_count' => $this->intOrNull($context['refund_count'] ?? null),
             ],
             'actor' => $this->staffActor($context['closed_by'] ?? null),
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $context
+     * @return array<string,mixed>|null
+     */
+    private function staffApiKeyMutation(array $context, string $mutation): ?array
+    {
+        $apiKeyId = $this->stringId($context['staff_api_key_id'] ?? null);
+        $userId = $this->stringId($context['user_id'] ?? null);
+        if ($apiKeyId === null || $userId === null) {
+            return null;
+        }
+
+        return [
+            'action' => 'identity.staff_api_key.'.$mutation,
+            'entity_type' => 'staff_api_key',
+            'entity_id' => $apiKeyId,
+            'subjects' => [
+                ['type' => 'user', 'id' => $userId, 'role' => 'credential_owner'],
+            ],
+            'summary' => array_filter([
+                'label' => $this->stringOrNull($context['label'] ?? null),
+                'expires_at' => $this->stringOrNull($context['expires_at'] ?? null),
+                'reason' => $this->stringOrNull($context['reason'] ?? null),
+            ], static fn (mixed $value): bool => $value !== null),
+        ];
+    }
+
+    /**
+     * @param  array<string,mixed>  $context
+     * @return array<string,mixed>|null
+     */
+    private function staffApiKeyRotated(array $context): ?array
+    {
+        $revokedId = $this->stringId($context['revoked_staff_api_key_id'] ?? null);
+        $replacementId = $this->stringId($context['replacement_staff_api_key_id'] ?? null);
+        $userId = $this->stringId($context['user_id'] ?? null);
+        if ($revokedId === null || $replacementId === null || $userId === null) {
+            return null;
+        }
+
+        return [
+            'action' => 'identity.staff_api_key.rotated',
+            'entity_type' => 'staff_api_key',
+            'entity_id' => $revokedId,
+            'subjects' => [
+                ['type' => 'staff_api_key', 'id' => $replacementId, 'role' => 'replacement'],
+                ['type' => 'user', 'id' => $userId, 'role' => 'credential_owner'],
+            ],
+            'summary' => [
+                'replacement_staff_api_key_id' => $replacementId,
+            ],
         ];
     }
 

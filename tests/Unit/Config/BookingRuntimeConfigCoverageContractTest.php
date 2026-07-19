@@ -153,6 +153,9 @@ final class BookingRuntimeConfigCoverageContractTest extends TestCase
 
         foreach ([
             'APP_TIMEZONE',
+            'AUDIT_HASH_KEY',
+            'AUDIT_FAILURE_ALERT_CHANNEL',
+            'AUDIT_ALERT_LOG_STACK',
             'DB_CONNECTION',
             'DB_HOST',
             'DB_PORT',

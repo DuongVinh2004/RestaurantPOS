@@ -17,8 +17,8 @@ The audit report must remain unchanged. Progress, corrections and closure eviden
 
 - Production decision: `NO-GO`.
 - Program state: `ACTIVE`.
-- Current execution cursor: `B14 — durable and sanitized critical audit (READY)`. B13 remains dependency-blocked by B09; B07 remains externally blocked, so do not start B08.
-- Findings: 30 total; 9 closed, 2 code-fixed, 3 partial and 16 open. `PARTIAL` and `CODE_FIXED` are not release-safe closure.
+- Current execution cursor: `B15 — durable notification delivery and truthful preference semantics (READY)`. B13 remains dependency-blocked by B09; B07 remains externally blocked, so do not start B08.
+- Findings: 30 total; 11 closed, 2 code-fixed, 3 partial and 14 open. `PARTIAL` and `CODE_FIXED` are not release-safe closure.
 - Last status review: `2026-07-19`.
 
 ## Historical documents

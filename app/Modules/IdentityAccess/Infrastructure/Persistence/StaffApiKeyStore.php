@@ -25,27 +25,29 @@ class StaffApiKeyStore
         $this->assertIssuableUser($userId);
         $plaintextKey = $this->generatePlaintextKey();
 
-        /** @var StaffApiKey $record */
-        $record = StaffApiKey::query()->create([
-            'user_id' => $userId,
-            'label' => $label,
-            'key_hash' => $this->hashKey($plaintextKey),
-            'expires_at' => $expiresAt,
-            'revoked_at' => null,
-            'last_used_at' => null,
-        ]);
+        return DB::transaction(function () use ($userId, $label, $expiresAt, $plaintextKey): array {
+            /** @var StaffApiKey $record */
+            $record = StaffApiKey::query()->create([
+                'user_id' => $userId,
+                'label' => $label,
+                'key_hash' => $this->hashKey($plaintextKey),
+                'expires_at' => $expiresAt,
+                'revoked_at' => null,
+                'last_used_at' => null,
+            ]);
 
-        AuditEvent::info('staff_api_key_issued', [
-            'staff_api_key_id' => (int) $record->getKey(),
-            'user_id' => $userId,
-            'label' => $label,
-            'expires_at' => $expiresAt?->toIso8601String(),
-        ]);
+            AuditEvent::info('staff_api_key_issued', [
+                'staff_api_key_id' => (int) $record->getKey(),
+                'user_id' => $userId,
+                'label' => $label,
+                'expires_at' => $expiresAt?->toIso8601String(),
+            ]);
 
-        return [
-            'record' => $record->fresh() ?? $record,
-            'plaintext_key' => $plaintextKey,
-        ];
+            return [
+                'record' => $record->fresh() ?? $record,
+                'plaintext_key' => $plaintextKey,
+            ];
+        });
     }
 
     public function revokeKey(int $staffApiKeyId, ?string $reason = null): StaffApiKey

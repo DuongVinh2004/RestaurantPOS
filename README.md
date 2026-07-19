@@ -111,6 +111,11 @@ DB_PASSWORD=123456
 REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 REQUIRE_REDIS_FOR_BOOKING_API=false
+
+# Use a separate high-entropy secret in staging/production.
+AUDIT_HASH_KEY=replace-with-a-dedicated-random-secret
+AUDIT_FAILURE_ALERT_CHANNEL=audit_alert
+AUDIT_ALERT_LOG_STACK=stderr
 ```
 
 If you use an existing MySQL service, set `DB_USERNAME` and `DB_PASSWORD` to the real local credentials. If `mysql` is not on `PATH`, set:
@@ -255,6 +260,8 @@ Expected local state:
 - notification outbox health is inspectable
 - deploy preflight has no blocking errors
 - release manifest returns `ok=true`
+
+Critical payment, refund, cashier-shift, inventory, and staff API-key mutations fail closed when their durable audit row cannot be written. Production log collection must ingest the configured `AUDIT_ALERT_LOG_STACK`; the alert message is `critical_audit_persistence_failed`. Rotate `AUDIT_HASH_KEY` under the same secret-management controls as `APP_KEY` and expect correlation hashes to change after rotation.
 
 If any of these fail, fix runtime health before debugging feature flows.
 

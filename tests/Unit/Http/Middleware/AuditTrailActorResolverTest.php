@@ -54,6 +54,7 @@ final class AuditTrailActorResolverTest extends TestCase
 
     public function test_it_hashes_customer_session_actor_keys(): void
     {
+        config()->set('audit.hash_key', 'audit-actor-resolver-test-key');
         $request = request();
         $request->attributes->replace([]);
         $request->headers->replace([]);
@@ -65,7 +66,10 @@ final class AuditTrailActorResolverTest extends TestCase
         $resolved = app(AuditTrailActorResolver::class)->resolve();
 
         $this->assertSame('customer_session', $resolved['type']);
-        $this->assertSame('customer_session:'.substr(sha1('sess-audit-123'), 0, 16), $resolved['key']);
+        $this->assertSame(
+            'hmac-sha256:'.hash_hmac('sha256', 'sess-audit-123', 'audit-actor-resolver-test-key'),
+            $resolved['key'],
+        );
         $this->assertNull($resolved['user_id']);
     }
 
