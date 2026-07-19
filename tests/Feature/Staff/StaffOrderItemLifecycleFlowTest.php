@@ -198,7 +198,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
-        $this->refreshOrderItemRecipeSnapshot($orderItemId);
+        $itemRowVersion = $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $ingredientId,
@@ -210,7 +210,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-inventory-qty-update'))
             ->patchJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}", [
                 'order_row_version' => 1,
-                'row_version' => 1,
+                'row_version' => $itemRowVersion,
                 'qty' => 3,
             ])
             ->assertOk();
@@ -340,12 +340,12 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
-        $this->refreshOrderItemRecipeSnapshot($orderItemId);
+        $itemRowVersion = $this->refreshOrderItemRecipeSnapshot($orderItemId);
 
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-insufficient'))
             ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
                 'order_row_version' => 1,
-                'row_version' => 1,
+                'row_version' => $itemRowVersion,
                 'status' => 'Served',
             ]);
 
@@ -390,7 +390,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'ml',
             'sort_order' => 2,
         ]);
-        $this->refreshOrderItemRecipeSnapshot($orderItemId);
+        $itemRowVersion = $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $riceIngredientId,
@@ -402,7 +402,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-atomic'))
             ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
                 'order_row_version' => 1,
-                'row_version' => 1,
+                'row_version' => $itemRowVersion,
                 'status' => 'Served',
             ]);
 
@@ -438,7 +438,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
-        $this->refreshOrderItemRecipeSnapshot($orderItemId);
+        $itemRowVersion = $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $ingredientId,
@@ -450,7 +450,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-served'))
             ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
                 'order_row_version' => 1,
-                'row_version' => 1,
+                'row_version' => $itemRowVersion,
                 'status' => 'Served',
             ]);
 
@@ -506,7 +506,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
-        $this->refreshOrderItemRecipeSnapshot($orderItemId);
+        $itemRowVersion = $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $referenceId = $orderItemId.':'.$recipeLineId.':'.$ingredientId;
 
         $this->createIngredientStockMovement([
@@ -522,7 +522,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-consume-drift'))
             ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
                 'order_row_version' => 1,
-                'row_version' => 1,
+                'row_version' => $itemRowVersion,
                 'status' => 'Served',
             ]);
 
@@ -576,7 +576,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
             'unit_code' => 'g',
             'sort_order' => 1,
         ]);
-        $this->refreshOrderItemRecipeSnapshot($orderItemId);
+        $itemRowVersion = $this->refreshOrderItemRecipeSnapshot($orderItemId);
         $this->createIngredientStockMovement([
             'branch_id' => $branchId,
             'ingredient_id' => $ingredientId,
@@ -590,7 +590,7 @@ class StaffOrderItemLifecycleFlowTest extends TestCase
         $response = $this->withHeaders($this->withIdempotencyKey($this->staffAuthHeaders($staffId), 'idem-order-item-cancel-no-consume'))
             ->postJson("/api/v1/staff/orders/{$orderId}/items/{$orderItemId}/status", [
                 'order_row_version' => 1,
-                'row_version' => 1,
+                'row_version' => $itemRowVersion,
                 'status' => 'Cancelled',
             ]);
 

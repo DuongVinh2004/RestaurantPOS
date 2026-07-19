@@ -2727,7 +2727,7 @@ SQL);
         return (int) DB::table('reservation_order_items')->insertGetId($payload);
     }
 
-    protected function refreshOrderItemRecipeSnapshot(int $orderItemId): void
+    protected function refreshOrderItemRecipeSnapshot(int $orderItemId): int
     {
         $itemId = (int) DB::table('reservation_order_items')
             ->where('order_item_id', $orderItemId)
@@ -2738,6 +2738,10 @@ SQL);
             ->update([
                 'recipe_snapshot' => json_encode($this->recipeSnapshotForMenuItem($itemId), JSON_THROW_ON_ERROR),
             ]);
+
+        return (int) DB::table('reservation_order_items')
+            ->where('order_item_id', $orderItemId)
+            ->value('row_version');
     }
 
     /**
