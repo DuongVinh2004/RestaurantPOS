@@ -10,10 +10,13 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Support\BuildsAuditTrailTables;
 use Tests\TestCase;
 
 class SiteBootstrapCommandTest extends TestCase
 {
+    use BuildsAuditTrailTables;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -84,6 +87,8 @@ class SiteBootstrapCommandTest extends TestCase
         $this->assertSame(1, (int) DB::table('settings')->count());
         $this->assertSame(2, (int) DB::table('users')->count());
         $this->assertSame(1, (int) DB::table('staff_api_keys')->count());
+        $this->assertSame(1, (int) DB::table('audit_logs')->where('action', 'identity.staff_api_key.issued')->count());
+        $this->assertSame(1, (int) DB::table('audit_log_subjects')->where('subject_type', 'staff_api_key')->count());
 
         $secondExitCode = Artisan::call('booking:bootstrap-site', ['--json' => true]);
         $this->assertSame(0, $secondExitCode);
@@ -336,6 +341,8 @@ class SiteBootstrapCommandTest extends TestCase
             $table->dateTime('revoked_at')->nullable();
             $table->timestamps();
         });
+
+        $this->ensureAuditTrailTables();
     }
 
     /**
