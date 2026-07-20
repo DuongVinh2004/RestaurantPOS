@@ -24,8 +24,7 @@ final class AuditTrailRecorder
         array $logContext = [],
         string $level = 'info',
         array $requestContext = [],
-    ): bool
-    {
+    ): bool {
         $subjects = $this->normalizeSubjects($structured);
         if ($subjects === []) {
             return false;
@@ -215,5 +214,4 @@ final class AuditTrailRecorder
 
         return $normalized !== '' ? mb_substr($normalized, 0, $length) : null;
     }
-
 }

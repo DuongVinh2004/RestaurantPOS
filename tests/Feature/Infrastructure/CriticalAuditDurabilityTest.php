@@ -6,6 +6,7 @@ namespace Tests\Feature\Infrastructure;
 
 use App\Modules\IdentityAccess\Infrastructure\Persistence\StaffApiKeyStore;
 use App\Support\AuditEvent;
+use App\Support\AuditTrail\AuditDurabilityPolicy;
 use App\Support\AuditTrail\CriticalAuditPersistenceException;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\DB;
@@ -78,7 +79,7 @@ final class CriticalAuditDurabilityTest extends TestCase
 
     public function test_finance_inventory_and_api_key_actions_are_classified_as_critical(): void
     {
-        $policy = app(\App\Support\AuditTrail\AuditDurabilityPolicy::class);
+        $policy = app(AuditDurabilityPolicy::class);
 
         self::assertTrue($policy->isCritical('staff_order_payment_recorded', null));
         self::assertTrue($policy->isCritical('staff_order_payment_recorded', ['action' => 'payment.final_captured']));
