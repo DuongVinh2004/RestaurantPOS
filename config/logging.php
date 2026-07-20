@@ -47,6 +47,12 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'audit_alert' => [
+            'driver' => 'stack',
+            'channels' => explode(',', env('AUDIT_ALERT_LOG_STACK', 'stderr')),
+            'ignore_exceptions' => true,
+        ],
+
         'slack' => [
             'driver' => 'slack',
             'url' => env('LOG_SLACK_WEBHOOK_URL'),

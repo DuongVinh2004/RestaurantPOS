@@ -8,6 +8,10 @@ use App\Support\Auth\RequestActorContext;
 
 final class AuditTrailActorResolver
 {
+    public function __construct(
+        private readonly AuditIdentifierHasher $identifierHasher,
+    ) {}
+
     /**
      * @param  array<string,mixed>  $override
      * @return array{type:?string,key:?string,user_id:?int}
@@ -105,9 +109,15 @@ final class AuditTrailActorResolver
         }
 
         if ($type === 'customer_session') {
-            return str_starts_with($key, 'customer_session:')
-                ? $key
-                : 'customer_session:'.substr(sha1($key), 0, 16);
+            if (str_starts_with($key, 'hmac-sha256:')) {
+                return $key;
+            }
+
+            $rawIdentifier = str_starts_with($key, 'customer_session:')
+                ? substr($key, strlen('customer_session:'))
+                : $key;
+
+            return $this->identifierHasher->hash($rawIdentifier);
         }
 
         return $key;

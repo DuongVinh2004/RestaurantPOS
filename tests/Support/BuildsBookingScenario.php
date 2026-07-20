@@ -2306,8 +2306,9 @@ SQL);
     {
         $now = $this->nowUtc();
         $ingredientId = (int) ($overrides['ingredient_id'] ?? $this->createIngredient());
+        $itemId = (int) ($overrides['item_id'] ?? $this->createMenuItem());
         $payload = array_merge([
-            'item_id' => $this->createMenuItem(),
+            'item_id' => $itemId,
             'ingredient_id' => $ingredientId,
             'quantity' => '100.000',
             'unit_code' => (string) (DB::table('ingredients')->where('ingredient_id', $ingredientId)->value('unit_code') ?? 'g'),
@@ -2536,8 +2537,11 @@ SQL);
         $now = $this->nowUtc();
         $start = $now->copy()->addHour();
         $end = $start->copy()->addHours(2);
+        $userId = array_key_exists('user_id', $overrides)
+            ? $overrides['user_id']
+            : $this->createUser();
         $payload = array_merge([
-            'user_id' => $this->createUser(),
+            'user_id' => $userId,
             'branch_id' => 1,
             'guest_name' => null,
             'guest_phone' => null,
@@ -2683,8 +2687,11 @@ SQL);
     protected function createOrder(array $overrides = []): int
     {
         $now = $this->nowUtc();
+        $reservationId = array_key_exists('reservation_id', $overrides)
+            ? $overrides['reservation_id']
+            : $this->createReservation();
         $payload = array_merge([
-            'reservation_id' => $this->createReservation(),
+            'reservation_id' => $reservationId,
             'order_type' => 'OnSpot',
             'status' => 'Active',
             'created_at' => $now,
@@ -2705,10 +2712,13 @@ SQL);
     {
         $now = $this->nowUtc();
         $itemId = (int) ($overrides['item_id'] ?? $this->createMenuItem());
+        $orderId = array_key_exists('order_id', $overrides)
+            ? $overrides['order_id']
+            : $this->createOrder();
         $quantity = (int) ($overrides['quantity'] ?? 1);
         $unitPrice = round((float) ($overrides['unit_price'] ?? 100000), 2);
         $payload = array_merge([
-            'order_id' => $this->createOrder(),
+            'order_id' => $orderId,
             'item_id' => $itemId,
             'quantity' => $quantity,
             'unit_price' => $unitPrice,

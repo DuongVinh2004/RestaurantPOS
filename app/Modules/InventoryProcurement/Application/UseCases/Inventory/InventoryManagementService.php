@@ -96,38 +96,40 @@ class InventoryManagementService
      */
     public function createIngredient(array $payload, ?int $actorUserId = null): Ingredient
     {
-        $ingredient = new Ingredient;
-        // Ingredient la master data nen create flow giu rat thang: normalize field truoc khi save.
-        $ingredient->fill([
-            'code' => $this->normalizeNullableString($payload['code'] ?? null),
-            'name' => trim((string) $payload['name']),
-            'unit_code' => trim((string) $payload['unit_code']),
-            'description' => $this->normalizeNullableString($payload['description'] ?? null),
-            'is_active' => (bool) ($payload['is_active'] ?? true),
-        ]);
-        $ingredient->save();
+        return DB::transaction(function () use ($payload, $actorUserId): Ingredient {
+            $ingredient = new Ingredient;
+            // Ingredient la master data nen create flow giu rat thang: normalize field truoc khi save.
+            $ingredient->fill([
+                'code' => $this->normalizeNullableString($payload['code'] ?? null),
+                'name' => trim((string) $payload['name']),
+                'unit_code' => trim((string) $payload['unit_code']),
+                'description' => $this->normalizeNullableString($payload['description'] ?? null),
+                'is_active' => (bool) ($payload['is_active'] ?? true),
+            ]);
+            $ingredient->save();
 
-        $fresh = $this->findIngredient((int) $ingredient->ingredient_id);
+            $fresh = $this->findIngredient((int) $ingredient->ingredient_id);
 
-        AuditEvent::info('admin.ingredient.created', [
-            'ingredient_id' => (int) $fresh->ingredient_id,
-            'code' => $fresh->code,
-            '_audit' => [
-                'action' => 'inventory.ingredient.created',
-                'entity_type' => 'ingredient',
-                'entity_id' => (string) $fresh->ingredient_id,
-                'after' => $this->ingredientAuditSnapshot($fresh),
-                'summary' => [
-                    'code' => $fresh->code,
-                    'name' => (string) $fresh->name,
-                    'unit_code' => (string) $fresh->unit_code,
-                    'is_active' => (bool) $fresh->is_active,
+            AuditEvent::info('admin.ingredient.created', [
+                'ingredient_id' => (int) $fresh->ingredient_id,
+                'code' => $fresh->code,
+                '_audit' => [
+                    'action' => 'inventory.ingredient.created',
+                    'entity_type' => 'ingredient',
+                    'entity_id' => (string) $fresh->ingredient_id,
+                    'after' => $this->ingredientAuditSnapshot($fresh),
+                    'summary' => [
+                        'code' => $fresh->code,
+                        'name' => (string) $fresh->name,
+                        'unit_code' => (string) $fresh->unit_code,
+                        'is_active' => (bool) $fresh->is_active,
+                    ],
+                    'actor' => $this->auditActor($actorUserId),
                 ],
-                'actor' => $this->auditActor($actorUserId),
-            ],
-        ]);
+            ]);
 
-        return $fresh;
+            return $fresh;
+        }, 3);
     }
 
     /**

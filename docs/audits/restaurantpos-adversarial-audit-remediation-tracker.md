@@ -6,7 +6,7 @@
 
 **Production decision:** `NO-GO`
 
-**Current cursor:** `B14 — durable and sanitized critical audit (READY). B13 remains dependency-blocked by B09; B07 remains BLOCKED on external sandbox credentials/endpoints, so do not start B08.`
+**Current cursor:** `B15 — durable notification delivery and truthful preference semantics (READY). B13 remains dependency-blocked by B09; B07 remains BLOCKED on external sandbox credentials/endpoints, so do not start B08.`
 
 **Roadmap:** [`restaurantpos-adversarial-audit-remediation-roadmap.md`](restaurantpos-adversarial-audit-remediation-roadmap.md)
 
@@ -63,10 +63,10 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | Severity | Total | Open | Partial | Code fixed | Runtime verified | Closed |
 |---|---:|---:|---:|---:|---:|---:|
 | Critical | 6 | 1 | 2 | 1 | 0 | 2 |
-| High | 15 | 8 | 1 | 1 | 0 | 5 |
+| High | 15 | 6 | 1 | 1 | 0 | 7 |
 | Medium | 8 | 6 | 0 | 0 | 0 | 2 |
 | Low | 1 | 1 | 0 | 0 | 0 | 0 |
-| **Total** | **30** | **16** | **3** | **2** | **0** | **9** |
+| **Total** | **30** | **14** | **3** | **2** | **0** | **11** |
 
 `PARTIAL` does not count as remediated or release-safe.
 
@@ -88,8 +88,8 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | B11 KDS substitution | `CLOSED` | H-03 | B04 | Same-category available pre-dispatch swap passes; queued/fired ticket identity is immutable; item/category/route/station drift is inspectable; original recipe consumption remains aligned |
 | B12 Recipe/wastage | `CLOSED` | H-12, M-06 | B11 | Order-time recipe snapshot, auditable retry-safe KDS wastage and parallel MySQL receive/consume/adjust stock equation pass |
 | B13 Reporting/date/ETA | `OPEN` | H-09/H-10/H-11, M-04 | B03, B09 | Golden ledger/date/ETA dataset |
-| B14 Critical audit | `READY` | H-13, H-14 | B02 | Failure injection + PII sink tests |
-| B15 Notifications | `OPEN` | H-07, M-07, M-08 | B02 | Scheduler/worker crash drills |
+| B14 Critical audit | `CLOSED` | H-13, H-14 | B02 | Shared pre-sink sanitizer, keyed session correlation, fail-closed transactional persistence, safe alert capture and disposable MySQL rollback proof |
+| B15 Notifications | `READY` | H-07, M-07, M-08 | B02 | Scheduler/worker crash drills |
 | B16 Cashier reconciliation | `OPEN` | M-01 | B09 | Independent manager matrix |
 | B17 Contract/encoding gates | `OPEN` | M-03, L-01 | B00 | Green truthful parity/encoding gates |
 | B18 SQL-safe deployment | `OPEN` | H-04, C-06 final | B02, B10, schema batches | Upgrade/deploy/rollback rehearsal |
@@ -118,8 +118,8 @@ If an external credential/service blocks the cursor, mark it `BLOCKED` with the 
 | H-10 | High | B13 | `OPEN` | — |
 | H-11 | High | B13 | `OPEN` | — |
 | H-12 | High | B12 | `CLOSED` | Every new order item commits an ordered recipe-line JSON snapshot; post-order recipe edits cannot change serve-time stock movement, combo components own their snapshots, pre-dispatch substitution refreshes the replacement snapshot, and replay emits exactly one stable consumption movement |
-| H-13 | High | B14 | `OPEN` | — |
-| H-14 | High | B14 | `OPEN` | — |
+| H-13 | High | B14 | `CLOSED` | Payment/refund/cashier, inventory ingredient and staff API-key events are centrally classified as critical; their recorder runs inside the business transaction, missing/invalid persistence throws, safe alert evidence is emitted, and SQLite plus disposable MySQL failure injection proves the API-key mutation rolls back |
+| H-14 | High | B14 | `CLOSED` | `AuditEvent` sanitizes a single envelope before file and database sinks; HTTP request audit uses the same sanitizer; guest/contact/credential/IP fields are redacted; customer session identifiers and actor keys use keyed HMAC-SHA256; sink-capture tests reject every seeded raw value on SQLite and MySQL |
 | H-15 | High | B19 | `OPEN` | — |
 | M-01 | Medium | B16 | `OPEN` | — |
 | M-02 | Medium | B06/B09 | `OPEN` | B06 added durable refund subject/lineage identifiers and constraints; B09 still owns provider-aware refund recovery semantics |
@@ -426,6 +426,18 @@ The local and hosted policy decisions are `pass` because `high + critical = 0` i
 - Remaining risks: pre-existing legacy order items can only be backfilled with the recipe visible at deployment because no historical version exists; the patch documents this approximation and freezes it before new code deploys. Runtime proof covered MySQL and the touched inventory/order/KDS slice, not Redis or scheduler because B12 adds no Redis/scheduled behavior. B07 remains externally blocked, B08 remains prohibited, B13 remains dependency-blocked by B09, and production remains `NO-GO`.
 - Finding status changes: B12 moved from `READY` to `CLOSED`; H-12 and M-06 moved from `OPEN` to `CLOSED`. Totals are now 9 closed, 2 code-fixed, 3 partial and 16 open; B14 moved from `OPEN` to `READY`.
 - Next cursor: B14 — durable and sanitized critical audit. Keep B07 `BLOCKED`, do not start B08, and leave B13 open until B09 closes.
+
+### 2026-07-19 — B14 — durable and sanitized critical audit
+
+- Intent: prevent critical financial, inventory and staff credential mutations from committing without durable audit evidence, while ensuring no audit file/database/alert sink receives the raw guest PII, credential, IP or customer-session values identified by H-13/H-14.
+- Changed files: new central audit config, durability policy, keyed identifier hasher, payload sanitizer, safe failure reporter and critical persistence exception; `AuditEvent`, `AuditTrailRecorder`, actor resolution and legacy payload mapping; request audit middleware and logging config; staff API-key and ingredient transaction boundaries; `.env.example`, `README.md`, `docs/audit-trail.md`; focused audit/auth fixture tests; this tracker and `docs/audits/README.md`. No route, capability map, HTTP response contract, SQL schema/patch, generated API artifact or immutable source-audit content changed.
+- Added/updated tests: new sink-capture coverage writes real audit file and database sinks, rejects seeded guest name/phone/email, bearer token, raw IP and session identifiers, and requires the keyed digest in both sinks; new failure injection points the recorder at a missing table, proves a staff API-key mutation rolls back, captures a payload-safe critical alert, proves best-effort failure remains non-throwing, and locks the finance/inventory/API-key classification. Existing staff product-auth/API-key fixtures now include the production-required audit foundation, and actor resolution expects keyed HMAC rather than unkeyed SHA-1.
+- Verification run: regression-first sink capture reproduced the raw session/guest/token leak. Final B14 SQLite lane passed 5 tests / 34 assertions. Auth/RBAC passed 77 / 993; inventory/purchasing passed 35 / 369; audit/notifications/ops passed 54 / 497; checkout/refund passed 34 / 201; existing order/cashier/inventory audit coverage remained green. Whole-repo Pint passed. PHPStan on all 12 changed application files passed with zero errors; the broader all-app run exceeded the local five-minute runner limit without emitting a diagnostic. SQL-first bootstrap completed on disposable MySQL 8 database `restaurantpos_b14_audit_7191715`, including schema, all present patches, release verifier and site bootstrap; the same B14 lane then passed 5 / 33 with `VERIFICATION_DB_DRIVER=mysql`. The disposable database was removed after proof. After the first draft-PR full gate exposed two SQLite console fixtures without audit tables, the fixtures were aligned with the critical audit contract; the focused console pair passed 12 / 104 and the complete Console plus Infrastructure lane passed 142 / 2,669. Full-gate diagnosis also reproduced a pre-existing MySQL fixture leak: the inventory concurrency proof committed nested helper defaults that created three reservations. The booking fixture helpers now avoid eager override side effects, and the concurrency test removes its committed rows; the focused MySQL inventory proof returned to its exact pre-test counts and the two affected reservation-board classes passed 12 / 99 afterward. The post-fix full SQLite suite passed 1,597 tests / 13,848 assertions with the guarded MySQL-only proof skipped. `booking:doctor --json` confirmed MySQL and staff-auth configuration healthy but remained non-green on the existing local Redis refusal, Redis-blocked scheduler heartbeat, one due outbox row and missing customer JWT secret.
+- Evidence paths: `app/Support/AuditEvent.php`; `app/Support/AuditTrail/AuditPayloadSanitizer.php`; `app/Support/AuditTrail/AuditDurabilityPolicy.php`; `app/Support/AuditTrail/AuditFailureReporter.php`; `app/Support/AuditTrail/AuditTrailRecorder.php`; `tests/Feature/Infrastructure/AuditSinkSanitizationTest.php`; `tests/Feature/Infrastructure/CriticalAuditDurabilityTest.php`; and `docs/audit-trail.md`. The immutable source audit remains unchanged at SHA-256 `2710F57B46A6EAC13E9C845DF86D4A7CFE4FAF4C1440D429A5E39CEA608B7C7C`.
+- Shared seams touched: the shared `AuditEvent`/request-audit path, logging config and test audit fixtures. Sanitization now happens before both sinks, critical events persist synchronously on the caller's database transaction, and no transactional outbox/schema change was needed. Existing public routes, actor authorization/capability decisions, branch scope, business ledger math and API artifacts were preserved.
+- Remaining risks: operators must route `AUDIT_ALERT_LOG_STACK` into their production log/alert collector and treat `critical_audit_persistence_failed` as actionable; rotating `AUDIT_HASH_KEY` intentionally breaks correlation with prior hashes. Best-effort legacy telemetry remains non-durable by design. The full all-app PHPStan process exceeded the local five-minute limit, although changed-file PHPStan and every mandatory domain suite passed. Local doctor remains non-green on Redis/scheduler/outbox/customer-JWT prerequisites that B14 did not change; B15 owns notification durability, while runtime secret/service readiness remains part of the go-live program. B07 remains externally blocked, B08 remains prohibited, B13 remains dependency-blocked by B09, and production remains `NO-GO`.
+- Finding status changes: B14 moved from `READY` to `CLOSED`; H-13 and H-14 moved from `OPEN` to `CLOSED`. Totals are now 11 closed, 2 code-fixed, 3 partial and 14 open; B15 moved from `OPEN` to `READY`.
+- Next cursor: B15 — durable notification delivery and truthful preference semantics. Keep B07 `BLOCKED`, do not start B08, and leave B13 open until B09 closes.
 
 ## 12. Completion record template
 

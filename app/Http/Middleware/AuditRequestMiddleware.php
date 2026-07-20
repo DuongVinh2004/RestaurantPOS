@@ -1,45 +1,34 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Http\Middleware;
 
+use App\Support\AuditTrail\AuditPayloadSanitizer;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
-class AuditRequestMiddleware
+final class AuditRequestMiddleware
 {
-    /**
-     * Sensitive field names that should be redacted from logs.
-     *
-     * @var list<string>
-     */
-    private const SENSITIVE_FIELDS = [
-        'session_id', 'token', 'access_token', 'refresh_token', 'api_key',
-        'idempotency_key', 'password', 'pin', 'phone', 'email', 'card_number',
-        'card_cvv', 'ssn', 'tax_id', 'bank_account', 'secret', 'x_customer_token',
-        'x_staff_key', 'x_session_id', 'authorization',
-    ];
+    public function __construct(
+        private readonly AuditPayloadSanitizer $sanitizer,
+    ) {}
 
     public function handle(Request $request, Closure $next)
     {
         $start = microtime(true);
-
         $response = $next($request);
-
         $durationMs = (int) round((microtime(true) - $start) * 1000);
-
         $requestId = (string) ($request->attributes->get('request_id') ?? '');
 
-        // Redact sensitive fields from request body/JSON
-        $requestPayload = $this->extractAndRedactPayload($request);
-
-        Log::channel('audit')->info('http_request', [
+        $context = $this->sanitizer->sanitize([
             'request_id' => $requestId !== '' ? $requestId : null,
             'method' => $request->getMethod(),
             'path' => $request->path(),
-            'query' => $this->redactArray($request->query()),
-            'request_payload_summary' => $requestPayload,
+            'query' => $request->query(),
+            'request_payload_summary' => $this->extractMutationPayload($request),
             'response_status' => $response->getStatusCode(),
             'duration_ms' => $durationMs,
             'ip' => $request->ip(),
@@ -53,73 +42,22 @@ class AuditRequestMiddleware
             'user_agent' => Str::limit((string) $request->userAgent(), 180),
         ]);
 
+        Log::channel('audit')->info('http_request', $context);
+
         return $response;
     }
 
     /**
-     * Extract and redact the request payload (JSON or form data).
-     *
      * @return array<string,mixed>|null
      */
-    private function extractAndRedactPayload(Request $request): ?array
+    private function extractMutationPayload(Request $request): ?array
     {
-        // Only log for mutation operations to reduce noise and avoid logging large payloads
         if (! in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
             return null;
         }
 
-        $payload = [];
+        $payload = $request->isJson() ? $request->json()->all() : $request->post();
 
-        // Extract from JSON or form data
-        if ($request->isJson()) {
-            $decoded = $request->json()->all();
-            if (is_array($decoded)) {
-                $payload = $decoded;
-            }
-        } else {
-            $payload = $request->post();
-        }
-
-        if (empty($payload)) {
-            return null;
-        }
-
-        // Redact sensitive fields. Keep structure for audit trail visibility.
-        return $this->redactArray($payload);
-    }
-
-    /**
-     * @param  array<string,mixed>  $data
-     * @return array<string,mixed>
-     */
-    private function redactArray(array $data): array
-    {
-        $out = [];
-
-        foreach ($data as $key => $value) {
-            $normalized = strtolower((string) $key);
-            $isSensitive = in_array($normalized, self::SENSITIVE_FIELDS, true)
-                || str_contains($normalized, 'token')
-                || str_contains($normalized, 'session')
-                || str_contains($normalized, 'password')
-                || str_contains($normalized, 'secret')
-                || str_contains($normalized, 'key');
-
-            if ($isSensitive) {
-                $out[$key] = '[redacted]';
-
-                continue;
-            }
-
-            if (is_array($value)) {
-                $out[$key] = $this->redactArray($value);
-
-                continue;
-            }
-
-            $out[$key] = $value;
-        }
-
-        return $out;
+        return $payload !== [] ? $payload : null;
     }
 }

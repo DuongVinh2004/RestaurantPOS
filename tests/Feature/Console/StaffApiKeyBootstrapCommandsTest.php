@@ -10,10 +10,13 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use PHPUnit\Framework\Attributes\Group;
+use Tests\Support\BuildsAuditTrailTables;
 use Tests\TestCase;
 
 class StaffApiKeyBootstrapCommandsTest extends TestCase
 {
+    use BuildsAuditTrailTables;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -68,6 +71,8 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
             $table->dateTime('created_at')->nullable();
             $table->dateTime('updated_at')->nullable();
         });
+
+        $this->ensureAuditTrailTables();
 
         DB::table('roles')->insert([
             [
@@ -152,6 +157,8 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
         $activeList = $this->decodeArtisanOutput();
         $this->assertCount(1, $activeList['data']);
         $this->assertSame($replacementKeyId, (int) $activeList['data'][0]['staff_api_key_id']);
+        $this->assertSame(2, (int) DB::table('audit_logs')->where('action', 'identity.staff_api_key.issued')->count());
+        $this->assertSame(1, (int) DB::table('audit_logs')->where('action', 'identity.staff_api_key.rotated')->count());
 
         $allListExitCode = Artisan::call('staff-auth:api-keys:list', [
             '--user-id' => $staffUserId,
@@ -179,6 +186,7 @@ class StaffApiKeyBootstrapCommandsTest extends TestCase
         $this->assertSame(0, $finalActiveListExitCode);
         $finalActiveList = $this->decodeArtisanOutput();
         $this->assertCount(0, $finalActiveList['data']);
+        $this->assertSame(1, (int) DB::table('audit_logs')->where('action', 'identity.staff_api_key.revoked')->count());
     }
 
     #[Group('booking-ops')]
