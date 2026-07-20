@@ -21,6 +21,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use RuntimeException;
 use Throwable;
 
 class NotificationOutboxService
@@ -29,12 +30,16 @@ class NotificationOutboxService
 
     private NotificationPreferenceService $preferenceService;
 
+    private NotificationDeliveryBoundaryHook $deliveryBoundaryHook;
+
     public function __construct(
         ?NotificationChannelManager $channelManager = null,
         ?NotificationPreferenceService $preferenceService = null,
+        ?NotificationDeliveryBoundaryHook $deliveryBoundaryHook = null,
     ) {
         $this->channelManager = $channelManager ?? app(NotificationChannelManager::class);
         $this->preferenceService = $preferenceService ?? app(NotificationPreferenceService::class);
+        $this->deliveryBoundaryHook = $deliveryBoundaryHook ?? app(NotificationDeliveryBoundaryHook::class);
     }
 
     /**
@@ -228,24 +233,45 @@ class NotificationOutboxService
 
     public function enqueueReservationRescheduled(Reservation $reservation, array $changeSet = []): ?NotificationOutbox
     {
-        return $this->enqueueReservationChangeEmail(
-            reservation: $reservation,
-            templateKey: 'reservation.rescheduled',
-            idempotencyKey: sprintf('reservation:%d:rescheduled:v%d:email', (int) $reservation->reservation_id, (int) ($reservation->row_version ?? 1)),
-            changeSet: $changeSet,
-            dedupeKey: null,
-        );
+        return DB::transaction(function () use ($reservation, $changeSet): ?NotificationOutbox {
+            $this->supersedeReservationReminders($reservation);
+
+            return $this->enqueueReservationChangeEmail(
+                reservation: $reservation,
+                templateKey: 'reservation.rescheduled',
+                idempotencyKey: sprintf('reservation:%d:rescheduled:v%d:email', (int) $reservation->reservation_id, (int) ($reservation->row_version ?? 1)),
+                changeSet: $changeSet,
+                dedupeKey: null,
+            );
+        });
     }
 
-    public function enqueueReservationReminder(Reservation $reservation, ?int $leadMinutes = null): ?NotificationOutbox
+    public function enqueueReservationReminder(
+        Reservation $reservation,
+        ?int $leadMinutes = null,
+        ?Carbon $evaluatedAt = null,
+    ): ?NotificationOutbox
     {
-        $leadMinutes ??= (int) config('notifications.outbox.reminder_lead_minutes', 60);
+        $leadMinutes = max(1, $leadMinutes ?? (int) config('notifications.outbox.reminder_lead_minutes', 60));
+        $schedule = $this->buildReminderScheduleIdentity($reservation, $leadMinutes, $evaluatedAt);
+        $idempotencyKey = sprintf(
+            'r:%d:rmd:%d:v%d:%s',
+            (int) $reservation->reservation_id,
+            $leadMinutes,
+            (int) $schedule['row_version'],
+            (string) $schedule['fingerprint'],
+        );
 
         return $this->enqueueReservationEmail(
             reservation: $reservation,
             templateKey: 'reservation.reminder',
-            idempotencyKey: sprintf('reservation:%d:reminder:%d:email', (int) $reservation->reservation_id, max(1, $leadMinutes)),
-            dedupeKey: sprintf('reservation:%d:%s:Email', (int) $reservation->reservation_id, 'reservation.reminder'),
+            idempotencyKey: $idempotencyKey,
+            dedupeKey: $idempotencyKey,
+            additionalPayload: [
+                '_notification' => [
+                    'reminder_schedule' => $schedule,
+                ],
+            ],
         );
     }
 
@@ -382,9 +408,12 @@ class NotificationOutboxService
         $now ??= Carbon::now('UTC');
         $leadMinutes = max(1, (int) config('notifications.outbox.reminder_lead_minutes', 60));
         $windowMinutes = max(1, (int) config('notifications.outbox.reminder_window_minutes', 10));
+        $catchUpMinutes = max(0, (int) config('notifications.outbox.reminder_catch_up_minutes', 120));
 
-        $windowStart = $now->copy()->addMinutes($leadMinutes);
-        $windowEnd = $windowStart->copy()->addMinutes($windowMinutes);
+        $scheduledWindowStart = $now->copy()->addMinutes($leadMinutes);
+        $catchUpWindowStart = $scheduledWindowStart->copy()->subMinutes($catchUpMinutes);
+        $windowStart = $catchUpWindowStart->greaterThan($now) ? $catchUpWindowStart : $now->copy();
+        $windowEnd = $scheduledWindowStart->copy()->addMinutes($windowMinutes);
 
         $reservations = Reservation::query()
             ->with(['user', 'tables'])
@@ -396,10 +425,18 @@ class NotificationOutboxService
             ->get();
 
         $count = 0;
+        $caughtUpCount = 0;
+        $oldestCaughtUpLagSeconds = 0;
         foreach ($reservations as $reservation) {
-            $message = $this->enqueueReservationReminder($reservation, $leadMinutes);
+            $dueAt = Carbon::parse((string) $reservation->start_time)->utc()->subMinutes($leadMinutes);
+            $caughtUp = $dueAt->lessThan($now);
+            $message = $this->enqueueReservationReminder($reservation, $leadMinutes, $now);
             if ($message !== null && (bool) ($message->wasRecentlyCreated ?? false)) {
                 $count++;
+                if ($caughtUp) {
+                    $caughtUpCount++;
+                    $oldestCaughtUpLagSeconds = max($oldestCaughtUpLagSeconds, (int) $dueAt->diffInSeconds($now));
+                }
             }
         }
 
@@ -408,12 +445,141 @@ class NotificationOutboxService
                 'count' => $count,
                 'lead_minutes' => $leadMinutes,
                 'window_minutes' => $windowMinutes,
+                'catch_up_minutes' => $catchUpMinutes,
+                'caught_up_count' => $caughtUpCount,
+                'oldest_caught_up_lag_seconds' => $oldestCaughtUpLagSeconds,
                 'window_start_utc' => $windowStart->toIso8601String(),
                 'window_end_utc' => $windowEnd->toIso8601String(),
             ]);
+            if ($caughtUpCount > 0) {
+                $this->recordMetric('notification_reminder_catch_up_total', [], $caughtUpCount);
+            }
         }
 
         return $count;
+    }
+
+    private function supersedeReservationReminders(Reservation $reservation): void
+    {
+        $now = Carbon::now('UTC');
+        $messages = NotificationOutbox::query()
+            ->where('related_reservation_id', (int) $reservation->reservation_id)
+            ->where('template_key', 'reservation.reminder')
+            ->whereIn('status', ['Pending', 'Failed'])
+            ->orderBy('outbox_id')
+            ->lockForUpdate()
+            ->get();
+
+        foreach ($messages as $message) {
+            if ($this->isReminderScheduleCurrent($message, $reservation)) {
+                continue;
+            }
+
+            $reason = 'Reminder cancelled because the reservation schedule changed.';
+            $this->recordDeliveryAttempt(
+                message: $message,
+                providerKey: null,
+                status: 'Suppressed',
+                dispatchPayload: [],
+                attemptedAt: $now,
+                responsePayload: [
+                    'gate' => 'reminder_schedule',
+                    'reason_code' => 'reminder_schedule_superseded',
+                    'current_schedule' => $this->buildReminderScheduleIdentity(
+                        $reservation,
+                        $this->reminderLeadMinutesFromMessage($message),
+                        $now,
+                    ),
+                ],
+                errorCode: 'reminder_schedule_superseded',
+                errorMessage: $reason,
+                attemptNumber: (int) $message->attempt_count,
+            );
+
+            $message->status = 'Cancelled';
+            $message->processing_token = null;
+            $message->locked_by = null;
+            $message->locked_until = null;
+            $message->next_retry_at = null;
+            $message->last_error = $reason;
+            $message->save();
+
+            AuditEvent::info('notification_outbox_reminder_superseded', [
+                'outbox_id' => (int) $message->outbox_id,
+                'reservation_id' => (int) $reservation->reservation_id,
+                'schedule_row_version' => (int) ($reservation->row_version ?? 1),
+            ]);
+            $this->recordMetric('notification_outbox_cancelled_total', [
+                'channel' => (string) $message->channel,
+                'template_key' => (string) $message->template_key,
+                'reason' => 'reminder_schedule_superseded',
+            ]);
+        }
+    }
+
+    /** @return array<string,int|string|bool> */
+    private function buildReminderScheduleIdentity(
+        Reservation $reservation,
+        int $leadMinutes,
+        ?Carbon $evaluatedAt = null,
+    ): array {
+        $leadMinutes = max(1, $leadMinutes);
+        $startAt = Carbon::parse((string) $reservation->start_time)->utc();
+        $endAt = Carbon::parse((string) $reservation->end_time)->utc();
+        $dueAt = $startAt->copy()->subMinutes($leadMinutes);
+        $rowVersion = max(1, (int) ($reservation->row_version ?? 1));
+        $normalizedStart = $startAt->format('Y-m-d\TH:i:s.u\Z');
+        $normalizedEnd = $endAt->format('Y-m-d\TH:i:s.u\Z');
+        $fingerprint = substr(hash('sha256', implode('|', [
+            (string) $reservation->reservation_id,
+            (string) $rowVersion,
+            $normalizedStart,
+            $normalizedEnd,
+            (string) $leadMinutes,
+        ])), 0, 16);
+
+        return [
+            'reservation_id' => (int) $reservation->reservation_id,
+            'row_version' => $rowVersion,
+            'start_at_utc' => $normalizedStart,
+            'end_at_utc' => $normalizedEnd,
+            'lead_minutes' => $leadMinutes,
+            'due_at_utc' => $dueAt->format('Y-m-d\TH:i:s.u\Z'),
+            'fingerprint' => $fingerprint,
+            'caught_up' => $evaluatedAt !== null && $dueAt->lessThan($evaluatedAt->copy()->utc()),
+        ];
+    }
+
+    private function isReminderScheduleCurrent(NotificationOutbox $message, Reservation $reservation): bool
+    {
+        if ((string) $message->template_key !== 'reservation.reminder') {
+            return true;
+        }
+
+        $recorded = (array) data_get((array) $message->payload_json, '_notification.reminder_schedule', []);
+        if ($recorded === []) {
+            return false;
+        }
+
+        $current = $this->buildReminderScheduleIdentity(
+            $reservation,
+            $this->reminderLeadMinutesFromMessage($message),
+        );
+
+        return (int) ($recorded['reservation_id'] ?? 0) === (int) $current['reservation_id']
+            && (int) ($recorded['row_version'] ?? 0) === (int) $current['row_version']
+            && (string) ($recorded['start_at_utc'] ?? '') === (string) $current['start_at_utc']
+            && (string) ($recorded['end_at_utc'] ?? '') === (string) $current['end_at_utc']
+            && (string) ($recorded['fingerprint'] ?? '') === (string) $current['fingerprint'];
+    }
+
+    private function reminderLeadMinutesFromMessage(NotificationOutbox $message): int
+    {
+        return max(1, (int) data_get(
+            (array) $message->payload_json,
+            '_notification.reminder_schedule.lead_minutes',
+            config('notifications.outbox.reminder_lead_minutes', 60),
+        ));
     }
 
     private function enqueueReservationChangeEmail(
@@ -474,6 +640,7 @@ class NotificationOutboxService
         string $templateKey,
         string $idempotencyKey,
         ?string $dedupeKey = null,
+        array $additionalPayload = [],
     ): ?NotificationOutbox {
         $reservation->loadMissing('user', 'tables', 'payments');
 
@@ -485,7 +652,7 @@ class NotificationOutboxService
             'event_key' => $templateKey,
             'idempotency_key' => $idempotencyKey,
             'dedupe_key' => $dedupeKey,
-            'payload' => $this->buildReservationPayload($reservation),
+            'payload' => array_replace_recursive($this->buildReservationPayload($reservation), $additionalPayload),
             'related_reservation_id' => (int) $reservation->reservation_id,
             'branch_id' => $reservation->branch_id !== null ? (int) $reservation->branch_id : null,
             'preferred_timezone' => $this->resolveOperationalTimezone($reservation->branch_id !== null ? (int) $reservation->branch_id : null),
@@ -521,166 +688,297 @@ class NotificationOutboxService
                 ->limit($limit)
                 ->get();
 
+            $claimed = collect();
             foreach ($messages as $message) {
+                if ((string) $message->status === 'Processing' && $this->hasUnresolvedDeliveryHandoff($message)) {
+                    $this->quarantineUnknownDeliveryOutcome($message, $now, $workerId);
+
+                    continue;
+                }
+
                 $message->status = 'Processing';
                 $message->processing_token = $processingToken;
                 $message->locked_by = $workerId;
                 $message->locked_until = $now->copy()->addSeconds($lockSeconds);
                 $message->save();
+                $claimed->push($message);
             }
 
-            if ($messages->isNotEmpty()) {
-                $this->recordMetric('notification_outbox_claimed_total', ['status' => 'Processing'], $messages->count());
+            if ($claimed->isNotEmpty()) {
+                $this->recordMetric('notification_outbox_claimed_total', ['status' => 'Processing'], $claimed->count());
             }
 
-            return $messages;
+            return $claimed;
         });
+    }
+
+    private function hasUnresolvedDeliveryHandoff(NotificationOutbox $message): bool
+    {
+        $attemptNumber = (int) $message->attempt_count;
+        if ($attemptNumber <= 0) {
+            return false;
+        }
+
+        $attempts = NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->where('attempt_number', $attemptNumber)
+            ->pluck('status');
+
+        return $attempts->contains('Started')
+            && ! $attempts->contains(fn ($status) => in_array((string) $status, ['Succeeded', 'Failed', 'Unknown'], true));
+    }
+
+    private function quarantineUnknownDeliveryOutcome(
+        NotificationOutbox $message,
+        Carbon $recoveredAt,
+        string $workerId,
+    ): void {
+        $reason = 'Provider delivery outcome is unknown after worker interruption; automatic retry is blocked to prevent duplicates.';
+        $this->recordDeliveryAttempt(
+            message: $message,
+            providerKey: null,
+            status: 'Unknown',
+            dispatchPayload: [],
+            attemptedAt: $recoveredAt,
+            responsePayload: [
+                'gate' => 'crash_recovery',
+                'reason_code' => 'delivery_outcome_unknown',
+                'automatic_retry_blocked' => true,
+            ],
+            errorCode: 'delivery_outcome_unknown',
+            errorMessage: $reason,
+            attemptNumber: (int) $message->attempt_count,
+        );
+
+        $message->status = 'Cancelled';
+        $message->processing_token = null;
+        $message->locked_by = null;
+        $message->locked_until = null;
+        $message->next_retry_at = null;
+        $message->last_error = $reason;
+        $message->save();
+
+        AuditEvent::warning('notification_outbox_delivery_outcome_unknown', [
+            'outbox_id' => (int) $message->outbox_id,
+            'reservation_id' => (int) ($message->related_reservation_id ?? 0),
+            'channel' => (string) $message->channel,
+            'template_key' => (string) $message->template_key,
+            'attempt_count' => (int) $message->attempt_count,
+            'worker_id' => $workerId,
+            'automatic_retry_blocked' => true,
+        ]);
+        $this->recordMetric('notification_outbox_unknown_delivery_total', [
+            'channel' => (string) $message->channel,
+            'template_key' => (string) $message->template_key,
+        ]);
     }
 
     private function deliverMessage(NotificationOutbox $message, string $workerId): void
     {
-        $dispatchPayload = [];
-        $providerKey = null;
         $attemptedAt = Carbon::now('UTC');
+        $dispatchPayload = $this->buildDispatchPayload($message);
+        $providerKey = null;
 
-        if (! $this->applyDeliveryBoundaryGuards($message, $attemptedAt, $workerId)) {
+        try {
+            $driver = $this->channelManager->resolve((string) $message->channel);
+            $providerKey = $driver->providerKey();
+        } catch (Throwable $exception) {
+            $this->finalizeDeliveryFailure($message, $workerId, $dispatchPayload, null, $attemptedAt, $exception, false);
+
             return;
         }
 
-        try {
-            $message->attempt_count = (int) $message->attempt_count + 1;
-            $message->last_attempted_at = $attemptedAt;
-            $message->save();
-
-            $dispatchPayload = $this->buildDispatchPayload($message);
-            $driver = $this->channelManager->resolve((string) $message->channel);
-            $providerKey = $driver->providerKey();
-            $result = $driver->send($message, $dispatchPayload);
-
-            $this->recordDeliveryAttempt(
-                message: $message,
-                providerKey: $providerKey,
-                status: 'Succeeded',
-                dispatchPayload: $dispatchPayload,
-                attemptedAt: $attemptedAt,
-                providerStatus: $result->providerStatus,
-                providerMessageId: $result->providerMessageId,
-                responsePayload: $result->responsePayload,
-            );
-
-            $message->status = 'Sent';
-            $message->processing_token = null;
-            $message->locked_by = null;
-            $message->locked_until = null;
-            $message->next_retry_at = null;
-            $message->last_error = null;
-            $message->sent_at = Carbon::now('UTC');
-            $message->save();
-
-            AuditEvent::info('notification_outbox_sent', [
-                'outbox_id' => (int) $message->outbox_id,
-                'reservation_id' => (int) ($message->related_reservation_id ?? 0),
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-                'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
-                'provider_key' => $providerKey,
-                'worker_id' => $workerId,
-            ]);
-            $this->recordMetric('notification_outbox_sent_total', [
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-            ]);
-        } catch (Throwable $e) {
-            $maxAttempts = max(1, (int) config('notifications.outbox.max_attempts', 5));
-            $nonRetryable = $e instanceof NotificationDeliveryException && ! $e->isRetryable();
-            $exhausted = $nonRetryable || (int) $message->attempt_count >= $maxAttempts;
-            $errorCode = $e instanceof NotificationDeliveryException ? $e->errorCode() : null;
-            $responsePayload = $e instanceof NotificationDeliveryException ? $e->responsePayload() : [];
-
-            $this->recordDeliveryAttempt(
-                message: $message,
-                providerKey: $providerKey,
-                status: 'Failed',
-                dispatchPayload: $dispatchPayload,
-                attemptedAt: $attemptedAt,
-                providerStatus: null,
-                providerMessageId: null,
-                responsePayload: $responsePayload,
-                errorCode: $errorCode,
-                errorMessage: $e->getMessage(),
-            );
-
-            $message->status = $exhausted ? 'Cancelled' : 'Failed';
-            $message->processing_token = null;
-            $message->locked_by = null;
-            $message->locked_until = null;
-            $message->next_retry_at = $exhausted ? null : $this->computeNextRetryAt((int) $message->attempt_count);
-            $message->last_error = mb_substr($e->getMessage(), 0, 500);
-            $message->save();
-
-            AuditEvent::warning($nonRetryable
-                ? 'notification_outbox_cancelled_non_retryable'
-                : ($exhausted ? 'notification_outbox_cancelled_after_max_attempts' : 'notification_outbox_failed'), [
-                    'outbox_id' => (int) $message->outbox_id,
-                    'reservation_id' => (int) ($message->related_reservation_id ?? 0),
-                    'channel' => (string) $message->channel,
-                    'template_key' => (string) $message->template_key,
-                    'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
-                    'attempt_count' => (int) $message->attempt_count,
-                    'max_attempts' => $maxAttempts,
-                    'next_retry_at' => $message->next_retry_at?->toIso8601String(),
-                    'provider_key' => $providerKey,
-                    'worker_id' => $workerId,
-                    'error' => $e->getMessage(),
-                    'error_code' => $errorCode,
-                    'retryable' => ! $nonRetryable,
-                ]);
-            $this->recordMetric($exhausted ? 'notification_outbox_cancelled_total' : 'notification_outbox_failed_total', [
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-            ]);
+        $prepared = $this->prepareDeliveryAttempt($message, $workerId, $dispatchPayload, $providerKey, $attemptedAt);
+        if ($prepared === null) {
+            return;
         }
+
+        /** @var NotificationOutbox $message */
+        $message = $prepared['message'];
+        $dispatchPayload = $prepared['dispatch_payload'];
+        $attemptedAt = $prepared['attempted_at'];
+
+        // These hooks deliberately sit outside the provider try/catch so a
+        // process interruption leaves the durable Started handoff untouched.
+        $this->deliveryBoundaryHook->beforeProviderSideEffect($message, $dispatchPayload);
+
+        try {
+            $result = $driver->send($message, $dispatchPayload);
+        } catch (Throwable $exception) {
+            $this->finalizeDeliveryFailure($message, $workerId, $dispatchPayload, $providerKey, $attemptedAt, $exception, true);
+
+            return;
+        }
+
+        $this->deliveryBoundaryHook->afterProviderAcceptance($message, $result);
+        $message = $this->acknowledgeDelivery($message, $workerId, $dispatchPayload, $attemptedAt, $result);
+
+        AuditEvent::info('notification_outbox_sent', [
+            'outbox_id' => (int) $message->outbox_id,
+            'reservation_id' => (int) ($message->related_reservation_id ?? 0),
+            'channel' => (string) $message->channel,
+            'template_key' => (string) $message->template_key,
+            'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
+            'provider_key' => $result->providerKey,
+            'provider_message_id_present' => $result->providerMessageId !== null,
+            'worker_id' => $workerId,
+        ]);
+        $this->recordMetric('notification_outbox_sent_total', [
+            'channel' => (string) $message->channel,
+            'template_key' => (string) $message->template_key,
+        ]);
     }
 
-    private function applyDeliveryBoundaryGuards(NotificationOutbox $message, Carbon $now, string $workerId): bool
-    {
-        $payload = (array) $message->payload_json;
-        $preferredTimezone = $this->extractNotificationPreferredTimezone($payload);
-        $preference = $this->preferenceService->evaluate(
-            $message->recipient_user_id !== null ? (int) $message->recipient_user_id : null,
-            (string) $message->channel,
-            $now,
-            $preferredTimezone,
-        );
+    /** @return array{message:NotificationOutbox,dispatch_payload:array<string,mixed>,attempted_at:Carbon}|null */
+    private function prepareDeliveryAttempt(
+        NotificationOutbox $message,
+        string $workerId,
+        array $dispatchPayload,
+        string $providerKey,
+        Carbon $attemptedAt,
+    ): ?array {
+        return DB::transaction(function () use ($message, $workerId, $dispatchPayload, $providerKey, $attemptedAt): ?array {
+            $reservation = null;
+            if ((int) ($message->related_reservation_id ?? 0) > 0 && (string) $message->template_key === 'reservation.reminder') {
+                $reservation = Reservation::query()
+                    ->whereKey((int) $message->related_reservation_id)
+                    ->lockForUpdate()
+                    ->first();
+            }
 
-        if (! ($preference['enabled'] ?? true)) {
-            $reasonCode = (string) ($preference['reason'] ?? 'channel_disabled_by_user');
-            $reasonMessage = $this->preferenceSuppressionMessage($reasonCode);
+            $current = NotificationOutbox::query()->lockForUpdate()->find((int) $message->outbox_id);
+            if ($current === null || (string) $current->status !== 'Processing'
+                || (string) $current->processing_token !== (string) $message->processing_token
+                || (string) $current->locked_by !== $workerId) {
+                return null;
+            }
 
-            $this->recordDeliveryAttempt(
-                message: $message,
-                providerKey: null,
-                status: 'Suppressed',
-                dispatchPayload: [],
-                attemptedAt: $now,
-                responsePayload: [
-                    'gate' => 'preference',
-                    'reason_code' => $reasonCode,
-                ],
-                errorCode: $reasonCode,
-                errorMessage: $reasonMessage,
-                attemptNumber: (int) $message->attempt_count,
+            if ((int) ($current->related_reservation_id ?? 0) > 0 && (string) $current->template_key === 'reservation.reminder') {
+                if ($reservation === null || (int) $reservation->reservation_id !== (int) $current->related_reservation_id) {
+                    $reservation = Reservation::query()
+                        ->whereKey((int) $current->related_reservation_id)
+                        ->lockForUpdate()
+                        ->first();
+                }
+
+                $reservationStatus = $reservation === null ? '' : $reservation->status->value;
+                if ($reservation === null || $reservationStatus !== ReservationStatus::Confirmed->value
+                    || ! $this->isReminderScheduleCurrent($current, $reservation)) {
+                    $reason = $reservation === null || ! $this->isReminderScheduleCurrent($current, $reservation)
+                        ? 'Reminder was suppressed because its reservation schedule is stale.'
+                        : 'Reminder was suppressed because the reservation is no longer confirmed.';
+                    $reasonCode = $reservation === null || ! $this->isReminderScheduleCurrent($current, $reservation)
+                        ? 'reminder_schedule_stale'
+                        : 'reminder_reservation_not_confirmed';
+                    $this->cancelDeliveryByGate($current, $attemptedAt, $workerId, 'Suppressed', $reasonCode, $reason, 'reminder_schedule');
+
+                    return null;
+                }
+            }
+
+            $payload = (array) $current->payload_json;
+            $preference = $this->preferenceService->evaluate(
+                $current->recipient_user_id !== null ? (int) $current->recipient_user_id : null,
+                (string) $current->channel,
+                $attemptedAt,
+                $this->extractNotificationPreferredTimezone($payload),
             );
 
-            $message->status = 'Cancelled';
-            $message->processing_token = null;
-            $message->locked_by = null;
-            $message->locked_until = null;
-            $message->next_retry_at = null;
-            $message->last_error = mb_substr($reasonMessage, 0, 500);
-            $message->save();
+            if (! ($preference['enabled'] ?? true)) {
+                $reasonCode = (string) ($preference['reason'] ?? 'channel_disabled_by_user');
+                $this->cancelDeliveryByGate(
+                    $current,
+                    $attemptedAt,
+                    $workerId,
+                    'Suppressed',
+                    $reasonCode,
+                    $this->preferenceSuppressionMessage($reasonCode),
+                    'preference',
+                );
 
-            AuditEvent::info('notification_outbox_cancelled_by_preference', [
+                return null;
+            }
+
+            $quietUntil = $preference['quiet_until'] ?? null;
+            if ($quietUntil instanceof Carbon && $quietUntil->greaterThan($attemptedAt)) {
+                $quietUntilUtc = $quietUntil->copy()->utc();
+                $this->cancelDeliveryByGate(
+                    $current,
+                    $attemptedAt,
+                    $workerId,
+                    'Deferred',
+                    'quiet_hours_active',
+                    'Delivery deferred until recipient quiet hours end.',
+                    'quiet_hours',
+                    ['quiet_until_utc' => $quietUntilUtc->toIso8601String()],
+                    'Pending',
+                    $quietUntilUtc,
+                );
+
+                return null;
+            }
+
+            $current->attempt_count = (int) $current->attempt_count + 1;
+            $current->last_attempted_at = $attemptedAt;
+            $current->save();
+            $this->recordDeliveryAttempt(
+                message: $current,
+                providerKey: $providerKey,
+                status: 'Started',
+                dispatchPayload: $dispatchPayload,
+                attemptedAt: $attemptedAt,
+                responsePayload: [
+                    'handoff' => 'durable_started',
+                    'worker_id' => $workerId,
+                    'provider_idempotency_supported' => false,
+                ],
+                errorCode: 'delivery_handoff_started',
+                attemptNumber: (int) $current->attempt_count,
+            );
+
+            return [
+                'message' => $current,
+                'dispatch_payload' => $dispatchPayload,
+                'attempted_at' => $attemptedAt,
+            ];
+        });
+    }
+
+    private function cancelDeliveryByGate(
+        NotificationOutbox $message,
+        Carbon $attemptedAt,
+        string $workerId,
+        string $attemptStatus,
+        string $reasonCode,
+        string $reasonMessage,
+        string $gate,
+        array $responsePayload = [],
+        string $targetStatus = 'Cancelled',
+        ?Carbon $nextRetryAt = null,
+    ): void {
+        $this->recordDeliveryAttempt(
+            message: $message,
+            providerKey: null,
+            status: $attemptStatus,
+            dispatchPayload: [],
+            attemptedAt: $attemptedAt,
+            responsePayload: array_merge(['gate' => $gate, 'reason_code' => $reasonCode], $responsePayload),
+            errorCode: $reasonCode,
+            errorMessage: $reasonMessage,
+            attemptNumber: (int) $message->attempt_count,
+        );
+
+        $message->status = $targetStatus;
+        $message->processing_token = null;
+        $message->locked_by = null;
+        $message->locked_until = null;
+        $message->next_retry_at = $nextRetryAt;
+        $message->last_error = $targetStatus === 'Pending' ? null : mb_substr($reasonMessage, 0, 500);
+        $message->save();
+
+        AuditEvent::info($targetStatus === 'Pending'
+            ? 'notification_outbox_deferred_by_quiet_hours'
+            : ($gate === 'preference' ? 'notification_outbox_cancelled_by_preference' : 'notification_outbox_suppressed_by_delivery_gate'), [
                 'outbox_id' => (int) $message->outbox_id,
                 'reservation_id' => (int) ($message->related_reservation_id ?? 0),
                 'channel' => (string) $message->channel,
@@ -688,61 +986,117 @@ class NotificationOutboxService
                 'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
                 'worker_id' => $workerId,
                 'reason_code' => $reasonCode,
+                'quiet_until_utc' => $nextRetryAt?->utc()->toIso8601String(),
             ]);
-            $this->recordMetric('notification_outbox_cancelled_total', [
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-            ]);
+        $this->recordMetric($targetStatus === 'Pending' ? 'notification_outbox_deferred_total' : 'notification_outbox_cancelled_total', [
+            'channel' => (string) $message->channel,
+            'template_key' => (string) $message->template_key,
+            'reason' => $reasonCode,
+        ]);
+    }
 
-            return false;
-        }
-
-        $quietUntil = $preference['quiet_until'] ?? null;
-        if ($quietUntil instanceof Carbon && $quietUntil->greaterThan($now)) {
-            $quietUntilUtc = $quietUntil->copy()->utc();
-
+    private function finalizeDeliveryFailure(
+        NotificationOutbox $message,
+        string $workerId,
+        array $dispatchPayload,
+        ?string $providerKey,
+        Carbon $attemptedAt,
+        Throwable $exception,
+        bool $handoffStarted,
+    ): void {
+        $maxAttempts = max(1, (int) config('notifications.outbox.max_attempts', 5));
+        $nonRetryable = $exception instanceof NotificationDeliveryException && ! $exception->isRetryable();
+        $errorCode = $exception instanceof NotificationDeliveryException ? $exception->errorCode() : null;
+        $responsePayload = $exception instanceof NotificationDeliveryException ? $exception->responsePayload() : [];
+        $current = DB::transaction(function () use ($message, $dispatchPayload, $providerKey, $attemptedAt, $exception, $nonRetryable, $errorCode, $responsePayload, $maxAttempts, $handoffStarted): NotificationOutbox {
+            $current = NotificationOutbox::query()->lockForUpdate()->findOrFail((int) $message->outbox_id);
+            if (! $handoffStarted) {
+                $current->attempt_count = (int) $current->attempt_count + 1;
+                $current->last_attempted_at = $attemptedAt;
+            }
+            $exhausted = $nonRetryable || (int) $current->attempt_count >= $maxAttempts;
             $this->recordDeliveryAttempt(
-                message: $message,
-                providerKey: null,
-                status: 'Deferred',
-                dispatchPayload: [],
-                attemptedAt: $now,
-                responsePayload: [
-                    'gate' => 'quiet_hours',
-                    'reason_code' => 'quiet_hours_active',
-                    'quiet_until_utc' => $quietUntilUtc->toIso8601String(),
-                ],
-                errorCode: 'quiet_hours_active',
-                errorMessage: 'Delivery deferred until recipient quiet hours end.',
-                attemptNumber: (int) $message->attempt_count,
+                message: $current,
+                providerKey: $providerKey,
+                status: 'Failed',
+                dispatchPayload: $dispatchPayload,
+                attemptedAt: $attemptedAt,
+                responsePayload: $responsePayload,
+                errorCode: $errorCode,
+                errorMessage: $exception->getMessage(),
+                attemptNumber: (int) $current->attempt_count,
             );
+            $current->status = $exhausted ? 'Cancelled' : 'Failed';
+            $current->processing_token = null;
+            $current->locked_by = null;
+            $current->locked_until = null;
+            $current->next_retry_at = $exhausted ? null : $this->computeNextRetryAt((int) $current->attempt_count);
+            $current->last_error = mb_substr($exception->getMessage(), 0, 500);
+            $current->save();
 
-            $message->status = 'Pending';
-            $message->processing_token = null;
-            $message->locked_by = null;
-            $message->locked_until = null;
-            $message->next_retry_at = $quietUntilUtc;
-            $message->last_error = null;
-            $message->save();
+            return $current;
+        });
 
-            AuditEvent::info('notification_outbox_deferred_by_quiet_hours', [
-                'outbox_id' => (int) $message->outbox_id,
-                'reservation_id' => (int) ($message->related_reservation_id ?? 0),
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-                'recipient_masked' => $this->maskRecipientForAudit((string) $message->recipient),
+        $exhausted = $current->status === 'Cancelled';
+        AuditEvent::warning($nonRetryable
+            ? 'notification_outbox_cancelled_non_retryable'
+            : ($exhausted ? 'notification_outbox_cancelled_after_max_attempts' : 'notification_outbox_failed'), [
+                'outbox_id' => (int) $current->outbox_id,
+                'reservation_id' => (int) ($current->related_reservation_id ?? 0),
+                'channel' => (string) $current->channel,
+                'template_key' => (string) $current->template_key,
+                'recipient_masked' => $this->maskRecipientForAudit((string) $current->recipient),
+                'attempt_count' => (int) $current->attempt_count,
+                'max_attempts' => $maxAttempts,
+                'next_retry_at' => $current->next_retry_at?->toIso8601String(),
+                'provider_key' => $providerKey,
                 'worker_id' => $workerId,
-                'quiet_until_utc' => $quietUntilUtc->toIso8601String(),
+                'error' => $exception->getMessage(),
+                'error_code' => $errorCode,
+                'retryable' => ! $nonRetryable,
             ]);
-            $this->recordMetric('notification_outbox_deferred_total', [
-                'channel' => (string) $message->channel,
-                'template_key' => (string) $message->template_key,
-            ]);
+        $this->recordMetric($exhausted ? 'notification_outbox_cancelled_total' : 'notification_outbox_failed_total', [
+            'channel' => (string) $current->channel,
+            'template_key' => (string) $current->template_key,
+        ]);
+    }
 
-            return false;
-        }
+    private function acknowledgeDelivery(
+        NotificationOutbox $message,
+        string $workerId,
+        array $dispatchPayload,
+        Carbon $attemptedAt,
+        \App\Modules\Notifications\Infrastructure\NotificationDeliveryResult $result,
+    ): NotificationOutbox {
+        return DB::transaction(function () use ($message, $workerId, $dispatchPayload, $attemptedAt, $result): NotificationOutbox {
+            $current = NotificationOutbox::query()->lockForUpdate()->findOrFail((int) $message->outbox_id);
+            if ((string) $current->status !== 'Processing'
+                || (string) $current->processing_token !== (string) $message->processing_token
+                || (string) $current->locked_by !== $workerId) {
+                throw new RuntimeException('Notification outbox ownership changed before delivery acknowledgement.');
+            }
+            $this->recordDeliveryAttempt(
+                message: $current,
+                providerKey: $result->providerKey,
+                status: 'Succeeded',
+                dispatchPayload: $dispatchPayload,
+                attemptedAt: $attemptedAt,
+                providerStatus: $result->providerStatus,
+                providerMessageId: $result->providerMessageId,
+                responsePayload: $result->responsePayload,
+                attemptNumber: (int) $current->attempt_count,
+            );
+            $current->status = 'Sent';
+            $current->processing_token = null;
+            $current->locked_by = null;
+            $current->locked_until = null;
+            $current->next_retry_at = null;
+            $current->last_error = null;
+            $current->sent_at = Carbon::now('UTC');
+            $current->save();
 
-        return true;
+            return $current;
+        });
     }
 
     private function preferenceSuppressionMessage(string $reasonCode): string
@@ -842,27 +1196,23 @@ class NotificationOutboxService
         ?string $errorMessage = null,
         ?int $attemptNumber = null,
     ): void {
-        try {
-            NotificationDeliveryAttempt::query()->create([
-                'outbox_id' => (int) $message->outbox_id,
-                'channel' => (string) $message->channel,
-                'provider_key' => $providerKey,
-                'attempt_number' => max(0, (int) ($attemptNumber ?? $message->attempt_count)),
-                'status' => $status,
-                'recipient' => (string) $message->recipient,
-                'provider_message_id' => $providerMessageId,
-                'provider_status' => $providerStatus,
-                'error_code' => $errorCode,
-                'error_message' => $errorMessage,
-                'request_payload_json' => $dispatchPayload === [] ? null : $dispatchPayload,
-                'response_payload_json' => $responsePayload === [] ? null : $responsePayload,
-                'attempted_at' => $attemptedAt,
-                'completed_at' => Carbon::now('UTC'),
-                'created_at' => $attemptedAt,
-            ]);
-        } catch (Throwable) {
-            // delivery evidence is best-effort; outbox state must still be persisted.
-        }
+        NotificationDeliveryAttempt::query()->create([
+            'outbox_id' => (int) $message->outbox_id,
+            'channel' => (string) $message->channel,
+            'provider_key' => $providerKey,
+            'attempt_number' => max(0, (int) ($attemptNumber ?? $message->attempt_count)),
+            'status' => $status,
+            'recipient' => (string) $message->recipient,
+            'provider_message_id' => $providerMessageId,
+            'provider_status' => $providerStatus,
+            'error_code' => $errorCode,
+            'error_message' => $errorMessage,
+            'request_payload_json' => $dispatchPayload === [] ? null : $dispatchPayload,
+            'response_payload_json' => $responsePayload === [] ? null : $responsePayload,
+            'attempted_at' => $attemptedAt,
+            'completed_at' => $status === 'Started' ? null : Carbon::now('UTC'),
+            'created_at' => $attemptedAt,
+        ]);
     }
 
     private function buildGeneratedIdempotencyKey(string $channel, string $recipient, string $templateKey, array $payload): string
@@ -959,7 +1309,7 @@ class NotificationOutboxService
             'guest_phone' => (string) ($reservation->guest_phone ?? ''),
             'guest_email' => (string) ($reservation->guest_email ?? ''),
             'guest_count' => (int) $reservation->guest_count,
-            'status' => (string) ($reservation->status?->value ?? $reservation->status),
+            'status' => $reservation->status->value,
             'reservation_timezone' => $timezone,
             'start_time_utc' => $this->formatUtcDateTime($reservation->start_time),
             'end_time_utc' => $this->formatUtcDateTime($reservation->end_time),

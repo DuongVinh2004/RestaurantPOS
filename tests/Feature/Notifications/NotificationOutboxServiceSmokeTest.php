@@ -159,7 +159,7 @@ class NotificationOutboxServiceSmokeTest extends TestCase
         $this->assertSame('Sent', $message->status);
         $this->assertNull($message->processing_token);
         $this->assertNotNull($message->sent_at);
-        $this->assertSame(1, NotificationDeliveryAttempt::query()->where('outbox_id', (int) $message->outbox_id)->count());
+        $this->assertSame(2, NotificationDeliveryAttempt::query()->where('outbox_id', (int) $message->outbox_id)->count());
     }
 
     #[Group('booking-smoke')]

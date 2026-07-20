@@ -59,6 +59,10 @@ Artisan::command('notifications:outbox-health {--json : Output machine-readable 
         ['due_now_count', (string) $snapshot['due_now_count']],
         ['stale_processing_count', (string) $snapshot['stale_processing_count']],
         ['recent_failure_attempt_count', (string) ($snapshot['recent_failure_attempt_count'] ?? 0)],
+        ['unknown_delivery_outcome_count', (string) ($snapshot['unknown_delivery_outcome_count'] ?? 0)],
+        ['reminder_catch_up_due_count', (string) ($snapshot['reminder_catch_up_due_count'] ?? 0)],
+        ['reminder_catch_up_expired_count', (string) ($snapshot['reminder_catch_up_expired_count'] ?? 0)],
+        ['oldest_reminder_lag_seconds', ($snapshot['oldest_reminder_lag_seconds'] ?? null) === null ? 'null' : (string) $snapshot['oldest_reminder_lag_seconds']],
         ['oldest_pending_age_seconds', $snapshot['oldest_pending_age_seconds'] === null ? 'null' : (string) $snapshot['oldest_pending_age_seconds']],
         ['error', (string) ($snapshot['error'] ?? '')],
     ]);

@@ -733,7 +733,7 @@ CREATE TABLE `notification_delivery_attempts` (
   `channel` enum('SMS','Email','Zalo','Push','Webhook') NOT NULL,
   `provider_key` varchar(60) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `attempt_number` int unsigned NOT NULL,
-  `status` enum('Succeeded','Failed','Suppressed') NOT NULL,
+  `status` enum('Started','Succeeded','Failed','Deferred','Suppressed','Unknown') NOT NULL,
   `recipient` varchar(200) NOT NULL,
   `provider_message_id` varchar(150) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `provider_status` varchar(80) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,
