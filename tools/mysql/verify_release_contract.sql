@@ -10,6 +10,22 @@ EXECUTE verify_stmt;
 DEALLOCATE PREPARE verify_stmt;
 
 SET @stmt := IF(
+    EXISTS (
+        SELECT 1
+          FROM information_schema.columns
+         WHERE table_schema = DATABASE()
+           AND table_name = 'notification_delivery_attempts'
+           AND column_name = 'status'
+           AND column_type LIKE "%enum('Started','Succeeded','Failed','Deferred','Suppressed','Unknown')%"
+    ),
+    'SELECT "notification_delivery_attempts.status:ok"',
+    'SELECT * FROM __missing_restore_contract_notification_delivery_attempts_status__'
+);
+PREPARE verify_stmt FROM @stmt;
+EXECUTE verify_stmt;
+DEALLOCATE PREPARE verify_stmt;
+
+SET @stmt := IF(
     EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'reservations'),
     'SELECT "reservations:ok"',
     'SELECT * FROM __missing_restore_contract_reservations__'

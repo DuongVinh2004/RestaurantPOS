@@ -7,35 +7,35 @@
             "path": "database/schema/mysql-schema.sql",
             "exists": true,
             "optional": false,
-            "sha256": "f4dbba468d878a267354045c1eb977a217002c87702355b407ef44319c54fa68",
-            "bytes": 184036,
+            "sha256": "aaa77bf59e8ac75cc23b8a2774e6de49a8508c36bd7064878f3978c9b1b00fbc",
+            "bytes": 184067,
             "line_count": 2725,
-            "modified_epoch": 1784475654,
-            "modified_at_utc": "2026-07-19T15:40:54+00:00",
-            "required_fragment_count": 64,
+            "modified_epoch": 1784537153,
+            "modified_at_utc": "2026-07-20T08:45:53+00:00",
+            "required_fragment_count": 65,
             "missing_fragments": []
         },
         "full_dump": {
             "path": "db_all.sql",
             "exists": true,
             "optional": false,
-            "sha256": "86839733de202addafd2c542ecc14b56972cf3bb887e34e08fdfc73897af79cd",
-            "bytes": 179613,
+            "sha256": "2dd9f6d6378aa7ad551698f2e428a41b0644710aaea93c53f886d2ceb78f2bdb",
+            "bytes": 179644,
             "line_count": 2649,
-            "modified_epoch": 1784475654,
-            "modified_at_utc": "2026-07-19T15:40:54+00:00",
-            "required_fragment_count": 64,
+            "modified_epoch": 1784537153,
+            "modified_at_utc": "2026-07-20T08:45:53+00:00",
+            "required_fragment_count": 65,
             "missing_fragments": []
         },
         "release_contract_verifier": {
             "path": "tools/mysql/verify_release_contract.sql",
             "exists": true,
             "optional": false,
-            "sha256": "f5fcfd65e7c8c2f6b575ae0b40e317ee11fe49e749c08acb4fad62ff212963eb",
-            "bytes": 23000,
-            "line_count": 630,
-            "modified_epoch": 1784475655,
-            "modified_at_utc": "2026-07-19T15:40:55+00:00",
+            "sha256": "c0bc95220177358464ccdb97f979cd748c47a7ba9572d971d41219cdcaa03dae",
+            "bytes": 23576,
+            "line_count": 646,
+            "modified_epoch": 1784537153,
+            "modified_at_utc": "2026-07-20T08:45:53+00:00",
             "required_fragment_count": 2,
             "missing_fragments": []
         },
@@ -289,6 +289,7 @@
             "2026_06_20_000067_professional_menu_rebuild.sql",
             "2026_06_21_000068_update_menu_vietnamese_accents.sql",
             "2026_07_19_000071_order_item_recipe_snapshot.sql",
+            "2026_07_20_000072_notification_delivery_durability.sql",
             "wave2-batch1-qr-bill.sql",
             "wave2-batch3-preorders.sql"
         ],
@@ -352,16 +353,17 @@
             "2026_06_14_000066_menu_combo_and_favorites.sql",
             "2026_06_20_000067_professional_menu_rebuild.sql",
             "2026_06_21_000068_update_menu_vietnamese_accents.sql",
-            "2026_07_19_000071_order_item_recipe_snapshot.sql"
+            "2026_07_19_000071_order_item_recipe_snapshot.sql",
+            "2026_07_20_000072_notification_delivery_durability.sql"
         ],
         "missing": [],
-        "count": 69,
-        "required_count": 60
+        "count": 70,
+        "required_count": 61
     },
     "meta": {
-        "generated_at_utc": "2026-07-19T15:46:34+00:00"
+        "generated_at_utc": "2026-07-20T08:59:24+00:00"
     },
     "definition_path": "config/booking_release.php",
-    "definition_sha256": "b4d1c5aea7ad56b4e960a9c43cd80ddfede78cff6677b3e3d598db624ea0a19e",
+    "definition_sha256": "62fd668a902947ef477e623a3933ca05bae142c23d984192ab1baf26e90dcdcb",
     "snapshot_path": "storage/app/booking_release/release_manifest_snapshot.json"
 }

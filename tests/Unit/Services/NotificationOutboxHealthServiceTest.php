@@ -187,4 +187,67 @@ class NotificationOutboxHealthServiceTest extends TestCase
         $this->assertSame('mail', $snapshot['rows'][0]['latest_attempt']['provider_key']);
         $this->assertSame('mail_failed', $snapshot['rows'][0]['latest_attempt']['error_code']);
     }
+
+    #[Group('booking-ops')]
+    public function test_snapshot_exposes_bounded_reminder_lag_and_unknown_delivery_outcomes(): void
+    {
+        $this->requireBookingSchema();
+        $this->resetOutboxRowsForSnapshot();
+        config()->set('notifications.outbox.reminder_enabled', true);
+        config()->set('notifications.outbox.reminder_lead_minutes', 60);
+        config()->set('notifications.outbox.reminder_catch_up_minutes', 20);
+        config()->set('notifications.outbox.health.reminder_lag_warn_seconds', 120);
+
+        $now = Carbon::parse('2026-07-20T01:00:00Z')->utc();
+        $withinUserId = $this->createUser(['email' => 'health-reminder-within@example.test']);
+        $withinId = $this->createReservation([
+            'user_id' => $withinUserId,
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->addMinutes(45),
+            'end_time' => $now->copy()->addMinutes(105),
+        ]);
+        $this->attachReservationTable($withinId);
+
+        $expiredUserId = $this->createUser(['email' => 'health-reminder-expired@example.test']);
+        $expiredId = $this->createReservation([
+            'user_id' => $expiredUserId,
+            'status' => 'Confirmed',
+            'start_time' => $now->copy()->addMinutes(5),
+            'end_time' => $now->copy()->addMinutes(65),
+        ]);
+        $this->attachReservationTable($expiredId);
+
+        $unknown = NotificationOutbox::query()->create([
+            'channel' => 'Email',
+            'recipient' => 'health-unknown@example.test',
+            'template_key' => 'reservation.created',
+            'idempotency_key' => 'health:unknown:'.uniqid('', true),
+            'payload_json' => ['x' => 1],
+            'status' => 'Cancelled',
+            'attempt_count' => 1,
+            'last_error' => 'Provider delivery outcome is unknown after worker interruption.',
+            'created_at' => $now,
+        ]);
+        NotificationDeliveryAttempt::query()->create([
+            'outbox_id' => (int) $unknown->outbox_id,
+            'channel' => 'Email',
+            'provider_key' => 'mail',
+            'attempt_number' => 1,
+            'status' => 'Unknown',
+            'recipient' => 'health-unknown@example.test',
+            'error_code' => 'delivery_outcome_unknown',
+            'error_message' => 'Provider delivery outcome is unknown after worker interruption.',
+            'attempted_at' => $now,
+            'created_at' => $now,
+        ]);
+
+        $snapshot = app(NotificationOutboxHealthService::class)->snapshot($now);
+
+        $this->assertFalse($snapshot['ok']);
+        $this->assertSame(1, $snapshot['reminder_catch_up_due_count']);
+        $this->assertSame(1, $snapshot['reminder_catch_up_expired_count']);
+        $this->assertSame(3300, $snapshot['oldest_reminder_lag_seconds']);
+        $this->assertSame(20, $snapshot['reminder_catch_up_window_minutes']);
+        $this->assertSame(1, $snapshot['unknown_delivery_outcome_count']);
+    }
 }

@@ -11,6 +11,8 @@ return [
         'reminder_enabled' => env('NOTIFICATIONS_REMINDER_ENABLED', true),
         'reminder_lead_minutes' => (int) env('NOTIFICATIONS_REMINDER_LEAD_MINUTES', 60),
         'reminder_window_minutes' => (int) env('NOTIFICATIONS_REMINDER_WINDOW_MINUTES', 10),
+        // Bounded past-due scan for scheduler outage recovery.
+        'reminder_catch_up_minutes' => (int) env('NOTIFICATIONS_REMINDER_CATCH_UP_MINUTES', 120),
         'cooldowns' => [
             'reservation.created' => (int) env('NOTIFICATIONS_COOLDOWN_RESERVATION_CREATED_SECONDS', 60),
             'reservation.cancelled' => (int) env('NOTIFICATIONS_COOLDOWN_RESERVATION_CANCELLED_SECONDS', 60),
@@ -25,6 +27,7 @@ return [
             'stale_processing_warn_count' => (int) env('NOTIFICATIONS_OUTBOX_STALE_PROCESSING_WARN_COUNT', 1),
             'oldest_pending_warn_seconds' => (int) env('NOTIFICATIONS_OUTBOX_OLDEST_PENDING_WARN_SECONDS', 900),
             'recent_failure_attempt_window_hours' => (int) env('NOTIFICATIONS_OUTBOX_RECENT_FAILURE_WINDOW_HOURS', 24),
+            'reminder_lag_warn_seconds' => (int) env('NOTIFICATIONS_OUTBOX_REMINDER_LAG_WARN_SECONDS', 120),
         ],
     ],
     'channels' => [

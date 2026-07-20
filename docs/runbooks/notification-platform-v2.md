@@ -49,6 +49,13 @@ Do not treat SMS/Zalo as production-ready until a real provider driver replaces 
 - Delivery re-checks recipient preference and quiet hours immediately before send, so a message queued earlier does not bypass a later customer preference change.
 - Non-retryable boundary failures such as disabled channels or unsupported drivers cancel immediately instead of creating repeated retry noise.
 
+### Reminder durability and reschedule semantics
+
+- Reservation reminder identity is derived from the normalized current schedule (`row_version`, start/end UTC, lead minutes, and due time). A reschedule therefore gets a new hard `idempotency_key`; it cannot be deduplicated against a reminder that was already sent for the previous schedule.
+- Reschedule enqueueing supersedes pending and failed reminders for the reservation in the same transaction. The supersession is recorded as `Suppressed` evidence with `reminder_schedule_superseded`, and the old row is moved to `Cancelled`.
+- The worker locks and rechecks the reservation schedule immediately before the provider side effect. A stale claimed reminder is cancelled with durable suppression evidence and is never sent.
+- Reminder enqueueing has a bounded outage catch-up window controlled by `notifications.reminder_catch_up_minutes` (default: 120 minutes). The health snapshot exposes catch-up due/expired counts, oldest reminder lag, and the configured window so an operator can distinguish healthy catch-up from an overdue scheduler.
+
 ### Tables
 
 - `notification_outbox`
@@ -57,8 +64,9 @@ Do not treat SMS/Zalo as production-ready until a real provider driver replaces 
   - added `last_attempted_at`
   - channel enum now includes `Zalo`
 - `notification_delivery_attempts`
-  - provider attempts still record `Succeeded` or `Failed`
+  - every provider handoff records `Started` before the side effect and `Succeeded` or `Failed` after acknowledgement
   - delivery-gate decisions can also record `Deferred` or `Suppressed` evidence with explicit `error_code`
+  - a crash after provider acceptance but before database acknowledgement leaves `Started`; lease recovery quarantines it as `Unknown` rather than guessing or silently retrying
 - `notification_preferences`
   - per-user per-channel enable flag
   - optional quiet hours via minute-of-day window
@@ -85,6 +93,8 @@ Operator interpretation:
 - `provider_ready` + `stub` means queue logic is testable, but business flows must still treat delivery as best-effort and non-external.
 - Dead-letter rows now surface readiness, delivery mode, and latest error code so operators can distinguish provider failures from configuration or preference gates quickly.
 - When `notifications:outbox-health --json` returns `ok=false` with a non-empty `error` while MySQL is unavailable, treat that as a database prerequisite blocker. Zero counts in that state do not prove the outbox is healthy or empty.
+- `unknown_delivery_outcome_count > 0` is an immediate operational stop: inspect the provider boundary and receipt/handoff evidence before replaying anything.
+- `reminder_catch_up_expired_count > 0` or an oldest reminder lag above `health.reminder_lag_warn_seconds` means the scheduler window has been missed and requires operator action.
 
 ### Limited-production delivery rehearsal
 
@@ -100,6 +110,7 @@ Before calling notification delivery production-ready for a rollout target, capt
 ### Current limits
 
 - No realtime push or provider webhooks for notification delivery receipts yet.
+- The configured Laravel Email mailer currently exposes neither provider idempotency nor a durable provider receipt. The `Started`/`Unknown` handoff state is the safest local guarantee (at-most-once on an ambiguous crash), but it is not an exactly-once proof; an external idempotency/receipt-capable provider is required before claiming that guarantee.
 - SMS/Zalo are not externally connected yet.
 - Preferences are channel-level only; there is no per-template preference matrix yet.
 - Quiet-hour evaluation now uses the message preferred timezone when available, typically the reservation or conversation branch timezone, and falls back to `notifications.preferences.timezone` only when no operational timezone is available.

@@ -30,6 +30,7 @@ $canonicalReleaseContractFragments = [
     '`recipient_user_id` int unsigned DEFAULT NULL,',
     '`dedupe_key` varchar(160) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL,',
     'CREATE TABLE `notification_delivery_attempts` (',
+    "`status` enum('Started','Succeeded','Failed','Deferred','Suppressed','Unknown') NOT NULL,",
     'CREATE TABLE `notification_preferences` (',
     'uq_notification_preferences__user_id__channel',
     'chk_notification_preferences__quiet_window',
@@ -305,6 +306,7 @@ return [
         '2026_06_20_000067_professional_menu_rebuild.sql',
         '2026_06_21_000068_update_menu_vietnamese_accents.sql',
         '2026_07_19_000071_order_item_recipe_snapshot.sql',
+        '2026_07_20_000072_notification_delivery_durability.sql',
     ],
     'release_manifest' => [
         'definition_path' => 'config/booking_release.php',

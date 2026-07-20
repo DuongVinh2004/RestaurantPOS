@@ -6,6 +6,7 @@ namespace App\Modules\Notifications\Application\Services;
 
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
 use App\Modules\Notifications\Domain\Models\NotificationOutbox;
+use App\Modules\Reservations\Domain\Models\Reservation;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
@@ -30,6 +31,11 @@ class NotificationOutboxHealthService
      *   dead_letter_count: int,
      *   recent_failure_attempt_count: int,
      *   recent_failure_attempt_window_hours: int,
+     *   unknown_delivery_outcome_count: int,
+     *   reminder_catch_up_due_count: int,
+     *   reminder_catch_up_expired_count: int,
+     *   oldest_reminder_lag_seconds: int|null,
+     *   reminder_catch_up_window_minutes: int,
      *   channel_breakdown: array<string,array<string,mixed>>,
      *   error: string|null
      * }
@@ -53,6 +59,11 @@ class NotificationOutboxHealthService
                 'dead_letter_count' => 0,
                 'recent_failure_attempt_count' => 0,
                 'recent_failure_attempt_window_hours' => $recentFailureWindowHours,
+                'unknown_delivery_outcome_count' => 0,
+                'reminder_catch_up_due_count' => 0,
+                'reminder_catch_up_expired_count' => 0,
+                'oldest_reminder_lag_seconds' => null,
+                'reminder_catch_up_window_minutes' => max(0, (int) config('notifications.outbox.reminder_catch_up_minutes', 120)),
                 'channel_breakdown' => $this->emptyChannelBreakdown(),
                 'error' => null,
             ];
@@ -73,6 +84,11 @@ class NotificationOutboxHealthService
                     'dead_letter_count' => 0,
                     'recent_failure_attempt_count' => 0,
                     'recent_failure_attempt_window_hours' => $recentFailureWindowHours,
+                    'unknown_delivery_outcome_count' => 0,
+                    'reminder_catch_up_due_count' => 0,
+                    'reminder_catch_up_expired_count' => 0,
+                    'oldest_reminder_lag_seconds' => null,
+                    'reminder_catch_up_window_minutes' => max(0, (int) config('notifications.outbox.reminder_catch_up_minutes', 120)),
                     'channel_breakdown' => $this->emptyChannelBreakdown(),
                     'error' => 'notification_outbox table is missing.',
                 ];
@@ -116,18 +132,28 @@ class NotificationOutboxHealthService
             }
 
             $recentFailureAttemptCount = 0;
+            $unknownDeliveryOutcomeCount = 0;
             if (Schema::hasTable('notification_delivery_attempts')) {
                 $recentFailureAttemptCount = NotificationDeliveryAttempt::query()
                     ->where('status', 'Failed')
                     ->where('attempted_at', '>=', $now->copy()->subHours($recentFailureWindowHours))
                     ->count();
+                $unknownDeliveryOutcomeCount = NotificationDeliveryAttempt::query()
+                    ->where('status', 'Unknown')
+                    ->count();
             }
+            $reminderHealth = $this->reminderScheduleHealth($now);
 
             $ok = true;
             if ($failedCount > $failedThreshold || $staleProcessingCount > 0) {
                 $ok = false;
             }
             if ($oldestPendingAgeSeconds !== null && $oldestPendingAgeSeconds > $pendingAgeThreshold) {
+                $ok = false;
+            }
+            if ($unknownDeliveryOutcomeCount > 0
+                || (int) $reminderHealth['reminder_catch_up_expired_count'] > 0
+                || ((int) ($reminderHealth['oldest_reminder_lag_seconds'] ?? 0) > max(60, (int) config('notifications.outbox.health.reminder_lag_warn_seconds', 120)))) {
                 $ok = false;
             }
 
@@ -144,6 +170,8 @@ class NotificationOutboxHealthService
                 'dead_letter_count' => $cancelledCount,
                 'recent_failure_attempt_count' => $recentFailureAttemptCount,
                 'recent_failure_attempt_window_hours' => $recentFailureWindowHours,
+                'unknown_delivery_outcome_count' => $unknownDeliveryOutcomeCount,
+                ...$reminderHealth,
                 'channel_breakdown' => $this->channelBreakdown($now, $recentFailureWindowHours),
                 'error' => null,
             ];
@@ -161,6 +189,11 @@ class NotificationOutboxHealthService
                 'dead_letter_count' => 0,
                 'recent_failure_attempt_count' => 0,
                 'recent_failure_attempt_window_hours' => $recentFailureWindowHours,
+                'unknown_delivery_outcome_count' => 0,
+                'reminder_catch_up_due_count' => 0,
+                'reminder_catch_up_expired_count' => 0,
+                'oldest_reminder_lag_seconds' => null,
+                'reminder_catch_up_window_minutes' => max(0, (int) config('notifications.outbox.reminder_catch_up_minutes', 120)),
                 'channel_breakdown' => $this->emptyChannelBreakdown(),
                 'error' => $this->runtimeFailureMessage($exception),
             ];
@@ -266,6 +299,110 @@ class NotificationOutboxHealthService
     private function runtimeFailureMessage(Throwable $exception): string
     {
         return 'notification outbox health inspection failed: '.trim($exception->getMessage());
+    }
+
+    /** @return array{reminder_catch_up_due_count:int,reminder_catch_up_expired_count:int,oldest_reminder_lag_seconds:int|null,reminder_catch_up_window_minutes:int} */
+    private function reminderScheduleHealth(Carbon $now): array
+    {
+        $catchUpMinutes = max(0, (int) config('notifications.outbox.reminder_catch_up_minutes', 120));
+        $empty = [
+            'reminder_catch_up_due_count' => 0,
+            'reminder_catch_up_expired_count' => 0,
+            'oldest_reminder_lag_seconds' => null,
+            'reminder_catch_up_window_minutes' => $catchUpMinutes,
+        ];
+        if (! (bool) config('notifications.outbox.reminder_enabled', true) || ! Schema::hasTable('reservations')) {
+            return $empty;
+        }
+
+        $leadMinutes = max(1, (int) config('notifications.outbox.reminder_lead_minutes', 60));
+        $reservations = Reservation::query()
+            ->with('user')
+            ->where('status', 'Confirmed')
+            ->where('start_time', '>', $now)
+            ->where('start_time', '<=', $now->copy()->addMinutes($leadMinutes))
+            ->orderBy('start_time')
+            ->orderBy('reservation_id')
+            ->get();
+        if ($reservations->isEmpty()) {
+            return $empty;
+        }
+
+        $reservationIds = $reservations->pluck('reservation_id')->map(fn ($id) => (int) $id)->all();
+        $messages = NotificationOutbox::query()
+            ->whereIn('related_reservation_id', $reservationIds)
+            ->where('template_key', 'reservation.reminder')
+            ->get()
+            ->groupBy(fn (NotificationOutbox $message) => (int) $message->related_reservation_id);
+        $disabledUserIds = [];
+        if (Schema::hasTable('notification_preferences')) {
+            $disabledUserIds = \DB::table('notification_preferences')
+                ->where('channel', 'Email')
+                ->where('is_enabled', false)
+                ->whereIn('user_id', $reservations->pluck('user_id')->filter()->map(fn ($id) => (int) $id)->all())
+                ->pluck('user_id')->map(fn ($id) => (int) $id)->all();
+        }
+
+        $dueCount = 0;
+        $expiredCount = 0;
+        $oldestLag = null;
+        foreach ($reservations as $reservation) {
+            if ((int) ($reservation->user_id ?? 0) > 0 && in_array((int) $reservation->user_id, $disabledUserIds, true)) {
+                continue;
+            }
+            if (trim((string) ($reservation->customerEmail() ?? '')) === '') {
+                continue;
+            }
+            $handled = false;
+            foreach ($messages->get((int) $reservation->reservation_id, collect()) as $message) {
+                if ($this->reminderScheduleMatches($message, $reservation, $leadMinutes)) {
+                    $handled = true;
+                    break;
+                }
+            }
+            if ($handled) {
+                continue;
+            }
+
+            $dueAt = Carbon::parse((string) $reservation->start_time)->utc()->subMinutes($leadMinutes);
+            if ($dueAt->greaterThan($now)) {
+                continue;
+            }
+            $lag = max(0, (int) $dueAt->diffInSeconds($now));
+            $oldestLag = $oldestLag === null ? $lag : max($oldestLag, $lag);
+            if ($lag <= $catchUpMinutes * 60) {
+                $dueCount++;
+            } else {
+                $expiredCount++;
+            }
+        }
+
+        return [
+            'reminder_catch_up_due_count' => $dueCount,
+            'reminder_catch_up_expired_count' => $expiredCount,
+            'oldest_reminder_lag_seconds' => $oldestLag,
+            'reminder_catch_up_window_minutes' => $catchUpMinutes,
+        ];
+    }
+
+    private function reminderScheduleMatches(NotificationOutbox $message, Reservation $reservation, int $leadMinutes): bool
+    {
+        $recorded = (array) data_get((array) $message->payload_json, '_notification.reminder_schedule', []);
+        if ($recorded === []) {
+            return false;
+        }
+        $startAt = Carbon::parse((string) $reservation->start_time)->utc();
+        $endAt = Carbon::parse((string) $reservation->end_time)->utc();
+        $start = $startAt->format('Y-m-d\TH:i:s.u\Z');
+        $end = $endAt->format('Y-m-d\TH:i:s.u\Z');
+        $version = max(1, (int) ($reservation->row_version ?? 1));
+        $fingerprint = substr(hash('sha256', implode('|', [(string) $reservation->reservation_id, (string) $version, $start, $end, (string) $leadMinutes])), 0, 16);
+
+        return (int) ($recorded['reservation_id'] ?? 0) === (int) $reservation->reservation_id
+            && (int) ($recorded['row_version'] ?? 0) === $version
+            && (string) ($recorded['start_at_utc'] ?? '') === $start
+            && (string) ($recorded['end_at_utc'] ?? '') === $end
+            && (string) ($recorded['fingerprint'] ?? '') === $fingerprint;
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Services;
 
 use App\Modules\Notifications\Application\Services\NotificationChannelManager;
+use App\Modules\Notifications\Application\Services\NotificationDeliveryBoundaryHook;
 use App\Modules\Notifications\Application\Services\NotificationOutboxService;
 use App\Modules\Notifications\Application\Services\NotificationPreferenceService;
 use App\Modules\Notifications\Domain\Models\NotificationDeliveryAttempt;
@@ -136,8 +137,8 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         $message = NotificationOutbox::query()->firstOrFail();
         self::assertSame('Sent', $message->status);
         self::assertNotNull($message->sent_at);
-        self::assertSame(1, NotificationDeliveryAttempt::query()->count());
-        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        self::assertSame(2, NotificationDeliveryAttempt::query()->count());
+        $attempt = NotificationDeliveryAttempt::query()->where('status', 'Succeeded')->firstOrFail();
         self::assertSame('Succeeded', $attempt->status);
         self::assertSame('mail', $attempt->provider_key);
     }
@@ -216,7 +217,7 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         self::assertSame('Cancelled', $message->status);
         self::assertSame(2, (int) $message->attempt_count);
         self::assertNull($message->next_retry_at);
-        self::assertSame(2, NotificationDeliveryAttempt::query()->count());
+        self::assertSame(4, NotificationDeliveryAttempt::query()->count());
         self::assertSame(2, NotificationDeliveryAttempt::query()->where('status', 'Failed')->count());
     }
 
@@ -240,7 +241,7 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         self::assertSame(1, (int) $message->attempt_count);
         self::assertNull($message->next_retry_at);
 
-        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        $attempt = NotificationDeliveryAttempt::query()->where('status', 'Failed')->firstOrFail();
         self::assertSame('Failed', $attempt->status);
         self::assertSame('channel_disabled', $attempt->error_code);
     }
@@ -264,7 +265,7 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         self::assertSame(1, $processed);
         $message = NotificationOutbox::query()->firstOrFail();
         self::assertSame('Sent', $message->status);
-        $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
+        $attempt = NotificationDeliveryAttempt::query()->where('status', 'Succeeded')->firstOrFail();
         self::assertSame('Succeeded', $attempt->status);
         self::assertSame('sms.stub', $attempt->provider_key);
     }
@@ -421,5 +422,166 @@ final class NotificationOutboxServiceRetryTest extends TestCase
         $attempt = NotificationDeliveryAttempt::query()->firstOrFail();
         self::assertSame('Deferred', $attempt->status);
         self::assertSame('quiet_hours_active', $attempt->error_code);
+    }
+
+    public function test_worker_crash_after_durable_handoff_but_before_provider_call_is_quarantined_without_send(): void
+    {
+        $message = NotificationOutbox::query()->create([
+            'channel' => 'Email',
+            'recipient' => 'crash-before@example.test',
+            'template_key' => 'reservation.created',
+            'idempotency_key' => 'outbox:crash-before:1',
+            'payload_json' => ['restaurant_name' => 'RestaurantPOS'],
+            'status' => 'Pending',
+            'created_at' => Carbon::now('UTC'),
+        ]);
+
+        $providerCalls = 0;
+        $driver = new class($providerCalls) implements NotificationChannelDriver
+        {
+            public function __construct(private int &$providerCalls)
+            {
+            }
+
+            public function providerKey(): string
+            {
+                return 'mail';
+            }
+
+            public function send(NotificationOutbox $message, array $dispatchPayload): NotificationDeliveryResult
+            {
+                $this->providerCalls++;
+
+                return new NotificationDeliveryResult('mail', 'accepted');
+            }
+        };
+        $channelManager = $this->channelManagerReturning($driver);
+        $hook = new class extends NotificationDeliveryBoundaryHook
+        {
+            public function beforeProviderSideEffect(NotificationOutbox $message, array $dispatchPayload): void
+            {
+                throw new RuntimeException('simulated worker termination before provider side effect');
+            }
+        };
+
+        $service = new NotificationOutboxService($channelManager, app(NotificationPreferenceService::class), $hook);
+        $terminated = false;
+        try {
+            $service->processDueMessages(10, 'crash-before-worker');
+        } catch (RuntimeException $exception) {
+            $terminated = true;
+            self::assertSame('simulated worker termination before provider side effect', $exception->getMessage());
+        }
+
+        self::assertTrue($terminated);
+        self::assertSame(0, $providerCalls);
+        $this->expireLeaseAndRecover($message, $service, 'crash-before-recovery');
+        self::assertSame(0, $providerCalls);
+    }
+
+    public function test_worker_crash_after_provider_acceptance_before_db_ack_is_quarantined_without_duplicate_send(): void
+    {
+        $message = NotificationOutbox::query()->create([
+            'channel' => 'Email',
+            'recipient' => 'crash-after@example.test',
+            'template_key' => 'reservation.created',
+            'idempotency_key' => 'outbox:crash-after:1',
+            'payload_json' => ['restaurant_name' => 'RestaurantPOS'],
+            'status' => 'Pending',
+            'created_at' => Carbon::now('UTC'),
+        ]);
+
+        $providerCalls = 0;
+        $driver = new class($providerCalls) implements NotificationChannelDriver
+        {
+            public function __construct(private int &$providerCalls)
+            {
+            }
+
+            public function providerKey(): string
+            {
+                return 'mail';
+            }
+
+            public function send(NotificationOutbox $message, array $dispatchPayload): NotificationDeliveryResult
+            {
+                $this->providerCalls++;
+
+                return new NotificationDeliveryResult('mail', 'accepted');
+            }
+        };
+        $channelManager = $this->channelManagerReturning($driver);
+        $hook = new class extends NotificationDeliveryBoundaryHook
+        {
+            public function afterProviderAcceptance(NotificationOutbox $message, NotificationDeliveryResult $result): void
+            {
+                throw new RuntimeException('simulated worker termination after provider acceptance');
+            }
+        };
+
+        $service = new NotificationOutboxService($channelManager, app(NotificationPreferenceService::class), $hook);
+        $terminated = false;
+        try {
+            $service->processDueMessages(10, 'crash-after-worker');
+        } catch (RuntimeException $exception) {
+            $terminated = true;
+            self::assertSame('simulated worker termination after provider acceptance', $exception->getMessage());
+        }
+
+        self::assertTrue($terminated);
+        self::assertSame(1, $providerCalls);
+        $this->expireLeaseAndRecover($message, $service, 'crash-after-recovery');
+        self::assertSame(1, $providerCalls, 'An ambiguous accepted delivery must never be sent automatically a second time.');
+    }
+
+    private function expireLeaseAndRecover(NotificationOutbox $message, NotificationOutboxService $service, string $workerId): void
+    {
+        $message->refresh();
+        self::assertSame('Processing', $message->status);
+        self::assertSame(1, (int) $message->attempt_count);
+        self::assertSame(['Started'], NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->orderBy('attempt_id')
+            ->pluck('status')
+            ->all());
+        self::assertNull(NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->where('status', 'Started')
+            ->value('completed_at'));
+
+        $message->forceFill(['locked_until' => Carbon::now('UTC')->subSecond()])->save();
+        self::assertSame(0, $service->processDueMessages(10, $workerId));
+
+        $message->refresh();
+        self::assertSame('Cancelled', $message->status);
+        self::assertStringContainsString('outcome is unknown', (string) $message->last_error);
+        self::assertSame(['Started', 'Unknown'], NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->orderBy('attempt_id')
+            ->pluck('status')
+            ->all());
+        self::assertSame('delivery_outcome_unknown', NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->latest('attempt_id')
+            ->value('error_code'));
+        self::assertNotNull(NotificationDeliveryAttempt::query()
+            ->where('outbox_id', (int) $message->outbox_id)
+            ->where('status', 'Unknown')
+            ->value('completed_at'));
+    }
+
+    private function channelManagerReturning(NotificationChannelDriver $driver): NotificationChannelManager
+    {
+        return new class($driver) extends NotificationChannelManager
+        {
+            public function __construct(private readonly NotificationChannelDriver $driver)
+            {
+            }
+
+            public function resolve(string $channel): NotificationChannelDriver
+            {
+                return $this->driver;
+            }
+        };
     }
 }

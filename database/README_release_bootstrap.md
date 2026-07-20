@@ -58,6 +58,7 @@ At minimum, the release must include and apply the patch set listed in `config/b
 The current SQL-first release contract also assumes the April 5 foundations are present in both schema dump and applied patches:
 
 - notification platform v2 (`notification_outbox.recipient_user_id`, `notification_outbox.dedupe_key`, `notification_delivery_attempts`, `notification_preferences`)
+- notification delivery durability (`notification_delivery_attempts.status` records Started, Succeeded, Failed, Deferred, Suppressed and Unknown handoff evidence; patch `2026_07_20_000072_notification_delivery_durability.sql`)
 - unified audit trail (`audit_logs.actor_type`, `audit_logs.summary_json`, `audit_logs.request_id`, `audit_log_subjects`)
 - branch scheduling policy (`branches.business_hours`, `branches.closure_windows`, `branches.booking_policy`)
 - branch ownership foreign keys for core runtime tables (`reservations.branch_id`, `table_holds.branch_id`, `cashier_shifts.branch_id`)
