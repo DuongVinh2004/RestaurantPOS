@@ -15,6 +15,11 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
 {
     use BuildsBookingScenario;
 
+    /** @var array<string,int> */
+    private array $fixtureIds = [];
+
+    private bool $createdMenuCategory = false;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -26,12 +31,21 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
         $this->requireBookingSchema();
     }
 
+    protected function tearDown(): void
+    {
+        try {
+            $this->cleanupCommittedFixtures();
+        } finally {
+            parent::tearDown();
+        }
+    }
+
     public function test_parallel_receive_consume_and_adjust_preserve_exact_stock_equation_and_replay_identity(): void
     {
         $now = now('UTC');
         $branchId = 1;
         $token = 'b12-'.bin2hex(random_bytes(4));
-        $staffId = $this->createUser(['role_name' => 'Staff']);
+        $staffId = $this->fixtureIds['staff_id'] = $this->createUser(['role_name' => 'Staff']);
         DB::table('staff_branch_assignments')->insert([
             'user_id' => $staffId,
             'branch_id' => $branchId,
@@ -42,12 +56,14 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
             'updated_at' => $now,
         ]);
 
-        $ingredientId = $this->createIngredient([
+        $ingredientId = $this->fixtureIds['ingredient_id'] = $this->createIngredient([
             'code' => strtoupper($token).'-INGREDIENT',
             'name' => 'B12 MySQL Equation Ingredient',
             'unit_code' => 'g',
         ]);
-        $itemId = $this->createMenuItem(['code' => strtoupper($token).'-ITEM']);
+        $this->createdMenuCategory = ! DB::table('menu_categories')->where('name', 'Test Food')->exists();
+        $itemId = $this->fixtureIds['item_id'] = $this->createMenuItem(['code' => strtoupper($token).'-ITEM']);
+        $this->fixtureIds['category_id'] = (int) DB::table('menu_items')->where('item_id', $itemId)->value('category_id');
         $this->createMenuItemRecipeLine([
             'item_id' => $itemId,
             'ingredient_id' => $ingredientId,
@@ -56,18 +72,18 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
             'sort_order' => 10,
         ]);
 
-        $customerId = $this->createUser(['role_name' => 'Customer']);
-        $reservationId = $this->createReservation([
+        $customerId = $this->fixtureIds['customer_id'] = $this->createUser(['role_name' => 'Customer']);
+        $reservationId = $this->fixtureIds['reservation_id'] = $this->createReservation([
             'user_id' => $customerId,
             'branch_id' => $branchId,
             'status' => 'Reserved',
         ]);
-        $orderId = $this->createOrder([
+        $orderId = $this->fixtureIds['order_id'] = $this->createOrder([
             'reservation_id' => $reservationId,
             'order_type' => 'OnSpot',
             'status' => 'Active',
         ]);
-        $orderItemId = $this->createOrderItem([
+        $orderItemId = $this->fixtureIds['order_item_id'] = $this->createOrderItem([
             'order_id' => $orderId,
             'item_id' => $itemId,
             'quantity' => 1,
@@ -77,7 +93,7 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
             'status' => 'Ordered',
         ]);
 
-        $supplierId = (int) DB::table('suppliers')->insertGetId([
+        $supplierId = $this->fixtureIds['supplier_id'] = (int) DB::table('suppliers')->insertGetId([
             'code' => strtoupper($token).'-SUPPLIER',
             'name' => 'B12 MySQL Equation Supplier',
             'is_active' => 1,
@@ -85,7 +101,7 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
-        $purchaseOrderId = (int) DB::table('purchase_orders')->insertGetId([
+        $purchaseOrderId = $this->fixtureIds['purchase_order_id'] = (int) DB::table('purchase_orders')->insertGetId([
             'supplier_id' => $supplierId,
             'branch_id' => $branchId,
             'order_code' => strtoupper($token).'-PO',
@@ -97,7 +113,7 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
             'created_at' => $now,
             'updated_at' => $now,
         ]);
-        $purchaseOrderLineId = (int) DB::table('purchase_order_lines')->insertGetId([
+        $purchaseOrderLineId = $this->fixtureIds['purchase_order_line_id'] = (int) DB::table('purchase_order_lines')->insertGetId([
             'purchase_order_id' => $purchaseOrderId,
             'ingredient_id' => $ingredientId,
             'ordered_quantity' => '50.000',
@@ -191,6 +207,71 @@ class InventoryStockEquationMysqlConcurrencyTest extends TestCase
         self::assertSame('60.000', number_format($expectedClosing, 3, '.', ''));
         self::assertSame(number_format($expectedClosing, 3, '.', ''), number_format($actualClosing, 3, '.', ''));
         self::assertGreaterThanOrEqual(0.0, $actualClosing);
+    }
+
+    private function cleanupCommittedFixtures(): void
+    {
+        if ($this->fixtureIds === [] || DB::connection()->getDriverName() !== 'mysql') {
+            return;
+        }
+
+        while (DB::transactionLevel() > 0) {
+            DB::rollBack();
+        }
+
+        DB::transaction(function (): void {
+            $purchaseOrderId = $this->fixtureIds['purchase_order_id'] ?? 0;
+            $ingredientId = $this->fixtureIds['ingredient_id'] ?? 0;
+            $reservationId = $this->fixtureIds['reservation_id'] ?? 0;
+            $itemId = $this->fixtureIds['item_id'] ?? 0;
+
+            if ($purchaseOrderId > 0) {
+                $receiptIds = DB::table('purchase_receipts')
+                    ->where('purchase_order_id', $purchaseOrderId)
+                    ->pluck('receipt_id');
+                DB::table('purchase_receipt_lines')->whereIn('receipt_id', $receiptIds)->delete();
+                DB::table('purchase_receipts')->whereIn('receipt_id', $receiptIds)->delete();
+                DB::table('purchase_orders')->where('purchase_order_id', $purchaseOrderId)->delete();
+            }
+
+            if ($ingredientId > 0) {
+                DB::table('ingredient_stock_movements')->where('ingredient_id', $ingredientId)->delete();
+            }
+
+            if ($reservationId > 0) {
+                DB::table('reservations')->where('reservation_id', $reservationId)->delete();
+            }
+
+            if ($itemId > 0) {
+                DB::table('menu_items')->where('item_id', $itemId)->delete();
+            }
+
+            if ($ingredientId > 0) {
+                DB::table('ingredients')->where('ingredient_id', $ingredientId)->delete();
+            }
+
+            if (($this->fixtureIds['supplier_id'] ?? 0) > 0) {
+                DB::table('suppliers')->where('supplier_id', $this->fixtureIds['supplier_id'])->delete();
+            }
+
+            DB::table('users')->whereIn('user_id', array_filter([
+                $this->fixtureIds['staff_id'] ?? 0,
+                $this->fixtureIds['customer_id'] ?? 0,
+            ]))->delete();
+
+            if ($this->createdMenuCategory && ($this->fixtureIds['category_id'] ?? 0) > 0) {
+                DB::table('menu_categories')
+                    ->where('category_id', $this->fixtureIds['category_id'])
+                    ->whereNotExists(function ($query): void {
+                        $query->selectRaw('1')
+                            ->from('menu_items')
+                            ->whereColumn('menu_items.category_id', 'menu_categories.category_id');
+                    })
+                    ->delete();
+            }
+        });
+
+        $this->fixtureIds = [];
     }
 
     /**
